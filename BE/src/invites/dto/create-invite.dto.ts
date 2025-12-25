@@ -1,10 +1,4 @@
-import {
-  IsDateString,
-  IsEnum,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { UserRole } from '../../common/enums/role.enum';
 
 export class CreateInviteDto {
@@ -14,6 +8,9 @@ export class CreateInviteDto {
   @IsOptional()
   @IsString()
   classId?: string;
+
+  @IsString()
+  branchId: string;
 
   @IsOptional()
   @IsDateString()

@@ -59,11 +59,11 @@ describe('Auth invite flow (e2e)', () => {
 
     const adminAccess = loginRes.body.accessToken as string;
 
-    // Admin creates invite token for student role
+    // Admin creates invite token for student role at a branch
     const inviteRes = await request(app.getHttpServer())
       .post('/invites/create')
       .set('Authorization', `Bearer ${adminAccess}`)
-      .send({ role: UserRole.Student })
+      .send({ role: UserRole.Student, branchId: 'branch-1' })
       .expect(201);
 
     const token = inviteRes.body.token as string;
@@ -103,5 +103,6 @@ describe('Auth invite flow (e2e)', () => {
 
     expect(studentLogin.body.accessToken).toBeDefined();
     expect(studentLogin.body.user.role).toBe(UserRole.Student);
+    expect(studentLogin.body.user.branchId).toBe('branch-1');
   });
 });

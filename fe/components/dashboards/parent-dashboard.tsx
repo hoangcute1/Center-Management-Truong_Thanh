@@ -295,7 +295,7 @@ export default function ParentDashboard({
         <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">
-              Dạy Thêm Pro
+              Trường Thành Education
             </h1>
             <p className="text-sm text-gray-500">Dashboard Phụ huynh</p>
           </div>

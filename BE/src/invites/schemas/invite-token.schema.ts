@@ -16,6 +16,9 @@ export class InviteToken {
   classId?: string;
 
   @Prop({ required: true })
+  branchId: string;
+
+  @Prop({ required: true })
   expiredAt: Date;
 
   @Prop({ required: false })

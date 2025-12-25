@@ -10,6 +10,8 @@ interface LoginPageProps {
     name: string;
     email: string;
     role: "student" | "teacher" | "parent" | "admin";
+    branchId?: string;
+    branchName?: string;
   }) => void;
 }
 
@@ -20,24 +22,35 @@ const DEMO_USERS = {
   admin: { id: "ad1", name: "Phạm Quốc D", email: "admin@example.com" },
 };
 
+const BRANCHES = [
+  { id: "cs1", name: "Cơ sở 1 - Quận 1" },
+  { id: "cs2", name: "Cơ sở 2 - Quận 3" },
+  { id: "cs3", name: "Cơ sở 3 - Thủ Đức" },
+];
+
 type Role = "student" | "teacher" | "parent" | "admin";
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [selectedRole, setSelectedRole] = useState<Role | "">("");
   const [email, setEmail] = useState("");
+  const [branchId, setBranchId] = useState("cs1");
 
   const handleDemoLogin = (role: Role) => {
     const user = DEMO_USERS[role];
-    onLogin({ ...user, role });
+    const branch = BRANCHES.find((b) => b.id === branchId);
+    onLogin({ ...user, role, branchId, branchName: branch?.name });
   };
 
   const handleCustomLogin = () => {
     if (selectedRole && email) {
+      const branch = BRANCHES.find((b) => b.id === branchId);
       onLogin({
         id: `${selectedRole}-${Date.now()}`,
         name: email.split("@")[0],
         email,
         role: selectedRole,
+        branchId,
+        branchName: branch?.name,
       });
     }
   };
@@ -48,7 +61,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <Card className="backdrop-blur-md bg-white/95 border-white/20 shadow-2xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Dạy Thêm Pro
+              Trường Thành Education
             </h1>
             <p className="text-gray-600">Hệ thống quản lý trung tâm dạy thêm</p>
           </div>
@@ -88,6 +101,23 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Chọn cơ sở
+                </label>
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                >
+                  {BRANCHES.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Chọn vai trò

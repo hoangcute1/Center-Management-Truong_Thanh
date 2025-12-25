@@ -16,6 +16,9 @@ export class User {
   @Prop({ unique: true, sparse: true, trim: true })
   phone?: string;
 
+  @Prop({ required: false, index: true })
+  branchId?: string;
+
   @Prop({ required: true })
   passwordHash: string;
 

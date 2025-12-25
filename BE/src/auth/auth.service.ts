@@ -37,6 +37,7 @@ export class AuthService {
       sub: (user as any)._id?.toString?.() || (user as any).id,
       email: user.email,
       role: user.role,
+      branchId: (user as any).branchId,
     };
     const accessToken = this.jwtService.sign(payload, {
       secret: JWT_SECRET,
@@ -90,6 +91,7 @@ export class AuthService {
       password: dto.password,
       role: invite.role as UserRole,
       status: UserStatus.Pending,
+      branchId: invite.branchId,
     } as any);
     await this.approvalsService.createRegisterRequest(
       (created as any)._id?.toString(),

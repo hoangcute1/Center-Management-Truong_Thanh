@@ -32,6 +32,7 @@ export class InvitesService {
       token,
       role: dto.role,
       classId: dto.classId,
+      branchId: dto.branchId,
       expiredAt,
       createdBy: adminId,
     });
@@ -40,6 +41,7 @@ export class InvitesService {
       expiredAt: created.expiredAt,
       role: created.role,
       classId: created.classId,
+      branchId: created.branchId,
     };
   }
 

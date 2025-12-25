@@ -197,7 +197,7 @@ export default function AdminDashboard({
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">
-              Dạy Thêm Pro
+              Trường Thành Education
             </h1>
             <p className="text-sm text-gray-500">Dashboard Quản trị</p>
           </div>
@@ -615,7 +615,7 @@ export default function AdminDashboard({
               <p className="font-semibold text-gray-900">Cài đặt hệ thống</p>
               <Input
                 placeholder="Tên trung tâm"
-                defaultValue="Trung tâm dạy thêm Dạy Thêm Pro"
+                defaultValue="Trường Thành Education"
               />
               <Input
                 placeholder="Email hệ thống"
