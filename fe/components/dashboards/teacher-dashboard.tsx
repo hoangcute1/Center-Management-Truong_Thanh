@@ -32,6 +32,8 @@ type StudentItem = {
   className: string;
 };
 
+type RankingCategory = "score" | "diligence" | "attendance";
+
 type DaySession = {
   code: string;
   subject: string;
@@ -126,6 +128,94 @@ const classStudents: Record<ClassKey, StudentItem[]> = {
   ],
 };
 
+const leaderboardOptions: Record<
+  RankingCategory,
+  { label: string; desc: string }
+> = {
+  score: { label: "Top điểm", desc: "Điểm trung bình cao" },
+  diligence: { label: "Top chăm chỉ", desc: "Nộp bài và tham gia đầy đủ" },
+  attendance: { label: "Top chuyên cần", desc: "Điểm danh đủ và đúng giờ" },
+};
+
+const leaderboardData: Record<
+  RankingCategory,
+  { name: string; className: string; value: string; trend: string }[]
+> = {
+  score: [
+    {
+      name: "Nguyễn Văn A",
+      className: "Toán 10A",
+      value: "9.2",
+      trend: "+0.3 tuần này",
+    },
+    {
+      name: "Phạm Thị D",
+      className: "Toán 11B",
+      value: "9.0",
+      trend: "Giữ phong độ",
+    },
+    { name: "Võ Thị F", className: "Vật Lý 10", value: "8.9", trend: "+0.1" },
+    {
+      name: "Hoàng Văn E",
+      className: "Toán 11B",
+      value: "8.7",
+      trend: "Vượt 1 bậc",
+    },
+  ],
+  diligence: [
+    {
+      name: "Trần Thị B",
+      className: "Toán 10A",
+      value: "12/12 bài tập",
+      trend: "3 tuần liên tiếp",
+    },
+    {
+      name: "Đặng Văn G",
+      className: "Vật Lý 10",
+      value: "11/12 bài tập",
+      trend: "Ổn định",
+    },
+    {
+      name: "Lê Văn C",
+      className: "Toán 10A",
+      value: "11/12 bài tập",
+      trend: "+2 bài tuần này",
+    },
+    {
+      name: "Nguyễn Văn A",
+      className: "Toán 10A",
+      value: "10/12 bài tập",
+      trend: "Cần giữ nhịp",
+    },
+  ],
+  attendance: [
+    {
+      name: "Phạm Thị D",
+      className: "Toán 11B",
+      value: "12/12 buổi",
+      trend: "3 tuần đủ",
+    },
+    {
+      name: "Nguyễn Văn A",
+      className: "Toán 10A",
+      value: "11/12 buổi",
+      trend: "+1 buổi",
+    },
+    {
+      name: "Hoàng Văn E",
+      className: "Toán 11B",
+      value: "11/12 buổi",
+      trend: "Ổn định",
+    },
+    {
+      name: "Võ Thị F",
+      className: "Vật Lý 10",
+      value: "10/12 buổi",
+      trend: "Cải thiện",
+    },
+  ],
+};
+
 const scheduleWeek: { day: string; date: string; sessions: DaySession[] }[] = [
   {
     day: "THỨ HAI",
@@ -207,6 +297,64 @@ const scheduleWeek: { day: string; date: string; sessions: DaySession[] }[] = [
   },
   { day: "THỨ BẢY", date: "10/01", sessions: [] },
   { day: "CHỦ NHẬT", date: "11/01", sessions: [] },
+];
+
+const teachingBadges = [
+  {
+    id: "fast-reply",
+    title: "Phản hồi nhanh",
+    desc: "Trả lời phụ huynh < 30 phút",
+    value: "18 lượt tuần này",
+    tone: "border-amber-200 bg-amber-50",
+  },
+  {
+    id: "consistency",
+    title: "Duy trì chất lượng",
+    desc: "Điểm hài lòng > 4.5",
+    value: "12/12 buổi gần nhất",
+    tone: "border-emerald-200 bg-emerald-50",
+  },
+  {
+    id: "materials",
+    title: "Tài liệu đầy đủ",
+    desc: "Tải tài liệu trước giờ học",
+    value: "6/7 buổi tuần này",
+    tone: "border-sky-200 bg-sky-50",
+  },
+  {
+    id: "attendance",
+    title: "Điểm danh chuẩn",
+    desc: "Chốt điểm danh trong ngày",
+    value: "100% lớp phụ trách",
+    tone: "border-violet-200 bg-violet-50",
+  },
+];
+
+const badgeLeaderboard = [
+  {
+    name: "Cô Lan",
+    className: "Toán 10B",
+    badges: 18,
+    highlight: "Tăng 3 huy hiệu tuần này",
+  },
+  {
+    name: "Thầy Minh",
+    className: "Lý 11A",
+    badges: 16,
+    highlight: "Giữ vị trí 2 tuần liền",
+  },
+  {
+    name: "Cô Hạnh",
+    className: "Hóa 12",
+    badges: 14,
+    highlight: "Vượt 2 bậc",
+  },
+  {
+    name: "Thầy Nam",
+    className: "Toán 9",
+    badges: 12,
+    highlight: "Mới tham gia đua top",
+  },
 ];
 
 const evaluationSummary = {
@@ -584,6 +732,21 @@ function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function MedalIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M7 2h10l-1.5 5h-7L7 2z" />
+      <circle cx="12" cy="13" r="5" />
+      <path d="M9.5 18.5 8 22l4-2 4 2-1.5-3.5" />
+    </svg>
+  );
+}
+
 export default function TeacherDashboard({
   user,
   onLogout,
@@ -598,6 +761,7 @@ export default function TeacherDashboard({
   );
   const [showAttendance, setShowAttendance] = useState(false);
   const [showEvaluation, setShowEvaluation] = useState(false);
+  const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
   const statusStyle = (status: DaySession["status"]) => {
     if (status === "confirmed")
@@ -617,14 +781,14 @@ export default function TeacherDashboard({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">
               Trường Thành Education
             </h1>
             <p className="text-sm text-gray-500">Dashboard Giáo viên</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             <NotificationCenter userRole={user.role} />
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-900">{user.name}</p>
@@ -639,7 +803,7 @@ export default function TeacherDashboard({
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList>
+          <TabsList className="w-full overflow-x-auto">
             <TabsTrigger value="overview">Tổng quan</TabsTrigger>
             <TabsTrigger value="students">Học sinh</TabsTrigger>
             <TabsTrigger value="schedule">Lịch dạy</TabsTrigger>
@@ -648,7 +812,7 @@ export default function TeacherDashboard({
           </TabsList>
 
           <TabsContent value="overview" className="mt-4 space-y-4">
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {overviewCards.map((item) => (
                 <Card key={item.label} className="p-4">
                   <p className="text-sm text-gray-600 mb-2">{item.label}</p>
@@ -690,6 +854,83 @@ export default function TeacherDashboard({
                 </ResponsiveContainer>
               </div>
             </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-gray-900">
+                    Huy hiệu giảng dạy
+                  </p>
+                  <span className="text-xs text-gray-500">
+                    Cập nhật theo tuần
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {teachingBadges.map((badge) => (
+                    <div
+                      key={badge.id}
+                      className={`rounded-lg border ${badge.tone} p-3 flex gap-3 items-start`}
+                    >
+                      <div className="h-12 w-12 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
+                        <MedalIcon className="h-6 w-6 text-amber-600" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-gray-900">
+                          {badge.title}
+                        </p>
+                        <p className="text-xs text-gray-600 leading-snug">
+                          {badge.desc}
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {badge.value}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-gray-900">
+                    Đua top huy hiệu
+                  </p>
+                  <span className="text-xs text-gray-500">
+                    BXH toàn trung tâm
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {badgeLeaderboard.map((row, index) => (
+                    <div
+                      key={row.name}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="h-8 w-8 rounded-full bg-gray-100 text-sm font-bold text-gray-800 flex items-center justify-center">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-gray-900 leading-tight">
+                            {row.name}
+                          </p>
+                          <p className="text-xs text-gray-500 leading-tight">
+                            {row.className}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-blue-700">
+                          {row.badges} huy hiệu
+                        </p>
+                        <p className="text-xs text-gray-500 leading-tight">
+                          {row.highlight}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="students" className="mt-4 space-y-3">
@@ -717,7 +958,66 @@ export default function TeacherDashboard({
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <Card className="p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-gray-900">Bảng xếp hạng</p>
+                    <p className="text-xs text-gray-500">
+                      Xem top điểm, chăm chỉ, chuyên cần
+                    </p>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto">
+                    {Object.entries(leaderboardOptions).map(([key, opt]) => (
+                      <Button
+                        key={key}
+                        size="sm"
+                        variant={rankingView === key ? "solid" : "outline"}
+                        className={
+                          rankingView === key
+                            ? "bg-blue-600 hover:bg-blue-700"
+                            : "whitespace-nowrap"
+                        }
+                        onClick={() => setRankingView(key as RankingCategory)}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {leaderboardData[rankingView].map((row, index) => (
+                    <div
+                      key={`${rankingView}-${row.name}`}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="h-8 w-8 rounded-full bg-blue-50 text-sm font-bold text-blue-700 flex items-center justify-center">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-gray-900 leading-tight">
+                            {row.name}
+                          </p>
+                          <p className="text-xs text-gray-500 leading-tight">
+                            {row.className}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {row.value}
+                        </p>
+                        <p className="text-xs text-emerald-600 leading-tight">
+                          {row.trend}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 {students.map((s) => (
                   <div
                     key={s.id}
@@ -754,7 +1054,7 @@ export default function TeacherDashboard({
               <p className="font-semibold text-gray-900 text-lg">
                 Lịch dạy tuần này
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                 {scheduleWeek.map((day) => (
                   <div
                     key={day.day}

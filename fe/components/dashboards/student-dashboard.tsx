@@ -31,12 +31,191 @@ type DaySchedule = {
   status: "confirmed" | "pending" | "unconfirmed";
 };
 
+type RankingCategory = "score" | "diligence" | "attendance";
+
 const overviewCards = [
   { label: "Khóa học", value: 3, note: "Đang theo học" },
   { label: "Buổi học tới", value: 2, note: "Tuần này" },
   { label: "Điểm TB", value: 78.3, note: "Đạt kết quả tốt" },
   { label: "Bài tập", value: 12, note: "Chưa nộp" },
 ];
+
+const streakCards = [
+  {
+    title: "Chuỗi điểm danh",
+    value: "12 ngày",
+    sub: "Kỷ lục: 18 ngày",
+    hint: "Giữ vững thêm 3 buổi để nhận huy hiệu mới",
+    bar: 70,
+    tone: "emerald",
+  },
+  {
+    title: "Streak làm bài tập",
+    value: "7 ngày",
+    sub: "Đã nộp 7/7 ngày",
+    hint: "Nộp bài hôm nay trước 22:00 để giữ streak",
+    bar: 50,
+    tone: "blue",
+  },
+  {
+    title: "Tần suất ôn luyện",
+    value: "5 phiên/tuần",
+    sub: "Mục tiêu: 6 phiên",
+    hint: "Còn 1 phiên để đạt mục tiêu tuần",
+    bar: 80,
+    tone: "violet",
+  },
+];
+
+const badges = [
+  {
+    title: "Chăm chỉ",
+    desc: "5 ngày liên tục",
+    earned: true,
+  },
+  {
+    title: "Nộp bài đúng hạn",
+    desc: "10 lần liên tục",
+    earned: true,
+  },
+  {
+    title: "Điểm cao",
+    desc: "≥ 80 trong 3 bài",
+    earned: false,
+  },
+];
+
+const leaderboardOptions: Record<
+  RankingCategory,
+  { label: string; desc: string }
+> = {
+  score: { label: "Top điểm", desc: "Điểm trung bình cao" },
+  attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
+  diligence: { label: "Chăm chỉ", desc: "Hoàn thành bài tập" },
+};
+
+const leaderboardData: Record<
+  RankingCategory,
+  {
+    rank: number;
+    name: string;
+    className: string;
+    metric: string;
+    detail: string;
+  }[]
+> = {
+  score: [
+    {
+      rank: 1,
+      name: "Nguyễn Văn A",
+      className: "Lớp Toán 12A1",
+      metric: "9.8",
+      detail: "Top Điểm",
+    },
+    {
+      rank: 2,
+      name: "Trần Thị B",
+      className: "Lớp Anh Văn 12B2",
+      metric: "9.6",
+      detail: "Top Điểm",
+    },
+    {
+      rank: 3,
+      name: "Lê Văn C",
+      className: "Lớp Vật Lý 11C1",
+      metric: "9.5",
+      detail: "Top Điểm",
+    },
+    {
+      rank: 4,
+      name: "Phạm Minh D",
+      className: "Lớp Hóa Học 10A2",
+      metric: "9.2",
+      detail: "Top Điểm",
+    },
+    {
+      rank: 5,
+      name: "Hoàng An E",
+      className: "Lớp Toán 11B1",
+      metric: "9.0",
+      detail: "Top Điểm",
+    },
+  ],
+  attendance: [
+    {
+      rank: 1,
+      name: "Trần Minh T",
+      className: "Đã theo học 240 ngày",
+      metric: "100%",
+      detail: "Chuyên cần",
+    },
+    {
+      rank: 2,
+      name: "Lê Hải Y",
+      className: "Đã theo học 210 ngày",
+      metric: "100%",
+      detail: "Chuyên cần",
+    },
+    {
+      rank: 3,
+      name: "Nguyễn Công P",
+      className: "Đã theo học 180 ngày",
+      metric: "98%",
+      detail: "Nghỉ 1 buổi có phép",
+    },
+    {
+      rank: 4,
+      name: "Đặng Thu H",
+      className: "Đã theo học 150 ngày",
+      metric: "97%",
+      detail: "Nghỉ 1 buổi",
+    },
+    {
+      rank: 5,
+      name: "Vũ Gia K",
+      className: "Đã theo học 130 ngày",
+      metric: "96%",
+      detail: "Nghỉ 1 buổi",
+    },
+  ],
+  diligence: [
+    {
+      rank: 1,
+      name: "Bùi Xuân H",
+      className: "Hoàn thành 150 bài tập",
+      metric: "Level 15",
+      detail: "Chăm Chỉ",
+    },
+    {
+      rank: 2,
+      name: "Ngô Quốc B",
+      className: "Hoàn thành 142 bài tập",
+      metric: "Level 14",
+      detail: "Chăm Chỉ",
+    },
+    {
+      rank: 3,
+      name: "Lý Gia L",
+      className: "Hoàn thành 128 bài tập",
+      metric: "Level 12",
+      detail: "Chăm Chỉ",
+    },
+    {
+      rank: 4,
+      name: "Mai Thanh V",
+      className: "Hoàn thành 125 bài tập",
+      metric: "Level 12",
+      detail: "Chăm Chỉ",
+    },
+    {
+      rank: 5,
+      name: "Đỗ Mạnh Q",
+      className: "Hoàn thành 118 bài tập",
+      metric: "Level 11",
+      detail: "Chăm Chỉ",
+    },
+  ],
+};
 
 const scheduleWeek: DaySchedule[] = [
   {
@@ -441,6 +620,13 @@ export default function StudentDashboard({
     score: number;
   } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [rankingView, setRankingView] = useState<RankingCategory>("score");
+
+  const tabIcons: Record<RankingCategory, string> = {
+    score: "🏆",
+    attendance: "👥",
+    diligence: "⚡",
+  };
 
   const statusStyle = (status: DaySchedule["status"]) => {
     if (status === "confirmed")
@@ -487,12 +673,43 @@ export default function StudentDashboard({
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-            <TabsTrigger value="schedule">Lịch học</TabsTrigger>
-            <TabsTrigger value="progress">Tiến độ</TabsTrigger>
-            <TabsTrigger value="grades">Điểm số</TabsTrigger>
-            <TabsTrigger value="contact">Liên hệ</TabsTrigger>
+          <TabsList className="w-full overflow-x-auto flex gap-2 rounded-2xl bg-gray-50 p-2 shadow-sm justify-start md:justify-center">
+            <TabsTrigger
+              value="overview"
+              className="whitespace-nowrap px-3 py-2 text-sm"
+            >
+              Tổng quan
+            </TabsTrigger>
+            <TabsTrigger
+              value="schedule"
+              className="whitespace-nowrap px-3 py-2 text-sm"
+            >
+              Lịch học
+            </TabsTrigger>
+            <TabsTrigger
+              value="progress"
+              className="whitespace-nowrap px-3 py-2 text-sm"
+            >
+              Tiến độ
+            </TabsTrigger>
+            <TabsTrigger
+              value="grades"
+              className="whitespace-nowrap px-3 py-2 text-sm"
+            >
+              Điểm số
+            </TabsTrigger>
+            <TabsTrigger
+              value="leaderboard"
+              className="whitespace-nowrap px-3 py-2 text-sm"
+            >
+              Bảng xếp hạng
+            </TabsTrigger>
+            <TabsTrigger
+              value="contact"
+              className="whitespace-nowrap px-3 py-2 text-sm"
+            >
+              Liên hệ
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
@@ -507,6 +724,77 @@ export default function StudentDashboard({
                 </Card>
               ))}
             </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              {streakCards.map((item) => (
+                <Card key={item.title} className="p-4 border-gray-200 bg-white">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {item.title}
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {item.value}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{item.sub}</p>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full bg-${item.tone}-100 text-${item.tone}-700`}
+                    >
+                      Streak
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className={`h-full bg-${item.tone}-500`}
+                      style={{ width: `${item.bar}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">{item.hint}</p>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="mt-4 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-semibold text-gray-900">
+                  Huy hiệu động viên
+                </p>
+                <p className="text-xs text-gray-500">
+                  Thu thập để giữ động lực
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {badges.map((b) => (
+                  <div
+                    key={b.title}
+                    className={`rounded-lg border px-4 py-3 ${
+                      b.earned
+                        ? "border-emerald-200 bg-emerald-50"
+                        : "border-gray-200 bg-gray-50"
+                    }`}
+                  >
+                    <p
+                      className={`font-semibold ${
+                        b.earned ? "text-emerald-700" : "text-gray-700"
+                      }`}
+                    >
+                      {b.title}
+                    </p>
+                    <p className="text-xs text-gray-600">{b.desc}</p>
+                    {b.earned ? (
+                      <span className="inline-flex mt-2 text-[11px] px-2 py-1 rounded-full bg-emerald-600 text-white">
+                        Đã đạt
+                      </span>
+                    ) : (
+                      <span className="inline-flex mt-2 text-[11px] px-2 py-1 rounded-full bg-gray-200 text-gray-700">
+                        Chưa đạt
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-4">
@@ -638,6 +926,84 @@ export default function StudentDashboard({
                   </Button>
                 </div>
               ))}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="leaderboard" className="mt-4">
+            <Card className="p-5 space-y-4">
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-gray-900">Bảng Xếp Hạng</p>
+                <p className="text-sm text-gray-600">
+                  Vinh danh những nỗ lực xuất sắc
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
+                {Object.entries(leaderboardOptions).map(([key, opt]) => (
+                  <button
+                    key={key}
+                    onClick={() => setRankingView(key as RankingCategory)}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                      rankingView === key
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-gray-700 hover:bg-white"
+                    }`}
+                  >
+                    <span className="text-base leading-none">
+                      {tabIcons[key as RankingCategory]}
+                    </span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                {leaderboardData[rankingView].map((row) => (
+                  <div
+                    key={`${rankingView}-${row.rank}-${row.name}`}
+                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
+                        {row.rank === 1 && (
+                          <span className="text-amber-500">🏆</span>
+                        )}
+                        {row.rank === 2 && (
+                          <span className="text-gray-400">🥈</span>
+                        )}
+                        {row.rank === 3 && (
+                          <span className="text-orange-400">🥉</span>
+                        )}
+                        {row.rank > 3 && (
+                          <span className="text-sm font-semibold text-gray-700">
+                            {row.rank}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 leading-tight">
+                          {row.name}
+                        </p>
+                        <p className="text-xs text-gray-500 leading-tight">
+                          {row.className}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-blue-700">
+                        {row.metric}
+                      </p>
+                      <p className="text-xs text-gray-500">{row.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl bg-blue-50 text-blue-700 text-sm text-center px-4 py-3">
+                Vị trí hiện tại của bạn:{" "}
+                <span className="font-semibold">Hạng 12</span> trong{" "}
+                {leaderboardOptions[rankingView].label}
+              </div>
             </Card>
           </TabsContent>
 
