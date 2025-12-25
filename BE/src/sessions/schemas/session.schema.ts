@@ -1,0 +1,34 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+import { SessionStatus, SessionType } from '../dto/create-session.dto';
+
+export type SessionDocument = HydratedDocument<Session>;
+
+@Schema({ timestamps: true })
+export class Session {
+  @Prop({ type: Types.ObjectId, ref: 'ClassEntity', required: true })
+  classId: Types.ObjectId;
+
+  @Prop({ required: true })
+  startTime: Date;
+
+  @Prop({ required: true })
+  endTime: Date;
+
+  @Prop({ type: String, enum: SessionType, default: SessionType.Regular })
+  type: SessionType;
+
+  @Prop({ type: String, enum: SessionStatus, default: SessionStatus.Pending })
+  status: SessionStatus;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  createdBy?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  approvedBy?: Types.ObjectId;
+
+  @Prop()
+  note?: string;
+}
+
+export const SessionSchema = SchemaFactory.createForClass(Session);

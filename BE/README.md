@@ -28,34 +28,38 @@
 ## Project setup
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+## Environment
+
+Copy `.env.example` to `.env` and fill in:
+
+- PORT, FRONTEND_URL
+- MONGODB_URI (Atlas URI)
+- JWT_SECRET, JWT_EXPIRES_IN
+- REFRESH_JWT_SECRET, REFRESH_JWT_EXPIRES_IN
+
+## Run
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev   # development
+npm run start       # production build required
 ```
 
-## Run tests
+## Core modules (API)
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
+- Auth: /auth/register, /auth/login, /auth/refresh
+- Users (admin): CRUD users
+- Classes: admin create/update, role-based listing
+- Sessions: create/update class sessions
+- Attendance: teacher/admin mark attendance
+- Assessments: teacher/admin chấm điểm / bài tập
+- Goals: mục tiêu học tập
+- Tuition: hóa đơn học phí
+- Notifications: gửi/thêm thông báo
+- Chat: nhắn tin một-một
+- Feedback: học sinh đánh giá giáo viên
 
 ## Deployment
 
