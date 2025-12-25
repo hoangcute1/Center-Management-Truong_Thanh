@@ -56,8 +56,17 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-700 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen w-full bg-white relative overflow-hidden flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `
+        radial-gradient(circle 600px at 0% 200px, #bfdbfe, transparent),
+        radial-gradient(circle 600px at 100% 200px, #bfdbfe, transparent)
+      `,
+        }}
+      />
+      <div className="w-full max-w-md relative z-10">
         <Card className="backdrop-blur-md bg-white/95 border-white/20 shadow-2xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
