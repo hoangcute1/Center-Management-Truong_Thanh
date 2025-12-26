@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type React from "react";
 import { Manrope, JetBrains_Mono } from "next/font/google";
+import { ToastContainer } from "@/components/ui/toast";
 import "./globals.css";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans" });
@@ -44,6 +45,7 @@ export default function RootLayout({
         className={`${manrope.className} ${jetbrainsMono.className} font-sans antialiased`}
       >
         {children}
+        <ToastContainer />
       </body>
     </html>
   );

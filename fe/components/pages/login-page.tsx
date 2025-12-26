@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
 
 interface LoginPageProps {
-  onLogin: (user: {
+  onLogin?: (user: {
     id: string;
     name: string;
     email: string;
@@ -15,11 +17,12 @@ interface LoginPageProps {
   }) => void;
 }
 
+// Demo users để test nhanh (sẽ xóa sau khi có API hoàn chỉnh)
 const DEMO_USERS = {
-  student: { id: "st1", name: "Nguyễn Văn A", email: "student@example.com" },
-  teacher: { id: "te1", name: "Trần Thị B", email: "teacher@example.com" },
-  parent: { id: "pa1", name: "Lê Văn C", email: "parent@example.com" },
-  admin: { id: "ad1", name: "Phạm Quốc D", email: "admin@example.com" },
+  student: { email: "student@example.com", password: "123456" },
+  teacher: { email: "teacher@example.com", password: "123456" },
+  parent: { email: "parent@example.com", password: "123456" },
+  admin: { email: "admin@example.com", password: "123456" },
 };
 
 const BRANCHES = [
@@ -64,31 +67,63 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [branchId, setBranchId] = useState("cs1");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Zustand stores
+  const {
+    login,
+    isAuthenticated,
+    user,
+    isLoading: authLoading,
+  } = useAuthStore();
+  const { branches, fetchBranches } = useBranchesStore();
+
+  // Fetch branches on mount
+  useEffect(() => {
+    fetchBranches().catch(console.error);
+  }, [fetchBranches]);
+
+  // Get actual branches or fallback to demo branches
+  const displayBranches =
+    branches.length > 0
+      ? branches.map((b) => ({ id: b._id, name: b.name }))
+      : BRANCHES;
+
+  // Handle real API login
+  const handleLogin = async (loginEmail: string, loginPassword: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const userData = await login(loginEmail, loginPassword);
+
+      // If onLogin callback exists (for backward compatibility)
+      if (onLogin && userData) {
+        const branch = displayBranches.find((b) => b.id === userData.branchId);
+        onLogin({
+          id: userData._id || userData.id || "",
+          name: userData.name,
+          email: userData.email,
+          role: userData.role as Role,
+          branchId: userData.branchId,
+          branchName: branch?.name,
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDemoLogin = async (role: Role) => {
-    setIsLoading(true);
-    // Simulate loading
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const user = DEMO_USERS[role];
-    const branch = BRANCHES.find((b) => b.id === branchId);
-    onLogin({ ...user, role, branchId, branchName: branch?.name });
-    setIsLoading(false);
+    const demoUser = DEMO_USERS[role];
+    await handleLogin(demoUser.email, demoUser.password);
   };
 
   const handleCustomLogin = async () => {
-    if (selectedRole && email) {
-      setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const branch = BRANCHES.find((b) => b.id === branchId);
-      onLogin({
-        id: `${selectedRole}-${Date.now()}`,
-        name: email.split("@")[0],
-        email,
-        role: selectedRole,
-        branchId,
-        branchName: branch?.name,
-      });
-      setIsLoading(false);
+    if (email && password) {
+      await handleLogin(email, password);
     }
   };
 
@@ -186,6 +221,20 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{error}</span>
+                <button
+                  onClick={() => setError(null)}
+                  className="ml-auto text-red-400 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Demo Login Buttons */}
             <div className="mb-5 sm:mb-6">
               <p className="text-xs sm:text-sm font-medium text-gray-600 mb-2 sm:mb-3 flex items-center gap-2">
@@ -253,7 +302,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     value={branchId}
                     onChange={(e) => setBranchId(e.target.value)}
                   >
-                    {BRANCHES.map((b) => (
+                    {displayBranches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
                       </option>
@@ -337,7 +386,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               {/* Login Button */}
               <Button
                 onClick={handleCustomLogin}
-                disabled={isLoading || !selectedRole || !email}
+                disabled={isLoading || !email || !password}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 
                   text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-blue-200/50 
                   transition-all duration-300 hover:-translate-y-0.5 text-sm sm:text-base

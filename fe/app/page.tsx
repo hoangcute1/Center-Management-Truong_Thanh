@@ -1,55 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LoginPage from "@/components/pages/login-page";
 import StudentDashboard from "@/components/dashboards/student-dashboard";
 import TeacherDashboard from "@/components/dashboards/teacher-dashboard";
 import ParentDashboard from "@/components/dashboards/parent-dashboard";
 import AdminDashboard from "@/components/dashboards/admin-dashboard";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 type UserRole = "student" | "teacher" | "parent" | "admin" | null;
 
 export default function Home() {
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    role: UserRole;
-  } | null>(() => {
-    if (typeof window === "undefined") return null;
-    const saved = localStorage.getItem("currentUser");
-    return saved ? JSON.parse(saved) : null;
-  });
+  const { user, isAuthenticated, logout, isLoading } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  const handleLogin = (user: {
-    id: string;
-    name: string;
-    email: string;
-    role: UserRole;
-  }) => {
-    setCurrentUser(user);
-    localStorage.setItem("currentUser", JSON.stringify(user));
+  // Wait for zustand hydration
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem("currentUser");
-  };
+  // Show loading while hydrating
+  if (!isHydrated || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!currentUser) return <LoginPage onLogin={handleLogin} />;
+  // Show login page if not authenticated
+  if (!isAuthenticated || !user) {
+    return <LoginPage />;
+  }
+
+  // Map user to the format dashboards expect
+  const currentUser = {
+    id: user._id || user.id || "",
+    name: user.name,
+    email: user.email,
+    role: user.role as UserRole,
+  };
 
   return (
     <div>
-      {currentUser.role === "student" && (
+      {user.role === "student" && (
         <StudentDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {currentUser.role === "teacher" && (
+      {user.role === "teacher" && (
         <TeacherDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {currentUser.role === "parent" && (
+      {user.role === "parent" && (
         <ParentDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {currentUser.role === "admin" && (
+      {user.role === "admin" && (
         <AdminDashboard user={currentUser} onLogout={handleLogout} />
       )}
     </div>
