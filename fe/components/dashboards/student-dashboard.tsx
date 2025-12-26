@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
+import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 interface StudentDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -670,6 +672,67 @@ export default function StudentDashboard({
   const [showSettings, setShowSettings] = useState(false);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
+  // Fetch real data from API
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    fetchDashboardData,
+  } = useStudentDashboardStore();
+  const { user: authUser } = useAuthStore();
+
+  useEffect(() => {
+    // Fetch dashboard data when component mounts
+    const studentId = authUser?._id || user.id;
+    if (studentId) {
+      fetchDashboardData(studentId).catch(console.error);
+    }
+  }, [authUser, user.id, fetchDashboardData]);
+
+  // Compute dynamic overview cards based on real data
+  const dynamicOverviewCards = dashboardData
+    ? [
+        {
+          label: "Khóa học",
+          value: dashboardData.classes.length,
+          note: "Đang theo học",
+          icon: "📚",
+          color: "from-blue-500 to-blue-600",
+        },
+        {
+          label: "Buổi học tới",
+          value: dashboardData.upcomingSessions.length,
+          note: "Sắp diễn ra",
+          icon: "📅",
+          color: "from-emerald-500 to-emerald-600",
+        },
+        {
+          label: "Điểm TB",
+          value:
+            dashboardData.recentGrades.length > 0
+              ? (
+                  dashboardData.recentGrades.reduce(
+                    (acc, g) => acc + g.percentage,
+                    0
+                  ) / dashboardData.recentGrades.length
+                ).toFixed(1)
+              : "N/A",
+          note:
+            dashboardData.recentGrades.length > 0
+              ? "Đạt kết quả"
+              : "Chưa có điểm",
+          icon: "⭐",
+          color: "from-amber-500 to-orange-500",
+        },
+        {
+          label: "Chuyên cần",
+          value: `${dashboardData.attendanceStats.rate || 0}%`,
+          note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
+          icon: "✅",
+          color: "from-purple-500 to-purple-600",
+        },
+      ]
+    : overviewCards;
+
   const tabIcons: Record<RankingCategory, string> = {
     score: "🏆",
     attendance: "👥",
@@ -797,33 +860,51 @@ export default function StudentDashboard({
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
+            {/* Loading state */}
+            {dashboardLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-500">Đang tải dữ liệu...</p>
+                </div>
+              </div>
+            )}
+
             {/* Overview Cards với gradient */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {overviewCards.map((card) => (
-                <Card
-                  key={card.label}
-                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-90`}
-                  />
-                  <div className="relative p-5 text-white">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-white/80 text-sm font-medium">
-                          {card.label}
-                        </p>
-                        <p className="text-3xl font-bold mt-2">{card.value}</p>
-                        <p className="text-white/70 text-xs mt-1">
-                          {card.note}
-                        </p>
+            {!dashboardLoading && (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {dynamicOverviewCards.map((card) => (
+                    <Card
+                      key={card.label}
+                      className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                    >
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-90`}
+                      />
+                      <div className="relative p-5 text-white">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-white/80 text-sm font-medium">
+                              {card.label}
+                            </p>
+                            <p className="text-3xl font-bold mt-2">
+                              {card.value}
+                            </p>
+                            <p className="text-white/70 text-xs mt-1">
+                              {card.note}
+                            </p>
+                          </div>
+                          <span className="text-4xl opacity-80">
+                            {card.icon}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-4xl opacity-80">{card.icon}</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Streak Cards cải tiến */}
             <div className="mt-6 grid gap-4 md:grid-cols-3">

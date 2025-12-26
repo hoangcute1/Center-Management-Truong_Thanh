@@ -19,3 +19,8 @@ export {
 export { useAttendanceStore, type AttendanceRecord } from "./attendance-store";
 export { useAssessmentsStore, type Assessment } from "./assessments-store";
 export { useTuitionStore, type TuitionRecord } from "./tuition-store";
+export {
+  useStudentDashboardStore,
+  type StudentDashboardData,
+  type Session,
+} from "./student-dashboard-store";

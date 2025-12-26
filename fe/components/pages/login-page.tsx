@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
+import { toast } from "@/components/ui/toast";
 
 interface LoginPageProps {
   onLogin?: (user: {
@@ -97,6 +98,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     try {
       const userData = await login(loginEmail, loginPassword);
 
+      // Show success toast
+      toast.success(`Chào mừng ${userData.name}! 🎉`);
+
       // If onLogin callback exists (for backward compatibility)
       if (onLogin && userData) {
         const branch = displayBranches.find((b) => b.id === userData.branchId);
@@ -110,7 +114,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         });
       }
     } catch (err: any) {
-      setError(err.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+      const errorMsg = err.message || "Đăng nhập thất bại. Vui lòng thử lại.";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
