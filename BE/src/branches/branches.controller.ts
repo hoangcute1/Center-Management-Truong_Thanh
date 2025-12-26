@@ -19,36 +19,41 @@ import { UserRole } from '../common/enums/role.enum';
 
 @ApiTags('branches')
 @Controller('branches')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.Admin)
   create(@Body() dto: CreateBranchDto) {
     return this.branchesService.create(dto);
   }
 
+  // Public endpoint - no auth required for listing branches
   @Get()
-  @Roles(UserRole.Admin)
   findAll() {
     return this.branchesService.findAll();
   }
 
   @Get(':id')
-  @Roles(UserRole.Admin)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   findOne(@Param('id') id: string) {
     return this.branchesService.findOne(id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.Admin)
   update(@Param('id') id: string, @Body() dto: UpdateBranchDto) {
     return this.branchesService.update(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles(UserRole.Admin)
   remove(@Param('id') id: string) {
     return this.branchesService.remove(id);
