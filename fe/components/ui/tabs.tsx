@@ -47,9 +47,11 @@ export function TabsList({
 export function TabsTrigger({
   value,
   children,
+  className,
 }: {
   value: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   const ctx = React.useContext(TabsContext);
   if (!ctx) return null;
@@ -57,11 +59,13 @@ export function TabsTrigger({
   return (
     <button
       onClick={() => ctx.setValue(value)}
+      data-state={active ? "active" : "inactive"}
       className={clsx(
         "rounded-md px-4 py-2 text-sm font-semibold transition",
         active
           ? "bg-white text-blue-700 shadow"
-          : "text-gray-600 hover:text-gray-900"
+          : "text-gray-600 hover:text-gray-900",
+        className
       )}
     >
       {children}
@@ -72,11 +76,13 @@ export function TabsTrigger({
 export function TabsContent({
   value,
   children,
+  className,
 }: {
   value: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   const ctx = React.useContext(TabsContext);
   if (!ctx || ctx.value !== value) return null;
-  return <div className="mt-4">{children}</div>;
+  return <div className={clsx("mt-4", className)}>{children}</div>;
 }
