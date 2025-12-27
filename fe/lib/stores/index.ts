@@ -1,10 +1,5 @@
 // Export all stores from a single entry point
-export {
-  useAuthStore,
-  type User,
-  type UserRole,
-  type AuthState,
-} from "./auth-store";
+export { useAuthStore, type User, type UserRole } from "./auth-store";
 export { useUsersStore } from "./users-store";
 export { useBranchesStore, type Branch } from "./branches-store";
 export {

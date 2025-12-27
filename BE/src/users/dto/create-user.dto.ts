@@ -40,4 +40,7 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @IsOptional()
+  mustChangePassword?: boolean;
 }

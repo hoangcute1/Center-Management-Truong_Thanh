@@ -1,10 +1,12 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterByInviteDto } from './dto/register-by-invite.dto';
+import { ForceChangePasswordDto } from './dto/change-password.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,5 +40,15 @@ export class AuthController {
   @ApiBody({ type: RefreshDto })
   refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Đổi mật khẩu (bắt buộc khi đăng nhập lần đầu)' })
+  @ApiBody({ type: ForceChangePasswordDto })
+  changePassword(@Request() req: any, @Body() dto: ForceChangePasswordDto) {
+    const userId = req.user._id?.toString() || req.user.id;
+    return this.authService.changePassword(userId, dto.newPassword);
   }
 }

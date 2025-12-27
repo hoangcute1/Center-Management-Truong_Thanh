@@ -259,10 +259,10 @@ describe('Users API (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      // Update to opposite status
+      // Update to opposite status (Active <-> Locked)
       const newStatus =
         getRes.body.status === UserStatus.Active
-          ? UserStatus.Inactive
+          ? UserStatus.Locked
           : UserStatus.Active;
 
       const res = await request(app.getHttpServer())

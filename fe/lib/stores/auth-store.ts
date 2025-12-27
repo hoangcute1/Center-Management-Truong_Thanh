@@ -15,6 +15,7 @@ export interface User {
   avatarUrl?: string;
   dateOfBirth?: string;
   status: "active" | "pending" | "inactive";
+  mustChangePassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -26,6 +27,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
 }
 
 interface AuthActions {
@@ -38,6 +40,8 @@ interface AuthActions {
   clearError: () => void;
   setUser: (user: User) => void;
   refreshTokens: () => Promise<void>;
+  changePassword: (newPassword: string) => Promise<void>;
+  clearMustChangePassword: () => void;
 }
 
 interface RegisterData {
@@ -59,6 +63,7 @@ interface LoginResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+  mustChangePassword?: boolean;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -71,6 +76,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       isLoading: false,
       error: null,
       isAuthenticated: false,
+      mustChangePassword: false,
 
       // Actions
       login: async (email: string, password: string) => {
@@ -81,7 +87,8 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             password,
           });
 
-          const { user, accessToken, refreshToken } = response.data;
+          const { user, accessToken, refreshToken, mustChangePassword } =
+            response.data;
           const userWithId = { ...user, id: user._id };
 
           set({
@@ -91,6 +98,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isAuthenticated: true,
             isLoading: false,
             error: null,
+            mustChangePassword: mustChangePassword || false,
           });
 
           return userWithId;
@@ -159,6 +167,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           refreshToken: null,
           isAuthenticated: false,
           error: null,
+          mustChangePassword: false,
         });
       },
 
@@ -168,6 +177,29 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       setUser: (user: User) => {
         set({ user });
+      },
+
+      changePassword: async (newPassword: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post("/auth/change-password", { newPassword });
+          set({
+            isLoading: false,
+            mustChangePassword: false,
+            user: get().user
+              ? { ...get().user!, mustChangePassword: false }
+              : null,
+          });
+        } catch (error: any) {
+          const message =
+            error.response?.data?.message || "Đổi mật khẩu thất bại";
+          set({ isLoading: false, error: message });
+          throw new Error(message);
+        }
+      },
+
+      clearMustChangePassword: () => {
+        set({ mustChangePassword: false });
       },
 
       refreshTokens: async () => {

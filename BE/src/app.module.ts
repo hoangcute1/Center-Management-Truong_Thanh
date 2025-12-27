@@ -17,6 +17,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { InvitesModule } from './invites/invites.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { BranchesModule } from './branches/branches.module';
+import { ImportsModule } from './imports/imports.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { BranchesModule } from './branches/branches.module';
     InvitesModule,
     ApprovalsModule,
     BranchesModule,
+    ImportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

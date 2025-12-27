@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
@@ -29,8 +30,12 @@ export class UsersController {
 
   @Get()
   @Roles(UserRole.Admin)
-  findAll() {
-    return this.usersService.findAll();
+  findAll(
+    @Query('role') role?: UserRole,
+    @Query('status') status?: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.usersService.findAll({ role, status, branchId });
   }
 
   @Get(':id')

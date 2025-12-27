@@ -79,7 +79,21 @@ export class AuthService {
       throw new UnauthorizedException('User is not active');
     }
     const tokens = this.signTokens(user as any);
-    return { user: this.sanitize(user as any), ...tokens };
+    const sanitizedUser = this.sanitize(user as any);
+    return {
+      user: sanitizedUser,
+      ...tokens,
+      mustChangePassword: (user as any).mustChangePassword || false,
+    };
+  }
+
+  async changePassword(userId: string, newPassword: string) {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const updated = await this.usersService.update(userId, {
+      password: newPassword,
+      mustChangePassword: false,
+    } as any);
+    return { message: 'Đổi mật khẩu thành công' };
   }
 
   async registerByInvite(dto: RegisterByInviteDto) {

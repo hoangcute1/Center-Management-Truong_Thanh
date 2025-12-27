@@ -10,6 +10,12 @@ import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+interface FindAllFilters {
+  role?: string;
+  status?: string;
+  branchId?: string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
@@ -28,8 +34,20 @@ export class UsersService {
     return created.save();
   }
 
-  findAll(): Promise<User[]> {
-    return this.userModel.find().select('-passwordHash').exec();
+  findAll(filters?: FindAllFilters): Promise<User[]> {
+    const query: any = {};
+
+    if (filters?.role) {
+      query.role = filters.role;
+    }
+    if (filters?.status) {
+      query.status = filters.status;
+    }
+    if (filters?.branchId) {
+      query.branchId = filters.branchId;
+    }
+
+    return this.userModel.find(query).select('-passwordHash').exec();
   }
 
   async findById(id: string): Promise<User> {

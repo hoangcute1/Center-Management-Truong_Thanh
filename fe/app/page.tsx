@@ -6,21 +6,35 @@ import StudentDashboard from "@/components/dashboards/student-dashboard";
 import TeacherDashboard from "@/components/dashboards/teacher-dashboard";
 import ParentDashboard from "@/components/dashboards/parent-dashboard";
 import AdminDashboard from "@/components/dashboards/admin-dashboard";
+import ChangePasswordModal from "@/components/pages/change-password-modal";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 type UserRole = "student" | "teacher" | "parent" | "admin" | null;
 
 export default function Home() {
-  const { user, isAuthenticated, logout, isLoading } = useAuthStore();
+  const { user, isAuthenticated, logout, isLoading, mustChangePassword } =
+    useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Wait for zustand hydration
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
+  // Show change password modal when mustChangePassword is true
+  useEffect(() => {
+    if (isAuthenticated && mustChangePassword && user?.role !== "admin") {
+      setShowChangePasswordModal(true);
+    }
+  }, [isAuthenticated, mustChangePassword, user?.role]);
+
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handlePasswordChanged = () => {
+    setShowChangePasswordModal(false);
   };
 
   // Show loading while hydrating
@@ -45,11 +59,17 @@ export default function Home() {
     id: user._id || user.id || "",
     name: user.name,
     email: user.email,
-    role: user.role as UserRole,
+    role: user.role || "student",
   };
 
   return (
     <div>
+      {/* Change Password Modal - appears on first login for non-admin users */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onSuccess={handlePasswordChanged}
+      />
+
       {user.role === "student" && (
         <StudentDashboard user={currentUser} onLogout={handleLogout} />
       )}

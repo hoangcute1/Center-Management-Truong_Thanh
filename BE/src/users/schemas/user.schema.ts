@@ -41,6 +41,9 @@ export class User {
     default: UserStatus.Active,
   })
   status: UserStatus;
+
+  @Prop({ default: false })
+  mustChangePassword: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

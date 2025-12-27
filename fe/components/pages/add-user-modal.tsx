@@ -122,7 +122,7 @@ export default function AddUserModal({
                 </label>
                 <Input
                   name="studentId"
-                  value={formData.studentId}
+                  value={"studentId" in formData ? formData.studentId : ""}
                   onChange={handleChange}
                 />
               </div>
@@ -132,7 +132,7 @@ export default function AddUserModal({
                 </label>
                 <Input
                   name="parentName"
-                  value={formData.parentName}
+                  value={"parentName" in formData ? formData.parentName : ""}
                   onChange={handleChange}
                 />
               </div>
@@ -146,7 +146,9 @@ export default function AddUserModal({
               </label>
               <Input
                 name="childrenCount"
-                value={formData.childrenCount}
+                value={
+                  "childrenCount" in formData ? formData.childrenCount : ""
+                }
                 onChange={handleChange}
               />
             </div>
@@ -160,7 +162,7 @@ export default function AddUserModal({
                 </label>
                 <Input
                   name="subject"
-                  value={formData.subject}
+                  value={"subject" in formData ? formData.subject : ""}
                   onChange={handleChange}
                 />
               </div>
@@ -170,7 +172,7 @@ export default function AddUserModal({
                 </label>
                 <Input
                   name="experience"
-                  value={formData.experience}
+                  value={"experience" in formData ? formData.experience : ""}
                   onChange={handleChange}
                 />
               </div>

@@ -191,4 +191,129 @@ describe('Auth API (e2e)', () => {
         .expect(401);
     });
   });
+
+  describe('POST /auth/change-password', () => {
+    let accessToken: string;
+    let userModel: any;
+
+    beforeAll(async () => {
+      userModel = app.get<typeof mongoose.Model<UserDocument>>(
+        getModelToken(User.name),
+      );
+    });
+
+    it('should return mustChangePassword=true on login for user requiring password change', async () => {
+      // Create user with mustChangePassword = true
+      const password = '123456789';
+      await userModel.create({
+        name: 'Must Change Password User 1',
+        email: 'mustchange1@auth-test.com',
+        passwordHash: await bcrypt.hash(password, 10),
+        role: UserRole.Student,
+        status: UserStatus.Active,
+        mustChangePassword: true,
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'mustchange1@auth-test.com',
+          password: '123456789',
+        })
+        .expect(201);
+
+      expect(res.body.mustChangePassword).toBe(true);
+    });
+
+    it('should change password successfully and then login with new password', async () => {
+      // Create user with mustChangePassword = true
+      const password = '123456789';
+      await userModel.create({
+        name: 'Must Change Password User 2',
+        email: 'mustchange2@auth-test.com',
+        passwordHash: await bcrypt.hash(password, 10),
+        role: UserRole.Student,
+        status: UserStatus.Active,
+        mustChangePassword: true,
+      });
+
+      // Login to get token
+      const loginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'mustchange2@auth-test.com',
+          password: '123456789',
+        });
+      accessToken = loginRes.body.accessToken;
+
+      // Change password
+      const changeRes = await request(app.getHttpServer())
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          newPassword: 'NewPassword123!',
+        })
+        .expect(201);
+
+      expect(changeRes.body.message).toBe('Đổi mật khẩu thành công');
+
+      // Login with new password
+      const newLoginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'mustchange2@auth-test.com',
+          password: 'NewPassword123!',
+        })
+        .expect(201);
+
+      expect(newLoginRes.body.accessToken).toBeDefined();
+      expect(newLoginRes.body.mustChangePassword).toBe(false);
+
+      // Old password should not work
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'mustchange2@auth-test.com',
+          password: '123456789',
+        })
+        .expect(401);
+    });
+
+    it('should reject change password without token', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/change-password')
+        .send({
+          newPassword: 'AnotherPassword123!',
+        })
+        .expect(401);
+    });
+
+    it('should reject change password with password too short', async () => {
+      // Create user and login
+      const password = '123456789';
+      await userModel.create({
+        name: 'Must Change Password User 3',
+        email: 'mustchange3@auth-test.com',
+        passwordHash: await bcrypt.hash(password, 10),
+        role: UserRole.Student,
+        status: UserStatus.Active,
+        mustChangePassword: true,
+      });
+
+      const loginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'mustchange3@auth-test.com',
+          password: '123456789',
+        });
+
+      await request(app.getHttpServer())
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${loginRes.body.accessToken}`)
+        .send({
+          newPassword: '12345',
+        })
+        .expect(400);
+    });
+  });
 });
