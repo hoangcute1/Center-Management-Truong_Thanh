@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -18,6 +18,126 @@ import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
+
+// Helper functions for week navigation
+const getStartOfWeek = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  return new Date(d.setDate(diff));
+};
+
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const formatDate = (date: Date): string => {
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  return `${day}/${month}`;
+};
+
+const formatWeekRange = (startOfWeek: Date): string => {
+  const endOfWeek = addDays(startOfWeek, 6);
+  const startDay = startOfWeek.getDate().toString().padStart(2, "0");
+  const startMonth = (startOfWeek.getMonth() + 1).toString().padStart(2, "0");
+  const endDay = endOfWeek.getDate().toString().padStart(2, "0");
+  const endMonth = (endOfWeek.getMonth() + 1).toString().padStart(2, "0");
+  const year = startOfWeek.getFullYear();
+
+  if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+    return `${startDay} - ${endDay}/${startMonth}/${year}`;
+  }
+  return `${startDay}/${startMonth} - ${endDay}/${endMonth}/${year}`;
+};
+
+const isSameWeek = (date1: Date, date2: Date): boolean => {
+  const start1 = getStartOfWeek(date1);
+  const start2 = getStartOfWeek(date2);
+  return start1.getTime() === start2.getTime();
+};
+
+// Get all weeks in a year (from account creation to current date)
+const getWeeksInYear = (
+  year: number,
+  accountCreatedAt: Date,
+  currentDate: Date
+): { value: string; label: string; startDate: Date }[] => {
+  const weeks: { value: string; label: string; startDate: Date }[] = [];
+
+  // Start from first Monday of the year
+  let date = new Date(year, 0, 1);
+  const day = date.getDay();
+  const diff = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
+  date.setDate(date.getDate() + diff);
+
+  const accountStart = getStartOfWeek(accountCreatedAt);
+  accountStart.setHours(0, 0, 0, 0);
+  const currentWeekStart = getStartOfWeek(currentDate);
+  currentWeekStart.setHours(0, 0, 0, 0);
+
+  while (
+    date.getFullYear() === year ||
+    (date.getFullYear() === year + 1 &&
+      date.getMonth() === 0 &&
+      date.getDate() <= 7)
+  ) {
+    const weekStart = new Date(date);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = addDays(weekStart, 6);
+
+    // Only include weeks from account creation to current week
+    if (
+      weekStart.getTime() >= accountStart.getTime() &&
+      weekStart.getTime() <= currentWeekStart.getTime()
+    ) {
+      const startStr = `${weekStart.getDate().toString().padStart(2, "0")}/${(
+        weekStart.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, "0")}`;
+      const endStr = `${weekEnd.getDate().toString().padStart(2, "0")}/${(
+        weekEnd.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, "0")}`;
+
+      weeks.push({
+        value: weekStart.toISOString(),
+        label: `${startStr} To ${endStr}`,
+        startDate: weekStart,
+      });
+    }
+
+    date = addDays(date, 7);
+
+    // Stop if we've passed the current date
+    if (weekStart.getTime() > currentWeekStart.getTime()) break;
+  }
+
+  return weeks;
+};
+
+// Get available years from account creation to current
+const getAvailableYears = (
+  accountCreatedAt: Date,
+  currentDate: Date
+): number[] => {
+  const years: number[] = [];
+  const startYear = accountCreatedAt.getFullYear();
+  const endYear = currentDate.getFullYear();
+
+  for (let year = endYear; year >= startYear; year--) {
+    years.push(year);
+  }
+
+  return years;
+};
+
+const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const DAY_NAMES_VN = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 interface StudentDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -672,6 +792,14 @@ export default function StudentDashboard({
   const [showSettings, setShowSettings] = useState(false);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
+  // Week navigation state
+  const [selectedYear, setSelectedYear] = useState<number>(() =>
+    new Date().getFullYear()
+  );
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() =>
+    getStartOfWeek(new Date())
+  );
+
   // Fetch real data from API
   const {
     data: dashboardData,
@@ -679,6 +807,154 @@ export default function StudentDashboard({
     fetchDashboardData,
   } = useStudentDashboardStore();
   const { user: authUser } = useAuthStore();
+
+  // Calculate the earliest date (account creation date)
+  const accountCreatedAt = useMemo(() => {
+    const createdAt = authUser?.createdAt;
+    if (createdAt) {
+      return getStartOfWeek(new Date(createdAt));
+    }
+    // Default to 1 year ago if no createdAt
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return getStartOfWeek(oneYearAgo);
+  }, [authUser?.createdAt]);
+
+  // Current week start for comparison
+  const currentWeekStart = useMemo(() => getStartOfWeek(new Date()), []);
+  const currentDate = useMemo(() => new Date(), []);
+
+  // Get available years and weeks
+  const availableYears = useMemo(
+    () => getAvailableYears(accountCreatedAt, currentDate),
+    [accountCreatedAt, currentDate]
+  );
+
+  const weeksInSelectedYear = useMemo(
+    () => getWeeksInYear(selectedYear, accountCreatedAt, currentDate),
+    [selectedYear, accountCreatedAt, currentDate]
+  );
+
+  // Check if current week is selected
+  const isCurrentWeek = isSameWeek(selectedWeekStart, new Date());
+
+  // Handle year change
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    // Auto-select the latest week in that year
+    const weeks = getWeeksInYear(year, accountCreatedAt, currentDate);
+    if (weeks.length > 0) {
+      // If it's current year, select current week; otherwise select last week of that year
+      if (year === currentDate.getFullYear()) {
+        setSelectedWeekStart(currentWeekStart);
+      } else {
+        setSelectedWeekStart(weeks[weeks.length - 1].startDate);
+      }
+    }
+  };
+
+  // Handle week change
+  const handleWeekChange = (weekValue: string) => {
+    setSelectedWeekStart(new Date(weekValue));
+  };
+
+  // Go to current week
+  const goToCurrentWeek = () => {
+    setSelectedYear(currentDate.getFullYear());
+    setSelectedWeekStart(currentWeekStart);
+  };
+
+  // Generate schedule for selected week
+  const weekSchedule = useMemo(() => {
+    const schedule: DaySchedule[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 7; i++) {
+      const dayDate = addDays(selectedWeekStart, i);
+      const dayName = DAY_NAMES[i];
+      const dateStr = formatDate(dayDate);
+      const isPast = dayDate < today;
+      const isToday = dayDate.getTime() === today.getTime();
+
+      // Check if there's a session from API data for this day
+      let sessionForDay = null;
+      if (dashboardData?.upcomingSessions) {
+        sessionForDay = dashboardData.upcomingSessions.find((session) => {
+          const sessionDate = new Date(session.date);
+          sessionDate.setHours(0, 0, 0, 0);
+          return sessionDate.getTime() === dayDate.getTime();
+        });
+      }
+
+      // Also check class schedules from API
+      let classForDay = null;
+      if (dashboardData?.classes) {
+        const dayOfWeek = dayDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        for (const cls of dashboardData.classes) {
+          const matchingSchedule = cls.schedule?.find(
+            (s) => s.dayOfWeek === dayOfWeek
+          );
+          if (matchingSchedule) {
+            classForDay = { class: cls, schedule: matchingSchedule };
+            break;
+          }
+        }
+      }
+
+      if (sessionForDay) {
+        schedule.push({
+          day: dayName,
+          date: dateStr,
+          code:
+            sessionForDay.class?.name?.substring(0, 7).toUpperCase() || "CLASS",
+          subject: sessionForDay.class?.name || "Lớp học",
+          teacher: sessionForDay.class?.teacher?.name || "Giáo viên",
+          room: "Phòng học",
+          time: `${sessionForDay.startTime}-${sessionForDay.endTime}`,
+          status: isPast
+            ? "confirmed"
+            : sessionForDay.status === "scheduled"
+            ? "pending"
+            : "confirmed",
+        });
+      } else if (classForDay) {
+        schedule.push({
+          day: dayName,
+          date: dateStr,
+          code: classForDay.class.name.substring(0, 7).toUpperCase(),
+          subject: classForDay.class.name,
+          teacher: classForDay.class.teacherName,
+          room: classForDay.schedule.room || "Phòng học",
+          time: `${classForDay.schedule.startTime}-${classForDay.schedule.endTime}`,
+          status: isPast ? "confirmed" : "pending",
+        });
+      } else {
+        // Find matching static schedule data for demo
+        const staticSlot = scheduleWeek.find((s) => s.day === dayName);
+        if (staticSlot && staticSlot.code) {
+          schedule.push({
+            ...staticSlot,
+            date: dateStr,
+            status: isPast ? "confirmed" : staticSlot.status,
+          });
+        } else {
+          schedule.push({
+            day: dayName,
+            date: dateStr,
+            code: "",
+            subject: "",
+            teacher: "",
+            room: "",
+            time: "",
+            status: "unconfirmed",
+          });
+        }
+      }
+    }
+
+    return schedule;
+  }, [selectedWeekStart, dashboardData]);
 
   useEffect(() => {
     // Fetch dashboard data when component mounts
@@ -1009,29 +1285,76 @@ export default function StudentDashboard({
 
           <TabsContent value="schedule" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">📅</span>
                   <div>
                     <p className="font-bold text-gray-900 text-lg">
-                      Lịch học tuần này
+                      {isCurrentWeek ? "Lịch học tuần này" : "Lịch học"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Theo dõi các buổi học sắp tới
+                      {isCurrentWeek
+                        ? "Theo dõi các buổi học sắp tới"
+                        : `Tuần ${formatWeekRange(selectedWeekStart)}`}
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  className="text-sm border-blue-200 text-blue-600 hover:bg-blue-50"
-                >
-                  Xem tháng
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Year Selector */}
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => handleYearChange(Number(e.target.value))}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  >
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Week Selector */}
+                  <select
+                    value={
+                      weeksInSelectedYear.find(
+                        (w) =>
+                          w.startDate.toDateString() ===
+                          selectedWeekStart.toDateString()
+                      )?.value || ""
+                    }
+                    onChange={(e) => handleWeekChange(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer min-w-[140px]"
+                  >
+                    {weeksInSelectedYear.map((week) => (
+                      <option key={week.value} value={week.value}>
+                        {week.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Current Week Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToCurrentWeek}
+                    className="text-sm border-gray-200 hover:bg-gray-50"
+                  >
+                    Tuần hiện tại
+                  </Button>
+                </div>
               </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                {scheduleWeek.map((slot) => {
+                {weekSchedule.map((slot) => {
                   const style = statusStyle(slot.status);
-                  const isToday = slot.day === "THU"; // Giả sử hôm nay là thứ 5
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const slotDate = addDays(
+                    selectedWeekStart,
+                    DAY_NAMES.indexOf(slot.day)
+                  );
+                  const isToday = slotDate.getTime() === today.getTime();
+                  const isPast = slotDate < today;
 
                   return (
                     <div
@@ -1039,6 +1362,8 @@ export default function StudentDashboard({
                       className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
                         isToday
                           ? "border-blue-400 ring-2 ring-blue-100"
+                          : isPast
+                          ? "border-gray-200 opacity-80"
                           : "border-gray-100"
                       }`}
                     >
@@ -1046,6 +1371,8 @@ export default function StudentDashboard({
                         className={`px-3 py-3 text-center ${
                           isToday
                             ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                            : isPast
+                            ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
                             : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
                         }`}
                       >
@@ -1060,11 +1387,22 @@ export default function StudentDashboard({
                             Hôm nay
                           </p>
                         )}
+                        {isPast && !isToday && (
+                          <p className="text-[10px] mt-0.5 text-gray-300">
+                            Đã qua
+                          </p>
+                        )}
                       </div>
 
                       {slot.code ? (
                         <div className="flex-1 p-3 space-y-2 text-center">
-                          <div className="inline-flex px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
+                          <div
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                              isPast
+                                ? "bg-gray-100 text-gray-600"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
                             {slot.code}
                           </div>
                           <div className="text-xs text-gray-500">
@@ -1083,13 +1421,23 @@ export default function StudentDashboard({
                             >
                               📄 Tài liệu
                             </Button>
-                            <Button
-                              className={`w-full text-xs rounded-xl ${style.className}`}
-                              variant="solid"
-                            >
-                              {slot.status === "confirmed" ? "✓ " : ""}
-                              {style.label}
-                            </Button>
+                            {isPast ? (
+                              <Button
+                                className="w-full text-xs rounded-xl bg-emerald-500 text-white"
+                                variant="solid"
+                                disabled
+                              >
+                                ✓ Đã xác nhận
+                              </Button>
+                            ) : (
+                              <Button
+                                className={`w-full text-xs rounded-xl ${style.className}`}
+                                variant="solid"
+                              >
+                                {slot.status === "confirmed" ? "✓ " : ""}
+                                {style.label}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ) : (
