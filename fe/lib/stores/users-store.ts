@@ -20,6 +20,12 @@ interface UsersActions {
   createUser: (data: CreateUserData) => Promise<User>;
   updateUser: (id: string, data: UpdateUserData) => Promise<User>;
   deleteUser: (id: string) => Promise<void>;
+  importUsers: (
+    file: File,
+    role: UserRole,
+    branchId: string
+  ) => Promise<ImportResponse>;
+  downloadTemplate: (role: UserRole) => Promise<void>;
   setSelectedUser: (user: User | null) => void;
   clearError: () => void;
 }
@@ -51,6 +57,22 @@ interface UpdateUserData {
   status?: "active" | "pending" | "inactive";
   avatarUrl?: string;
   dateOfBirth?: string;
+}
+
+interface ImportResult {
+  success: boolean;
+  row: number;
+  email?: string;
+  name?: string;
+  error?: string;
+  tempPassword?: string;
+}
+
+export interface ImportResponse {
+  total: number;
+  successful: number;
+  failed: number;
+  results: ImportResult[];
 }
 
 export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
@@ -160,6 +182,55 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
     } catch (error: any) {
       const message = error.response?.data?.message || "Lỗi khi xóa người dùng";
       set({ isLoading: false, error: message });
+      throw new Error(message);
+    }
+  },
+
+  importUsers: async (file: File, role: UserRole, branchId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("role", role);
+      formData.append("branchId", branchId);
+
+      const response = await api.post("/imports/users", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // Refresh users list after import
+      await get().fetchUsers();
+
+      set({ isLoading: false });
+      return response.data as ImportResponse;
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Lỗi khi import người dùng";
+      set({ isLoading: false, error: message });
+      throw new Error(message);
+    }
+  },
+
+  downloadTemplate: async (role: UserRole) => {
+    try {
+      const response = await api.get(`/imports/template?role=${role}`, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `template_${role}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Lỗi khi tải template";
+      set({ error: message });
       throw new Error(message);
     }
   },

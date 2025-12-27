@@ -1,9 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AddUserModal from "@/components/pages/add-user-modal";
+import ImportUsersModal from "@/components/pages/import-users-modal";
+import { useUsersStore, ImportResponse } from "@/lib/stores/users-store";
+import { useBranchesStore } from "@/lib/stores/branches-store";
 
 type UserType = "student" | "parent" | "teacher";
 
@@ -22,122 +25,113 @@ interface User {
 }
 
 export default function UserManagement() {
-  const [students, setStudents] = useState<User[]>([
-    {
-      id: "S001",
-      fullName: "Nguyễn Văn A",
-      email: "nguyenvana@email.com",
-      phone: "+84 123 456 789",
-      role: "student",
-      studentId: "HS001",
-      parentName: "Nguyễn Văn Anh",
-      createdAt: "2025-01-15",
-    },
-    {
-      id: "S002",
-      fullName: "Trần Thị B",
-      email: "tranthib@email.com",
-      phone: "+84 987 654 321",
-      role: "student",
-      studentId: "HS002",
-      parentName: "Trần Thị Bình",
-      createdAt: "2025-01-16",
-    },
-  ]);
-
-  const [parents, setParents] = useState<User[]>([
-    {
-      id: "P001",
-      fullName: "Nguyễn Văn Anh",
-      email: "nguyenvanh@email.com",
-      phone: "+84 111 222 333",
-      role: "parent",
-      childrenCount: "2",
-      createdAt: "2025-01-10",
-    },
-  ]);
-
-  const [teachers, setTeachers] = useState<User[]>([
-    {
-      id: "T001",
-      fullName: "Cô Nguyễn Thị C",
-      email: "cothic@email.com",
-      phone: "+84 444 555 666",
-      role: "teacher",
-      subject: "Toán",
-      experience: "5",
-      createdAt: "2025-01-05",
-    },
-    {
-      id: "T002",
-      fullName: "Thầy Trần Văn D",
-      email: "thayvand@email.com",
-      phone: "+84 777 888 999",
-      role: "teacher",
-      subject: "Anh Văn",
-      experience: "8",
-      createdAt: "2025-01-05",
-    },
-  ]);
+  // Zustand stores
+  const {
+    users,
+    fetchUsers,
+    deleteUser,
+    importUsers,
+    downloadTemplate,
+    isLoading,
+  } = useUsersStore();
+  const { branches, fetchBranches } = useBranchesStore();
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<UserType>("student");
 
+  // Fetch data on mount
+  useEffect(() => {
+    fetchUsers();
+    fetchBranches();
+  }, [fetchUsers, fetchBranches]);
+
+  // Filter users by role
+  const students = users.filter((u) => u.role === "student");
+  const parents = users.filter((u) => u.role === "parent");
+  const teachers = users.filter((u) => u.role === "teacher");
+
   const handleAddUser = (user: User) => {
-    if (user.role === "student") setStudents([...students, user]);
-    else if (user.role === "parent") setParents([...parents, user]);
-    else setTeachers([...teachers, user]);
+    // This will be handled by the modal through API
+    fetchUsers(); // Refresh list
   };
 
-  const handleDeleteUser = (
+  const handleDeleteUser = async (
     id: string,
     userType: "student" | "parent" | "teacher"
   ) => {
-    if (userType === "student")
-      setStudents(students.filter((s) => s.id !== id));
-    else if (userType === "parent")
-      setParents(parents.filter((p) => p.id !== id));
-    else setTeachers(teachers.filter((t) => t.id !== id));
+    if (confirm("Bạn có chắc muốn xóa người dùng này?")) {
+      try {
+        await deleteUser(id);
+      } catch (error) {
+        console.error("Error deleting user:", error);
+      }
+    }
+  };
+
+  const handleImportUsers = async (
+    file: File,
+    role: UserType,
+    branchId: string
+  ): Promise<ImportResponse> => {
+    return await importUsers(file, role, branchId);
+  };
+
+  const handleDownloadTemplate = (role: UserType) => {
+    downloadTemplate(role);
   };
 
   const renderUserTable = (
-    users: User[],
+    users: any[],
     userType: "student" | "parent" | "teacher"
   ) => (
     <div className="space-y-3">
-      {users.map((user) => (
-        <div
-          key={user.id}
-          className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-        >
-          <div>
-            <p className="font-semibold text-gray-900">{user.fullName}</p>
-            <p className="text-sm text-gray-600">{user.email}</p>
-            <p className="text-sm text-gray-600">{user.phone}</p>
-            <div className="mt-1 flex gap-2 text-xs text-gray-500">
-              <Badge variant="info">{user.id}</Badge>
-              {userType === "student" && user.studentId && (
-                <Badge variant="success">Mã HS: {user.studentId}</Badge>
-              )}
-              {userType === "parent" && user.childrenCount && (
-                <Badge variant="warning">Con: {user.childrenCount}</Badge>
-              )}
-              {userType === "teacher" && user.subject && (
-                <Badge variant="success">{user.subject}</Badge>
-              )}
+      {isLoading ? (
+        <div className="text-center py-8 text-gray-500">
+          <span className="animate-spin inline-block mr-2">⏳</span>
+          Đang tải...
+        </div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">Chưa có dữ liệu</div>
+      ) : (
+        users.map((user) => (
+          <div
+            key={user._id || user.id}
+            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            <div>
+              <p className="font-semibold text-gray-900">
+                {user.name || user.fullName}
+              </p>
+              <p className="text-sm text-gray-600">{user.email}</p>
+              <p className="text-sm text-gray-600">{user.phone}</p>
+              <div className="mt-1 flex gap-2 text-xs text-gray-500">
+                <Badge variant="info">{user._id?.slice(-6) || user.id}</Badge>
+                {user.status && (
+                  <Badge
+                    variant={user.status === "active" ? "success" : "warning"}
+                  >
+                    {user.status}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">
+                {user.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString("vi-VN")
+                  : ""}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => handleDeleteUser(user._id || user.id, userType)}
+              >
+                Xóa
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">{user.createdAt}</span>
-            <Button
-              variant="outline"
-              onClick={() => handleDeleteUser(user.id, userType)}
-            >
-              Xóa
-            </Button>
-          </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 
@@ -161,10 +155,17 @@ export default function UserManagement() {
             <option value="teacher">Giáo viên</option>
           </select>
           <Button
+            variant="outline"
+            onClick={() => setImportModalOpen(true)}
+            className="border-green-500 text-green-600 hover:bg-green-50"
+          >
+            📤 Import Excel
+          </Button>
+          <Button
             onClick={() => setModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Thêm mới
+            ➕ Thêm mới
           </Button>
         </div>
       </div>
@@ -199,6 +200,14 @@ export default function UserManagement() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onAdd={handleAddUser}
+      />
+
+      <ImportUsersModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        branches={branches}
+        onImport={handleImportUsers}
+        onDownloadTemplate={handleDownloadTemplate}
       />
     </div>
   );

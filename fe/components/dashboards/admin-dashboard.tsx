@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -19,6 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationCenter from "@/components/notification-center";
+import ImportUsersModal from "@/components/pages/import-users-modal";
+import { useBranchesStore } from "@/lib/stores/branches-store";
+import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
 
 interface AdminDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -353,15 +356,28 @@ const tabIcons: Record<RankingCategory, string> = {
   diligence: "⚡",
 };
 
+interface BranchOption {
+  _id: string;
+  id?: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  status?: "active" | "inactive";
+}
+
 function AddModal({
   title,
   fields,
+  branches,
   onClose,
 }: {
   title: string;
   fields: string[];
+  branches: BranchOption[];
   onClose: () => void;
 }) {
+  const [selectedBranch, setSelectedBranch] = useState("");
+
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0">
@@ -372,6 +388,19 @@ function AddModal({
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
         </div>
         <div className="space-y-3 mb-5">
+          {/* Dropdown chọn cơ sở */}
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">-- Chọn cơ sở --</option>
+            {branches.map((branch) => (
+              <option key={branch._id} value={branch._id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
           {fields.map((f) => (
             <Input
               key={f}
@@ -397,6 +426,118 @@ function AddModal({
   );
 }
 
+// Modal thêm/sửa cơ sở
+function BranchModal({
+  isOpen,
+  branch,
+  onClose,
+  onSave,
+}: {
+  isOpen: boolean;
+  branch: BranchOption | null;
+  onClose: () => void;
+  onSave: (data: { name: string; address: string; phone?: string }) => void;
+}) {
+  const [name, setName] = useState(branch?.name || "");
+  const [address, setAddress] = useState(branch?.address || "");
+  const [phone, setPhone] = useState(branch?.phone || "");
+
+  useEffect(() => {
+    if (branch) {
+      setName(branch.name || "");
+      setAddress(branch.address || "");
+      setPhone(branch.phone || "");
+    } else {
+      setName("");
+      setAddress("");
+      setPhone("");
+    }
+  }, [branch, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !address.trim()) {
+      alert("Vui lòng điền đầy đủ tên và địa chỉ cơ sở");
+      return;
+    }
+    onSave({
+      name: name.trim(),
+      address: address.trim(),
+      phone: phone.trim() || undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+            🏢
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">
+            {branch ? "Sửa cơ sở" : "Thêm cơ sở mới"}
+          </h3>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Tên cơ sở <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="VD: Cơ sở Quận 1"
+              className="rounded-xl border-gray-200"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Địa chỉ <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="VD: 123 Nguyễn Huệ, Quận 1, TPHCM"
+              className="rounded-xl border-gray-200"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Số điện thoại
+            </label>
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="VD: 0123 456 789"
+              className="rounded-xl border-gray-200"
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="submit"
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+            >
+              {branch ? "💾 Lưu thay đổi" : "➕ Thêm cơ sở"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 rounded-xl"
+              onClick={onClose}
+            >
+              Hủy
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
 export default function AdminDashboard({
   user,
   onLogout,
@@ -408,7 +549,85 @@ export default function AdminDashboard({
     title: string;
     fields: string[];
   }>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<BranchOption | null>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
+
+  // Stores
+  const {
+    branches,
+    fetchBranches,
+    createBranch,
+    updateBranch,
+    deleteBranch,
+    isLoading: branchesLoading,
+  } = useBranchesStore();
+  const { importUsers, downloadTemplate } = useUsersStore();
+
+  // Fetch branches on mount
+  useEffect(() => {
+    fetchBranches().catch(() => {
+      // Silently handle error - branches will be empty array
+      console.log("Could not fetch branches - make sure backend is running");
+    });
+  }, [fetchBranches]);
+
+  // Handlers for branches
+  const handleAddBranch = () => {
+    setEditingBranch(null);
+    setShowBranchModal(true);
+  };
+
+  const handleEditBranch = (branch: BranchOption) => {
+    setEditingBranch(branch);
+    setShowBranchModal(true);
+  };
+
+  const handleDeleteBranch = async (branchId: string) => {
+    if (
+      confirm(
+        "Bạn có chắc muốn xóa cơ sở này? Hành động này không thể hoàn tác."
+      )
+    ) {
+      try {
+        await deleteBranch(branchId);
+      } catch (error) {
+        console.error("Error deleting branch:", error);
+      }
+    }
+  };
+
+  const handleSaveBranch = async (data: {
+    name: string;
+    address: string;
+    phone?: string;
+  }) => {
+    try {
+      if (editingBranch) {
+        await updateBranch(editingBranch._id, data);
+      } else {
+        await createBranch(data);
+      }
+      setShowBranchModal(false);
+      setEditingBranch(null);
+    } catch (error) {
+      console.error("Error saving branch:", error);
+    }
+  };
+
+  // Handlers for import
+  const handleImportUsers = async (
+    file: File,
+    role: "student" | "teacher" | "parent",
+    branchId: string
+  ): Promise<ImportResponse> => {
+    return await importUsers(file, role, branchId);
+  };
+
+  const handleDownloadTemplate = (role: "student" | "teacher" | "parent") => {
+    downloadTemplate(role);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
@@ -496,6 +715,12 @@ export default function AdminDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💰 Tài chính
+            </TabsTrigger>
+            <TabsTrigger
+              value="branches"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🏢 Cơ sở
             </TabsTrigger>
             <TabsTrigger
               value="settings"
@@ -750,46 +975,55 @@ export default function AdminDashboard({
                     </p>
                   </div>
                 </div>
-                <Button
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
-                  onClick={() =>
-                    setShowModal(
-                      activeAccountTab === "students"
-                        ? {
-                            title: "Thêm học sinh",
-                            fields: [
-                              "Họ và tên",
-                              "Email",
-                              "Số điện thoại",
-                              "Mã học sinh",
-                              "Tên phụ huynh",
-                            ],
-                          }
-                        : activeAccountTab === "parents"
-                        ? {
-                            title: "Thêm phụ huynh",
-                            fields: [
-                              "Họ và tên",
-                              "Email",
-                              "Số điện thoại",
-                              "Số con",
-                            ],
-                          }
-                        : {
-                            title: "Thêm giáo viên",
-                            fields: [
-                              "Họ và tên",
-                              "Email",
-                              "Số điện thoại",
-                              "Môn dạy",
-                              "Năm kinh nghiệm",
-                            ],
-                          }
-                    )
-                  }
-                >
-                  ➕ Thêm mới
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-green-500 text-green-600 hover:bg-green-50"
+                    onClick={() => setShowImportModal(true)}
+                  >
+                    📤 Import Excel
+                  </Button>
+                  <Button
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+                    onClick={() =>
+                      setShowModal(
+                        activeAccountTab === "students"
+                          ? {
+                              title: "Thêm học sinh",
+                              fields: [
+                                "Họ và tên",
+                                "Email",
+                                "Số điện thoại",
+                                "Mã học sinh",
+                                "Tên phụ huynh",
+                              ],
+                            }
+                          : activeAccountTab === "parents"
+                          ? {
+                              title: "Thêm phụ huynh",
+                              fields: [
+                                "Họ và tên",
+                                "Email",
+                                "Số điện thoại",
+                                "Số con",
+                              ],
+                            }
+                          : {
+                              title: "Thêm giáo viên",
+                              fields: [
+                                "Họ và tên",
+                                "Email",
+                                "Số điện thoại",
+                                "Môn dạy",
+                                "Năm kinh nghiệm",
+                              ],
+                            }
+                      )
+                    }
+                  >
+                    ➕ Thêm mới
+                  </Button>
+                </div>
               </div>
 
               {/* Account Type Tabs */}
@@ -1209,6 +1443,100 @@ export default function AdminDashboard({
             </Card>
           </TabsContent>
 
+          {/* Tab Quản lý cơ sở */}
+          <TabsContent value="branches" className="mt-6">
+            <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🏢</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      Quản lý cơ sở
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Thêm, sửa, xóa các cơ sở của trung tâm
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+                  onClick={handleAddBranch}
+                >
+                  ➕ Thêm cơ sở mới
+                </Button>
+              </div>
+
+              {/* Danh sách cơ sở */}
+              <div className="space-y-4">
+                {branchesLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="animate-spin inline-block mr-2">⏳</span>
+                    Đang tải...
+                  </div>
+                ) : branches.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <span className="text-5xl mb-4 block">🏢</span>
+                    <p className="font-medium">Chưa có cơ sở nào</p>
+                    <p className="text-sm">Nhấn "Thêm cơ sở mới" để bắt đầu</p>
+                  </div>
+                ) : (
+                  branches.map((branch) => (
+                    <div
+                      key={branch._id}
+                      className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
+                          🏢
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">
+                            {branch.name}
+                          </p>
+                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                            📍 {branch.address}
+                          </p>
+                          {branch.phone && (
+                            <p className="text-xs text-gray-400 flex items-center gap-1">
+                              📞 {branch.phone}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            branch.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {branch.status === "active"
+                            ? "✅ Hoạt động"
+                            : "⏸️ Tạm ngưng"}
+                        </span>
+                        <Button
+                          variant="outline"
+                          className="rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
+                          onClick={() => handleEditBranch(branch)}
+                        >
+                          ✏️ Sửa
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => handleDeleteBranch(branch._id)}
+                        >
+                          🗑️ Xóa
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+
           {/* Tab Cài đặt */}
           <TabsContent value="settings" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
@@ -1281,9 +1609,30 @@ export default function AdminDashboard({
         <AddModal
           title={showModal.title}
           fields={showModal.fields}
+          branches={branches}
           onClose={() => setShowModal(null)}
         />
       )}
+
+      {/* Import Users Modal */}
+      <ImportUsersModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        branches={branches}
+        onImport={handleImportUsers}
+        onDownloadTemplate={handleDownloadTemplate}
+      />
+
+      {/* Branch Modal */}
+      <BranchModal
+        isOpen={showBranchModal}
+        branch={editingBranch}
+        onClose={() => {
+          setShowBranchModal(false);
+          setEditingBranch(null);
+        }}
+        onSave={handleSaveBranch}
+      />
     </div>
   );
 }
