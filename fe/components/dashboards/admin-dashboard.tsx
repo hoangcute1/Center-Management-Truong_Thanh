@@ -366,6 +366,267 @@ interface BranchOption {
   status?: "active" | "inactive";
 }
 
+// Modal chi tiết tài khoản
+interface UserDetail {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  branchId?: string;
+  status?: string;
+  avatarUrl?: string;
+  dateOfBirth?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  subjects?: string[];
+  teacherNote?: string;
+  qualification?: string;
+  experienceYears?: number;
+}
+
+function UserDetailModal({
+  user,
+  branchName,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  user: UserDetail;
+  branchName: string;
+  onClose: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "student":
+        return {
+          label: "Học sinh",
+          icon: "👨‍🎓",
+          color: "bg-blue-100 text-blue-700",
+        };
+      case "parent":
+        return {
+          label: "Phụ huynh",
+          icon: "👨‍👩‍👧",
+          color: "bg-emerald-100 text-emerald-700",
+        };
+      case "teacher":
+        return {
+          label: "Giáo viên",
+          icon: "👨‍🏫",
+          color: "bg-purple-100 text-purple-700",
+        };
+      case "admin":
+        return {
+          label: "Quản trị",
+          icon: "👑",
+          color: "bg-amber-100 text-amber-700",
+        };
+      default:
+        return { label: role, icon: "👤", color: "bg-gray-100 text-gray-700" };
+    }
+  };
+
+  const getStatusLabel = (status?: string) => {
+    switch (status) {
+      case "active":
+        return { label: "Hoạt động", color: "bg-green-100 text-green-700" };
+      case "pending":
+        return { label: "Chờ duyệt", color: "bg-yellow-100 text-yellow-700" };
+      case "inactive":
+        return { label: "Ngừng hoạt động", color: "bg-red-100 text-red-700" };
+      default:
+        return { label: "Không xác định", color: "bg-gray-100 text-gray-700" };
+    }
+  };
+
+  const roleInfo = getRoleLabel(user.role);
+  const statusInfo = getStatusLabel(user.status);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-lg p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl shadow-lg">
+              {roleInfo.icon}
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">{user.name}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleInfo.color}`}
+                >
+                  {roleInfo.label}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}
+                >
+                  {statusInfo.label}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Thông tin cơ bản */}
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+              <span>📋</span> Thông tin cơ bản
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-500">Email</p>
+                <p className="font-medium text-gray-900">{user.email}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Số điện thoại</p>
+                <p className="font-medium text-gray-900">
+                  {user.phone || "Chưa cập nhật"}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Ngày sinh</p>
+                <p className="font-medium text-gray-900">
+                  {user.dateOfBirth
+                    ? new Date(user.dateOfBirth).toLocaleDateString("vi-VN")
+                    : "Chưa cập nhật"}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Cơ sở</p>
+                <p className="font-medium text-gray-900">🏢 {branchName}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Thông tin giáo viên */}
+          {user.role === "teacher" && (
+            <div className="bg-purple-50 rounded-xl p-4 space-y-3">
+              <h4 className="font-semibold text-purple-800 flex items-center gap-2">
+                <span>📚</span> Thông tin giảng dạy
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500">Môn dạy</p>
+                  <p className="font-medium text-gray-900">
+                    {user.subjects && user.subjects.length > 0
+                      ? user.subjects.join(", ")
+                      : "Chưa phân công"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Kinh nghiệm</p>
+                  <p className="font-medium text-gray-900">
+                    {user.experienceYears
+                      ? `${user.experienceYears} năm`
+                      : "Chưa cập nhật"}
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-gray-500">Trình độ</p>
+                  <p className="font-medium text-gray-900">
+                    {user.qualification || "Chưa cập nhật"}
+                  </p>
+                </div>
+                {user.teacherNote && (
+                  <div className="sm:col-span-2">
+                    <p className="text-gray-500">Ghi chú</p>
+                    <p className="font-medium text-gray-900">
+                      {user.teacherNote}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Thông tin hệ thống */}
+          <div className="bg-blue-50 rounded-xl p-4 space-y-3">
+            <h4 className="font-semibold text-blue-800 flex items-center gap-2">
+              <span>🔧</span> Thông tin hệ thống
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-500">Mã tài khoản</p>
+                <p className="font-medium text-gray-900 font-mono">
+                  #{user._id.slice(-8).toUpperCase()}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Ngày tạo</p>
+                <p className="font-medium text-gray-900">
+                  {user.createdAt
+                    ? new Date(user.createdAt).toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Không xác định"}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Cập nhật lần cuối</p>
+                <p className="font-medium text-gray-900">
+                  {user.updatedAt
+                    ? new Date(user.updatedAt).toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Không xác định"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-6">
+          {onEdit && (
+            <Button
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg"
+              onClick={onEdit}
+            >
+              ✏️ Chỉnh sửa
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+              onClick={onDelete}
+            >
+              🗑️ Xóa tài khoản
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            className="flex-1 rounded-xl"
+            onClick={onClose}
+          >
+            Đóng
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function AddModal({
   title,
   fields,
@@ -581,6 +842,8 @@ export default function AdminDashboard({
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchOption | null>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
+  const [selectedUserDetail, setSelectedUserDetail] =
+    useState<UserDetail | null>(null);
 
   // Stores
   const {
@@ -610,6 +873,9 @@ export default function AdminDashboard({
   // State for branch filter - Nếu không phải admin, mặc định là branchId của user
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
 
+  // State for search
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   // Effective branch filter - non-admin users chỉ xem được chi nhánh của mình
   const effectiveBranchFilter = isAdmin
     ? selectedBranchFilter
@@ -619,9 +885,22 @@ export default function AdminDashboard({
   const filteredUsers = effectiveBranchFilter
     ? users.filter((u) => u.branchId === effectiveBranchFilter)
     : users;
-  const apiStudents = filteredUsers.filter((u) => u.role === "student");
-  const apiParents = filteredUsers.filter((u) => u.role === "parent");
-  const apiTeachers = filteredUsers.filter((u) => u.role === "teacher");
+
+  // Apply search filter
+  const searchFilteredUsers = searchQuery.trim()
+    ? filteredUsers.filter((u) => {
+        const query = searchQuery.toLowerCase().trim();
+        return (
+          u.name?.toLowerCase().includes(query) ||
+          u.email?.toLowerCase().includes(query) ||
+          u.phone?.toLowerCase().includes(query)
+        );
+      })
+    : filteredUsers;
+
+  const apiStudents = searchFilteredUsers.filter((u) => u.role === "student");
+  const apiParents = searchFilteredUsers.filter((u) => u.role === "parent");
+  const apiTeachers = searchFilteredUsers.filter((u) => u.role === "teacher");
 
   // Get branch name by id
   const getBranchName = (branchId?: string) => {
@@ -1172,6 +1451,39 @@ export default function AdminDashboard({
                   </div>
                 )}
 
+                {/* Thanh tìm kiếm */}
+                <div className="w-full sm:w-auto">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      🔍
+                    </span>
+                    <Input
+                      type="text"
+                      placeholder="Tìm kiếm theo tên, email, SĐT..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-8 w-full sm:w-[280px] rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  {searchQuery && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tìm thấy:{" "}
+                      {apiStudents.length +
+                        apiParents.length +
+                        apiTeachers.length}{" "}
+                      kết quả
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -1318,6 +1630,11 @@ export default function AdminDashboard({
                                 variant="outline"
                                 size="sm"
                                 className="mt-2 rounded-lg"
+                                onClick={() =>
+                                  setSelectedUserDetail(
+                                    s as unknown as UserDetail
+                                  )
+                                }
                               >
                                 Chi tiết
                               </Button>
@@ -1374,6 +1691,11 @@ export default function AdminDashboard({
                                 variant="outline"
                                 size="sm"
                                 className="mt-2 rounded-lg"
+                                onClick={() =>
+                                  setSelectedUserDetail(
+                                    p as unknown as UserDetail
+                                  )
+                                }
                               >
                                 Chi tiết
                               </Button>
@@ -1435,6 +1757,11 @@ export default function AdminDashboard({
                                 variant="outline"
                                 size="sm"
                                 className="mt-2 rounded-lg"
+                                onClick={() =>
+                                  setSelectedUserDetail(
+                                    t as unknown as UserDetail
+                                  )
+                                }
                               >
                                 Chi tiết
                               </Button>
@@ -1931,6 +2258,36 @@ export default function AdminDashboard({
         }}
         onSave={handleSaveBranch}
       />
+
+      {/* User Detail Modal */}
+      {selectedUserDetail && (
+        <UserDetailModal
+          user={selectedUserDetail}
+          branchName={getBranchName(selectedUserDetail.branchId)}
+          onClose={() => setSelectedUserDetail(null)}
+          onEdit={() => {
+            // TODO: Implement edit functionality
+            alert("Chức năng chỉnh sửa đang được phát triển");
+          }}
+          onDelete={async () => {
+            if (
+              confirm(
+                `Bạn có chắc muốn xóa tài khoản "${selectedUserDetail.name}"?`
+              )
+            ) {
+              try {
+                const { deleteUser } = useUsersStore.getState();
+                await deleteUser(selectedUserDetail._id);
+                setSelectedUserDetail(null);
+                await fetchUsers();
+              } catch (error) {
+                console.error("Error deleting user:", error);
+                alert("Lỗi khi xóa tài khoản");
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
