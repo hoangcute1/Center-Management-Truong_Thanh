@@ -1,8 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SUBJECT_LIST, getSubjectColor } from "@/lib/constants/subjects";
+import { useUsersStore } from "@/lib/stores/users-store";
+import { useBranchesStore, Branch } from "@/lib/stores/branches-store";
 
 interface AddUserModalProps {
   userType: "student" | "parent" | "teacher";
@@ -17,11 +20,17 @@ type BaseForm = {
   fullName: string;
   email: string;
   phone: string;
+  branchId: string;
 };
 
 type StudentForm = BaseForm & { studentId: string; parentName: string };
 type ParentForm = BaseForm & { childrenCount: string };
-type TeacherForm = BaseForm & { subject: string; experience: string };
+type TeacherForm = BaseForm & {
+  subjects: string[]; // Đổi từ subject thành subjects (array)
+  experience: string;
+  qualification: string;
+  teacherNote: string;
+};
 
 type FormDataState = StudentForm | ParentForm | TeacherForm;
 
@@ -31,13 +40,24 @@ type NewUserPayload = FormDataState & {
   createdAt: string;
 };
 
-const BASE_FORM: BaseForm = { fullName: "", email: "", phone: "" };
+const BASE_FORM: BaseForm = {
+  fullName: "",
+  email: "",
+  phone: "",
+  branchId: "",
+};
 
 const getDefaultForm = (userType: UserType): FormDataState => {
   if (userType === "student")
     return { ...BASE_FORM, studentId: "", parentName: "" };
   if (userType === "parent") return { ...BASE_FORM, childrenCount: "1" };
-  return { ...BASE_FORM, subject: "", experience: "" };
+  return {
+    ...BASE_FORM,
+    subjects: [],
+    experience: "",
+    qualification: "",
+    teacherNote: "",
+  };
 };
 
 export default function AddUserModal({
@@ -49,9 +69,26 @@ export default function AddUserModal({
   const [formData, setFormData] = useState<FormDataState>(() =>
     getDefaultForm(userType)
   );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { createUser } = useUsersStore();
+  const { branches, fetchBranches } = useBranchesStore();
 
-  if (!isOpen) return null;
+  // Fetch branches on mount
+  useEffect(() => {
+    fetchBranches();
+  }, [fetchBranches]);
 
+  // Reset form khi userType thay đổi hoặc modal mở lại
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getDefaultForm(userType));
+      setError(null);
+      setIsLoading(false);
+    }
+  }, [userType, isOpen]);
+
+  // Handlers - định nghĩa trước return
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -59,16 +96,89 @@ export default function AddUserModal({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser: NewUserPayload = {
-      id: Math.random().toString(36).slice(2, 9),
-      ...formData,
-      role: userType,
-      createdAt: new Date().toLocaleDateString("vi-VN"),
-    };
-    onAdd(newUser);
-    onClose();
+    console.log("=== FORM SUBMITTED ==="); // Debug
+    console.log("Form data:", formData); // Debug
+    console.log("User type:", userType); // Debug
+
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Validate cơ bản
+      if (!formData.branchId) {
+        throw new Error("Vui lòng chọn chi nhánh");
+      }
+      if (!formData.fullName.trim()) {
+        throw new Error("Vui lòng nhập họ tên");
+      }
+      if (!formData.email.trim()) {
+        throw new Error("Vui lòng nhập email");
+      }
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        throw new Error("Email không hợp lệ");
+      }
+      // Validate teacher subjects
+      if (
+        userType === "teacher" &&
+        "subjects" in formData &&
+        formData.subjects.length === 0
+      ) {
+        throw new Error("Vui lòng chọn ít nhất một môn dạy");
+      }
+
+      // Chuẩn bị dữ liệu để gửi lên API
+      const apiData: Parameters<typeof createUser>[0] = {
+        name: formData.fullName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone?.trim() || undefined,
+        password: "123456", // Mật khẩu mặc định, user sẽ đổi sau
+        role: userType,
+        branchId: formData.branchId || undefined,
+      };
+
+      // Thêm thông tin giáo viên nếu là teacher
+      if (userType === "teacher" && "subjects" in formData) {
+        apiData.subjects = formData.subjects;
+        apiData.qualification = formData.qualification || undefined;
+        apiData.teacherNote = formData.teacherNote || undefined;
+        apiData.experienceYears = formData.experience
+          ? parseInt(formData.experience)
+          : undefined;
+      }
+
+      console.log("=== CALLING API ==="); // Debug
+      console.log("Creating user with data:", apiData);
+      const newUser = await createUser(apiData);
+      console.log("=== API SUCCESS ==="); // Debug
+      console.log("User created successfully:", newUser);
+
+      // Gọi onAdd để refresh list
+      const newUserPayload: NewUserPayload = {
+        id: newUser._id || Math.random().toString(36).slice(2, 9),
+        ...formData,
+        role: userType,
+        createdAt: new Date().toLocaleDateString("vi-VN"),
+      };
+      onAdd(newUserPayload);
+      onClose();
+    } catch (err: any) {
+      console.error("=== API ERROR ==="); // Debug
+      console.error("Error creating user:", err);
+      console.error("Error response:", err?.response); // Debug
+      console.error("Error response data:", err?.response?.data); // Debug
+      // Lấy message từ nhiều nguồn có thể
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Đã có lỗi xảy ra khi tạo người dùng";
+      setError(Array.isArray(message) ? message.join(", ") : message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const title =
@@ -78,11 +188,42 @@ export default function AddUserModal({
       ? "Thêm phụ huynh"
       : "Thêm giáo viên";
 
+  // Early return PHẢI sau tất cả hooks
+  if (!isOpen) return null;
+
+  console.log("=== AddUserModal RENDERED ===", {
+    userType,
+    isOpen,
+    formData,
+    branches,
+  });
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md p-6">
+      <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold text-gray-900 mb-4">{title}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Chọn chi nhánh */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Chi nhánh <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="branchId"
+              value={formData.branchId}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border rounded-lg text-sm"
+            >
+              <option value="">-- Chọn chi nhánh --</option>
+              {branches.map((branch) => (
+                <option key={branch._id} value={branch._id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Họ tên</label>
             <Input
@@ -155,45 +296,137 @@ export default function AddUserModal({
           )}
 
           {userType === "teacher" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
+              {/* Môn dạy - Multi-select */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Môn dạy
+                  Môn dạy <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  name="subject"
-                  value={"subject" in formData ? formData.subject : ""}
-                  onChange={handleChange}
-                />
+                <div className="border rounded-lg p-3 max-h-40 overflow-y-auto">
+                  <div className="flex flex-wrap gap-2">
+                    {SUBJECT_LIST.map((subject) => {
+                      const isSelected =
+                        "subjects" in formData &&
+                        formData.subjects.includes(subject);
+                      return (
+                        <button
+                          key={subject}
+                          type="button"
+                          onClick={() => {
+                            if ("subjects" in formData) {
+                              const newSubjects = isSelected
+                                ? formData.subjects.filter((s) => s !== subject)
+                                : [...formData.subjects, subject];
+                              setFormData({
+                                ...formData,
+                                subjects: newSubjects,
+                              });
+                            }
+                          }}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                            isSelected
+                              ? getSubjectColor(subject) +
+                                " ring-2 ring-offset-1 ring-blue-400"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          {isSelected && "✓ "}
+                          {subject}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {"subjects" in formData && formData.subjects.length > 0 && (
+                  <p className="text-xs text-gray-500">
+                    Đã chọn: {formData.subjects.length} môn
+                  </p>
+                )}
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Kinh nghiệm (năm)
+                  </label>
+                  <Input
+                    type="number"
+                    name="experience"
+                    min="0"
+                    value={"experience" in formData ? formData.experience : ""}
+                    onChange={handleChange}
+                    placeholder="VD: 5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Trình độ
+                  </label>
+                  <select
+                    name="qualification"
+                    value={
+                      "qualification" in formData ? formData.qualification : ""
+                    }
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  >
+                    <option value="">-- Chọn --</option>
+                    <option value="Cử nhân">Cử nhân</option>
+                    <option value="Thạc sĩ">Thạc sĩ</option>
+                    <option value="Tiến sĩ">Tiến sĩ</option>
+                    <option value="Giáo sư">Giáo sư</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Kinh nghiệm (năm)
+                  Ghi chú
                 </label>
-                <Input
-                  name="experience"
-                  value={"experience" in formData ? formData.experience : ""}
-                  onChange={handleChange}
+                <textarea
+                  name="teacherNote"
+                  value={"teacherNote" in formData ? formData.teacherNote : ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      teacherNote: e.target.value,
+                    } as TeacherForm)
+                  }
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                  placeholder="Ghi chú về giáo viên (chuyên môn, thành tích...)"
                 />
               </div>
             </div>
           )}
 
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           <div className="flex gap-3">
-            <Button
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-60"
+              disabled={isLoading}
+              onClick={(e) => {
+                console.log("=== BUTTON CLICKED ===");
+                console.log("Form data at click:", formData);
+              }}
+            >
+              {isLoading ? "Đang thêm..." : "Thêm"}
+            </button>
+            <button
               type="button"
-              variant="outline"
-              className="flex-1"
+              className="flex-1 border border-gray-300 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-lg font-semibold"
               onClick={onClose}
+              disabled={isLoading}
             >
               Hủy
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
-            >
-              Lưu
-            </Button>
+            </button>
           </div>
         </form>
       </Card>

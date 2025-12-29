@@ -18,6 +18,11 @@ export interface User {
   mustChangePassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Thông tin dành cho giáo viên
+  subjects?: string[]; // Danh sách môn dạy
+  teacherNote?: string; // Ghi chú về giáo viên
+  qualification?: string; // Trình độ học vấn
+  experienceYears?: number; // Số năm kinh nghiệm
 }
 
 interface AuthState {

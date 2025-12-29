@@ -7,6 +7,7 @@ import AddUserModal from "@/components/pages/add-user-modal";
 import ImportUsersModal from "@/components/pages/import-users-modal";
 import { useUsersStore, ImportResponse } from "@/lib/stores/users-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
+import { getSubjectColor } from "@/lib/constants/subjects";
 
 type UserType = "student" | "parent" | "teacher";
 
@@ -20,8 +21,12 @@ interface User {
   studentId?: string;
   parentName?: string;
   childrenCount?: string;
-  subject?: string;
+  // Thông tin giáo viên
+  subjects?: string[];
+  subject?: string; // backwards compatibility
   experience?: string;
+  qualification?: string;
+  teacherNote?: string;
 }
 
 export default function UserManagement() {
@@ -99,12 +104,49 @@ export default function UserManagement() {
             key={user._id || user.id}
             className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
           >
-            <div>
+            <div className="flex-1">
               <p className="font-semibold text-gray-900">
                 {user.name || user.fullName}
               </p>
               <p className="text-sm text-gray-600">{user.email}</p>
               <p className="text-sm text-gray-600">{user.phone}</p>
+
+              {/* Hiển thị môn dạy cho giáo viên */}
+              {userType === "teacher" && (
+                <div className="mt-2">
+                  {user.subjects && user.subjects.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {user.subjects.map((subject: string) => (
+                        <span
+                          key={subject}
+                          className={`px-2 py-0.5 rounded-full text-xs ${getSubjectColor(
+                            subject
+                          )}`}
+                        >
+                          {subject}
+                        </span>
+                      ))}
+                    </div>
+                  ) : user.subject ? (
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs ${getSubjectColor(
+                        user.subject
+                      )}`}
+                    >
+                      {user.subject}
+                    </span>
+                  ) : null}
+                  {user.qualification && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      🎓 {user.qualification}
+                      {user.experienceYears
+                        ? ` • ${user.experienceYears} năm KN`
+                        : ""}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mt-1 flex gap-2 text-xs text-gray-500">
                 <Badge variant="info">{user._id?.slice(-6) || user.id}</Badge>
                 {user.status && (
@@ -145,15 +187,6 @@ export default function UserManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <select
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            value={selectedUserType}
-            onChange={(e) => setSelectedUserType(e.target.value as UserType)}
-          >
-            <option value="student">Học sinh</option>
-            <option value="parent">Phụ huynh</option>
-            <option value="teacher">Giáo viên</option>
-          </select>
           <Button
             variant="outline"
             onClick={() => setImportModalOpen(true)}
@@ -165,12 +198,34 @@ export default function UserManagement() {
             onClick={() => setModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            ➕ Thêm mới
+            ➕ Thêm{" "}
+            {selectedUserType === "student"
+              ? "học sinh"
+              : selectedUserType === "parent"
+              ? "phụ huynh"
+              : "giáo viên"}
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="students" className="w-full">
+      <Tabs
+        value={
+          selectedUserType === "student"
+            ? "students"
+            : selectedUserType === "parent"
+            ? "parents"
+            : "teachers"
+        }
+        onValueChange={(value) => {
+          const typeMap: Record<string, UserType> = {
+            students: "student",
+            parents: "parent",
+            teachers: "teacher",
+          };
+          setSelectedUserType(typeMap[value] || "student");
+        }}
+        className="w-full"
+      >
         <TabsList>
           <TabsTrigger value="students">
             Học sinh ({students.length})

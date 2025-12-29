@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationCenter from "@/components/notification-center";
 import ImportUsersModal from "@/components/pages/import-users-modal";
+import ScheduleManager from "@/components/pages/schedule-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
 
@@ -370,13 +371,25 @@ function AddModal({
   fields,
   branches,
   onClose,
+  onSubmit,
+  isLoading,
+  error,
 }: {
   title: string;
   fields: string[];
   branches: BranchOption[];
   onClose: () => void;
+  onSubmit: (data: Record<string, string>) => void;
+  isLoading?: boolean;
+  error?: string | null;
 }) {
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [formData, setFormData] = useState<Record<string, string>>({});
+
+  const handleSubmit = () => {
+    console.log("=== AddModal SUBMIT ===", { selectedBranch, formData });
+    onSubmit({ ...formData, branchId: selectedBranch });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
@@ -393,6 +406,7 @@ function AddModal({
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
             className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
           >
             <option value="">-- Chọn cơ sở --</option>
             {branches.map((branch) => (
@@ -406,17 +420,31 @@ function AddModal({
               key={f}
               placeholder={f}
               className="rounded-xl border-gray-200"
+              value={formData[f] || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, [f]: e.target.value })
+              }
             />
           ))}
         </div>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
         <div className="flex gap-3">
-          <Button className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200">
-            Thêm
+          <Button
+            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+            onClick={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? "Đang thêm..." : "Thêm"}
           </Button>
           <Button
             variant="outline"
             className="flex-1 rounded-xl"
             onClick={onClose}
+            disabled={isLoading}
           >
             Hủy
           </Button>
@@ -563,15 +591,54 @@ export default function AdminDashboard({
     deleteBranch,
     isLoading: branchesLoading,
   } = useBranchesStore();
-  const { importUsers, downloadTemplate } = useUsersStore();
+  const {
+    users,
+    importUsers,
+    downloadTemplate,
+    createUser,
+    fetchUsers,
+    isLoading: usersLoading,
+  } = useUsersStore();
 
-  // Fetch branches on mount
+  // State for add user modal
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
+
+  // Kiểm tra xem user có phải admin không
+  const isAdmin = user.role === "admin";
+
+  // State for branch filter - Nếu không phải admin, mặc định là branchId của user
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
+
+  // Effective branch filter - non-admin users chỉ xem được chi nhánh của mình
+  const effectiveBranchFilter = isAdmin
+    ? selectedBranchFilter
+    : (user as any).branchId || "";
+
+  // Filter users by role and branch from API
+  const filteredUsers = effectiveBranchFilter
+    ? users.filter((u) => u.branchId === effectiveBranchFilter)
+    : users;
+  const apiStudents = filteredUsers.filter((u) => u.role === "student");
+  const apiParents = filteredUsers.filter((u) => u.role === "parent");
+  const apiTeachers = filteredUsers.filter((u) => u.role === "teacher");
+
+  // Get branch name by id
+  const getBranchName = (branchId?: string) => {
+    if (!branchId) return "Chưa phân cơ sở";
+    const branch = branches.find((b) => b._id === branchId);
+    return branch?.name || "Không xác định";
+  };
+
+  // Fetch branches and users on mount
   useEffect(() => {
     fetchBranches().catch(() => {
-      // Silently handle error - branches will be empty array
       console.log("Could not fetch branches - make sure backend is running");
     });
-  }, [fetchBranches]);
+    fetchUsers().catch(() => {
+      console.log("Could not fetch users - make sure backend is running");
+    });
+  }, [fetchBranches, fetchUsers]);
 
   // Handlers for branches
   const handleAddBranch = () => {
@@ -627,6 +694,85 @@ export default function AdminDashboard({
 
   const handleDownloadTemplate = (role: "student" | "teacher" | "parent") => {
     downloadTemplate(role);
+  };
+
+  // Handler để thêm user từ AddModal
+  const handleAddUser = async (data: Record<string, string>) => {
+    console.log("=== handleAddUser called ===", data);
+    setAddUserError(null);
+    setAddUserLoading(true);
+
+    try {
+      // Validate
+      if (!data.branchId) {
+        throw new Error("Vui lòng chọn chi nhánh");
+      }
+      const name = data["Họ và tên"] || data["Họ tên"];
+      const email = data["Email"];
+      const phone = data["Số điện thoại"];
+
+      if (!name?.trim()) {
+        throw new Error("Vui lòng nhập họ tên");
+      }
+      if (!email?.trim()) {
+        throw new Error("Vui lòng nhập email");
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error("Email không hợp lệ");
+      }
+
+      // Determine role from modal title
+      let role: "student" | "parent" | "teacher" = "student";
+      if (showModal?.title.includes("giáo viên")) {
+        role = "teacher";
+      } else if (showModal?.title.includes("phụ huynh")) {
+        role = "parent";
+      }
+
+      // Prepare API data
+      const apiData: any = {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone?.trim() || undefined,
+        password: "123456",
+        role,
+        branchId: data.branchId,
+      };
+
+      // Add teacher specific fields
+      if (role === "teacher") {
+        const subjects = data["Môn dạy"];
+        if (subjects) {
+          apiData.subjects = subjects.split(",").map((s: string) => s.trim());
+        }
+        const experience = data["Năm kinh nghiệm"];
+        if (experience) {
+          apiData.experienceYears = parseInt(experience);
+        }
+      }
+
+      console.log("Creating user with:", apiData);
+      await createUser(apiData);
+      console.log("User created successfully!");
+
+      // Refresh users list
+      await fetchUsers();
+
+      // Close modal
+      setShowModal(null);
+    } catch (err: any) {
+      console.error("Error creating user:", err);
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Lỗi khi tạo người dùng";
+      setAddUserError(Array.isArray(message) ? message.join(", ") : message);
+    } finally {
+      setAddUserLoading(false);
+    }
   };
 
   return (
@@ -721,6 +867,12 @@ export default function AdminDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🏢 Cơ sở
+            </TabsTrigger>
+            <TabsTrigger
+              value="schedule"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📅 Lịch dạy học
             </TabsTrigger>
             <TabsTrigger
               value="settings"
@@ -972,9 +1124,54 @@ export default function AdminDashboard({
                     </p>
                     <p className="text-xs text-gray-500">
                       Học sinh, phụ huynh và giáo viên
+                      {!isAdmin && effectiveBranchFilter && (
+                        <span className="ml-2 text-blue-600 font-medium">
+                          • {getBranchName(effectiveBranchFilter)}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
+
+                {/* Branch Filter - Chỉ hiển thị cho Admin */}
+                {isAdmin && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600">
+                        🏢 Cơ sở:
+                      </span>
+                      <select
+                        value={selectedBranchFilter}
+                        onChange={(e) =>
+                          setSelectedBranchFilter(e.target.value)
+                        }
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px]"
+                      >
+                        <option value="">Tất cả cơ sở</option>
+                        {branches.map((branch) => (
+                          <option key={branch._id} value={branch._id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {selectedBranchFilter && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                        Đang lọc: {getBranchName(selectedBranchFilter)}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Badge hiển thị chi nhánh cho non-admin */}
+                {!isAdmin && effectiveBranchFilter && (
+                  <div className="flex items-center">
+                    <span className="text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full font-medium">
+                      🏢 {getBranchName(effectiveBranchFilter)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -1037,7 +1234,7 @@ export default function AdminDashboard({
                   }`}
                 >
                   <span>👨‍🎓</span>
-                  <span>Học sinh ({accounts.students.length})</span>
+                  <span>Học sinh ({apiStudents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("parents")}
@@ -1048,7 +1245,7 @@ export default function AdminDashboard({
                   }`}
                 >
                   <span>👨‍👩‍👧</span>
-                  <span>Phụ huynh ({accounts.parents.length})</span>
+                  <span>Phụ huynh ({apiParents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("teachers")}
@@ -1059,104 +1256,194 @@ export default function AdminDashboard({
                   }`}
                 >
                   <span>👨‍🏫</span>
-                  <span>Giáo viên ({accounts.teachers.length})</span>
+                  <span>Giáo viên ({apiTeachers.length})</span>
                 </button>
               </div>
 
               {/* Account List */}
               <div className="space-y-3">
-                {activeAccountTab === "students" &&
-                  accounts.students.map((s) => (
-                    <div
-                      key={s.code}
-                      className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
-                          {s.avatar}
+                {usersLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="animate-spin inline-block mr-2">⏳</span>
+                    Đang tải...
+                  </div>
+                ) : (
+                  <>
+                    {activeAccountTab === "students" &&
+                      (apiStudents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          {effectiveBranchFilter
+                            ? `Chưa có học sinh tại cơ sở "${getBranchName(
+                                effectiveBranchFilter
+                              )}"`
+                            : "Chưa có học sinh"}
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{s.name}</p>
-                          <p className="text-xs text-gray-500">{s.email}</p>
-                          <p className="text-xs text-gray-400">
-                            {s.phone} • Mã: {s.code}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">{s.date}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 rounded-lg"
-                        >
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      ) : (
+                        apiStudents.map((s) => (
+                          <div
+                            key={s._id}
+                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl">
+                                👨‍🎓
+                              </div>
+                              <div>
+                                <p className="font-bold text-gray-900">
+                                  {s.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {s.email}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {s.phone || "Chưa có SĐT"} • ID:{" "}
+                                  {s._id?.slice(-6)}
+                                </p>
+                                {isAdmin && (
+                                  <p className="text-xs text-blue-600 font-medium mt-1">
+                                    🏢 {getBranchName(s.branchId)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">
+                                {s.createdAt
+                                  ? new Date(s.createdAt).toLocaleDateString(
+                                      "vi-VN"
+                                    )
+                                  : ""}
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 rounded-lg"
+                              >
+                                Chi tiết
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      ))}
 
-                {activeAccountTab === "parents" &&
-                  accounts.parents.map((p) => (
-                    <div
-                      key={p.email}
-                      className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center text-2xl">
-                          {p.avatar}
+                    {activeAccountTab === "parents" &&
+                      (apiParents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          {effectiveBranchFilter
+                            ? `Chưa có phụ huynh tại cơ sở "${getBranchName(
+                                effectiveBranchFilter
+                              )}"`
+                            : "Chưa có phụ huynh"}
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{p.name}</p>
-                          <p className="text-xs text-gray-500">{p.email}</p>
-                          <p className="text-xs text-gray-400">
-                            {p.phone} • {p.children}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">{p.date}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 rounded-lg"
-                        >
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      ) : (
+                        apiParents.map((p) => (
+                          <div
+                            key={p._id}
+                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center text-2xl">
+                                👨‍👩‍👧
+                              </div>
+                              <div>
+                                <p className="font-bold text-gray-900">
+                                  {p.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {p.email}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {p.phone || "Chưa có SĐT"}
+                                </p>
+                                {isAdmin && (
+                                  <p className="text-xs text-emerald-600 font-medium mt-1">
+                                    🏢 {getBranchName(p.branchId)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">
+                                {p.createdAt
+                                  ? new Date(p.createdAt).toLocaleDateString(
+                                      "vi-VN"
+                                    )
+                                  : ""}
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 rounded-lg"
+                              >
+                                Chi tiết
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      ))}
 
-                {activeAccountTab === "teachers" &&
-                  accounts.teachers.map((t) => (
-                    <div
-                      key={t.email}
-                      className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-violet-100 flex items-center justify-center text-2xl">
-                          {t.avatar}
+                    {activeAccountTab === "teachers" &&
+                      (apiTeachers.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          {effectiveBranchFilter
+                            ? `Chưa có giáo viên tại cơ sở "${getBranchName(
+                                effectiveBranchFilter
+                              )}"`
+                            : "Chưa có giáo viên"}
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{t.name}</p>
-                          <p className="text-xs text-gray-500">{t.email}</p>
-                          <p className="text-xs text-gray-400">
-                            {t.phone} • Môn: {t.subject} • {t.experience}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">{t.date}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-2 rounded-lg"
-                        >
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      ) : (
+                        apiTeachers.map((t) => (
+                          <div
+                            key={t._id}
+                            className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-violet-100 flex items-center justify-center text-2xl">
+                                👨‍🏫
+                              </div>
+                              <div>
+                                <p className="font-bold text-gray-900">
+                                  {t.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {t.email}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {t.phone || "Chưa có SĐT"}
+                                  {t.subjects &&
+                                    t.subjects.length > 0 &&
+                                    ` • Môn: ${t.subjects.join(", ")}`}
+                                  {t.experienceYears &&
+                                    ` • ${t.experienceYears} năm KN`}
+                                </p>
+                                {isAdmin && (
+                                  <p className="text-xs text-purple-600 font-medium mt-1">
+                                    🏢 {getBranchName(t.branchId)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">
+                                {t.createdAt
+                                  ? new Date(t.createdAt).toLocaleDateString(
+                                      "vi-VN"
+                                    )
+                                  : ""}
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 rounded-lg"
+                              >
+                                Chi tiết
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      ))}
+                  </>
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -1537,6 +1824,11 @@ export default function AdminDashboard({
             </Card>
           </TabsContent>
 
+          {/* Tab Lịch dạy học */}
+          <TabsContent value="schedule" className="mt-6">
+            <ScheduleManager userRole={user.role} userId={user.id} />
+          </TabsContent>
+
           {/* Tab Cài đặt */}
           <TabsContent value="settings" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
@@ -1610,7 +1902,13 @@ export default function AdminDashboard({
           title={showModal.title}
           fields={showModal.fields}
           branches={branches}
-          onClose={() => setShowModal(null)}
+          onClose={() => {
+            setShowModal(null);
+            setAddUserError(null);
+          }}
+          onSubmit={handleAddUser}
+          isLoading={addUserLoading}
+          error={addUserError}
         />
       )}
 

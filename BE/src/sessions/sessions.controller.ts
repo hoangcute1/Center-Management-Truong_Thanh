@@ -12,6 +12,12 @@ import {
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
+import {
+  ScheduleQueryDto,
+  GenerateSessionsDto,
+  CheckConflictDto,
+  BulkCreateSessionsDto,
+} from './dto/schedule-query.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -28,6 +34,83 @@ export class SessionsController {
   @Roles(UserRole.Admin, UserRole.Teacher)
   create(@CurrentUser() user: UserDocument, @Body() dto: CreateSessionDto) {
     return this.sessionsService.create(user, dto);
+  }
+
+  // Lấy lịch với filter
+  @Get('schedule')
+  getSchedule(@Query() query: ScheduleQueryDto) {
+    return this.sessionsService.getSchedule(query);
+  }
+
+  // Kiểm tra xung đột lịch
+  @Post('check-conflict')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  checkConflict(@Body() dto: CheckConflictDto) {
+    return this.sessionsService.checkConflict(dto);
+  }
+
+  // Tự động tạo sessions từ schedule của class
+  @Post('generate')
+  @Roles(UserRole.Admin)
+  generateSessions(
+    @CurrentUser() user: UserDocument,
+    @Body() dto: GenerateSessionsDto,
+  ) {
+    return this.sessionsService.generateSessions(user, dto);
+  }
+
+  // Tạo nhiều sessions cùng lúc
+  @Post('bulk')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  bulkCreate(
+    @CurrentUser() user: UserDocument,
+    @Body() dto: BulkCreateSessionsDto,
+  ) {
+    return this.sessionsService.bulkCreate(user, dto);
+  }
+
+  // Lấy lịch của giáo viên
+  @Get('teacher/:teacherId')
+  getTeacherSchedule(
+    @Param('teacherId') teacherId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.sessionsService.getTeacherSchedule(
+      teacherId,
+      startDate,
+      endDate,
+    );
+  }
+
+  // Lấy lịch của học sinh
+  @Get('student/:studentId')
+  getStudentSchedule(
+    @Param('studentId') studentId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.sessionsService.getStudentSchedule(
+      studentId,
+      startDate,
+      endDate,
+    );
+  }
+
+  // Thống kê sessions
+  @Get('statistics')
+  @Roles(UserRole.Admin)
+  getStatistics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.sessionsService.getStatistics(startDate, endDate, branchId);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.sessionsService.findById(id);
   }
 
   @Get()

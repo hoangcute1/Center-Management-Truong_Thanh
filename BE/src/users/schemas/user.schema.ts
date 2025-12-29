@@ -44,6 +44,23 @@ export class User {
 
   @Prop({ default: false })
   mustChangePassword: boolean;
+
+  // ===== Thông tin dành cho Giáo viên =====
+  // Danh sách môn học giáo viên có thể dạy
+  @Prop({ type: [String], default: [] })
+  subjects: string[];
+
+  // Mô tả/ghi chú về giáo viên (kinh nghiệm, chuyên môn...)
+  @Prop()
+  teacherNote?: string;
+
+  // Trình độ học vấn
+  @Prop()
+  qualification?: string;
+
+  // Số năm kinh nghiệm
+  @Prop()
+  experienceYears?: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

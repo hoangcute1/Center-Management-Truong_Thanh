@@ -9,11 +9,14 @@ import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from '../common/enums/role.enum';
+import { SUBJECT_LIST } from '../common/enums/subject.enum';
 
 interface FindAllFilters {
   role?: string;
   status?: string;
   branchId?: string;
+  subject?: string; // Lọc giáo viên theo môn dạy
 }
 
 @Injectable()
@@ -45,6 +48,10 @@ export class UsersService {
     }
     if (filters?.branchId) {
       query.branchId = filters.branchId;
+    }
+    // Lọc giáo viên theo môn dạy
+    if (filters?.subject) {
+      query.subjects = { $in: [filters.subject] };
     }
 
     return this.userModel.find(query).select('-passwordHash').exec();
@@ -80,5 +87,47 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     const res = await this.userModel.findByIdAndDelete(id).exec();
     if (!res) throw new NotFoundException('User not found');
+  }
+
+  // Lấy danh sách giáo viên theo môn học
+  async findTeachersBySubject(subject: string): Promise<User[]> {
+    return this.userModel
+      .find({
+        role: UserRole.Teacher,
+        subjects: { $in: [subject] },
+      })
+      .select('-passwordHash')
+      .exec();
+  }
+
+  // Lấy danh sách tất cả môn học có trong hệ thống
+  getAvailableSubjects(): string[] {
+    return SUBJECT_LIST;
+  }
+
+  // Lấy thống kê giáo viên theo môn học
+  async getTeacherStatsBySubject(): Promise<
+    Array<{ subject: string; count: number }>
+  > {
+    const stats = await this.userModel.aggregate([
+      { $match: { role: UserRole.Teacher } },
+      { $unwind: '$subjects' },
+      {
+        $group: {
+          _id: '$subjects',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          subject: '$_id',
+          count: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    return stats;
   }
 }

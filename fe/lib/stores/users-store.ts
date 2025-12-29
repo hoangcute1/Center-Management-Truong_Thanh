@@ -28,6 +28,12 @@ interface UsersActions {
   downloadTemplate: (role: UserRole) => Promise<void>;
   setSelectedUser: (user: User | null) => void;
   clearError: () => void;
+  // Thêm methods mới cho giáo viên và môn học
+  fetchSubjects: () => Promise<string[]>;
+  fetchTeachersBySubject: (subject: string) => Promise<User[]>;
+  fetchTeacherStatsBySubject: () => Promise<
+    Array<{ subject: string; count: number }>
+  >;
 }
 
 interface FetchUsersParams {
@@ -36,6 +42,7 @@ interface FetchUsersParams {
   role?: UserRole;
   branchId?: string;
   search?: string;
+  subject?: string; // Lọc giáo viên theo môn
 }
 
 interface CreateUserData {
@@ -45,6 +52,11 @@ interface CreateUserData {
   password: string;
   role: UserRole;
   branchId?: string;
+  // Thông tin giáo viên
+  subjects?: string[];
+  teacherNote?: string;
+  qualification?: string;
+  experienceYears?: number;
 }
 
 interface UpdateUserData {
@@ -57,6 +69,11 @@ interface UpdateUserData {
   status?: "active" | "pending" | "inactive";
   avatarUrl?: string;
   dateOfBirth?: string;
+  // Thông tin giáo viên
+  subjects?: string[];
+  teacherNote?: string;
+  qualification?: string;
+  experienceYears?: number;
 }
 
 interface ImportResult {
@@ -130,7 +147,9 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
   createUser: async (data: CreateUserData) => {
     set({ isLoading: true, error: null });
     try {
+      console.log("=== users-store: calling API /users ===", data); // Debug
       const response = await api.post("/users", data);
+      console.log("=== users-store: API response ===", response.data); // Debug
       const newUser = { ...response.data, id: response.data._id };
 
       set((state) => ({
@@ -140,9 +159,12 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
 
       return newUser;
     } catch (error: any) {
+      console.error("=== users-store: API error ===", error); // Debug
+      console.error("=== users-store: error.response ===", error.response); // Debug
       const message = error.response?.data?.message || "Lỗi khi tạo người dùng";
       set({ isLoading: false, error: message });
-      throw new Error(message);
+      // Re-throw the original error to preserve response data
+      throw error;
     }
   },
 
@@ -241,5 +263,40 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  // Lấy danh sách môn học có sẵn
+  fetchSubjects: async () => {
+    try {
+      const response = await api.get("/users/subjects/list");
+      return response.data;
+    } catch (error: any) {
+      console.error("Error fetching subjects:", error);
+      return [];
+    }
+  },
+
+  // Lấy giáo viên theo môn học
+  fetchTeachersBySubject: async (subject: string) => {
+    try {
+      const response = await api.get(
+        `/users/teachers/by-subject/${encodeURIComponent(subject)}`
+      );
+      return response.data.map((u: User) => ({ ...u, id: u._id }));
+    } catch (error: any) {
+      console.error("Error fetching teachers by subject:", error);
+      return [];
+    }
+  },
+
+  // Thống kê giáo viên theo môn học
+  fetchTeacherStatsBySubject: async () => {
+    try {
+      const response = await api.get("/users/teachers/stats-by-subject");
+      return response.data;
+    } catch (error: any) {
+      console.error("Error fetching teacher stats:", error);
+      return [];
+    }
   },
 }));

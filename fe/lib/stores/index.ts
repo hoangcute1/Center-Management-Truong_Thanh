@@ -19,3 +19,12 @@ export {
   type StudentDashboardData,
   type Session,
 } from "./student-dashboard-store";
+export {
+  useScheduleStore,
+  SessionStatus,
+  SessionType,
+  type Session as ScheduleSession,
+  type CreateSessionData,
+  type UpdateSessionData,
+  type ScheduleQuery,
+} from "./schedule-store";

@@ -13,9 +13,11 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { User } from './schemas/user.schema';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,13 +31,46 @@ export class UsersController {
   }
 
   @Get()
-  @Roles(UserRole.Admin)
+  @Roles(UserRole.Admin, UserRole.Teacher)
   findAll(
+    @CurrentUser() currentUser: User,
     @Query('role') role?: UserRole,
     @Query('status') status?: string,
     @Query('branchId') branchId?: string,
+    @Query('subject') subject?: string,
   ) {
-    return this.usersService.findAll({ role, status, branchId });
+    // Nếu không phải Admin, chỉ lấy users của chi nhánh mình
+    let effectiveBranchId = branchId;
+    if (currentUser.role !== UserRole.Admin) {
+      effectiveBranchId = (currentUser as any).branchId;
+    }
+    return this.usersService.findAll({
+      role,
+      status,
+      branchId: effectiveBranchId,
+      subject,
+    });
+  }
+
+  // Lấy danh sách môn học có sẵn
+  @Get('subjects/list')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  getSubjects() {
+    return this.usersService.getAvailableSubjects();
+  }
+
+  // Thống kê giáo viên theo môn học
+  @Get('teachers/stats-by-subject')
+  @Roles(UserRole.Admin)
+  getTeacherStatsBySubject() {
+    return this.usersService.getTeacherStatsBySubject();
+  }
+
+  // Lấy giáo viên theo môn học
+  @Get('teachers/by-subject/:subject')
+  @Roles(UserRole.Admin)
+  findTeachersBySubject(@Param('subject') subject: string) {
+    return this.usersService.findTeachersBySubject(subject);
   }
 
   @Get(':id')
