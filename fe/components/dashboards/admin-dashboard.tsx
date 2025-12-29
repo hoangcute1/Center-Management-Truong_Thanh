@@ -627,6 +627,20 @@ function UserDetailModal({
   );
 }
 
+// Danh sách môn dạy theo khối
+const SUBJECT_OPTIONS = [
+  { category: "Toán", subjects: ["Toán 10", "Toán 11", "Toán 12"] },
+  { category: "Văn", subjects: ["Văn 10", "Văn 11", "Văn 12"] },
+  { category: "Anh Văn", subjects: ["Anh Văn 10", "Anh Văn 11", "Anh Văn 12"] },
+  { category: "Vật Lý", subjects: ["Lý 10", "Lý 11", "Lý 12"] },
+  { category: "Hóa Học", subjects: ["Hóa 10", "Hóa 11", "Hóa 12"] },
+  { category: "Sinh Học", subjects: ["Sinh 10", "Sinh 11", "Sinh 12"] },
+  { category: "Lịch Sử", subjects: ["Sử 10", "Sử 11", "Sử 12"] },
+  { category: "Địa Lý", subjects: ["Địa 10", "Địa 11", "Địa 12"] },
+  { category: "GDCD", subjects: ["GDCD 10", "GDCD 11", "GDCD 12"] },
+  { category: "Tin Học", subjects: ["Tin 10", "Tin 11", "Tin 12"] },
+];
+
 function AddModal({
   title,
   fields,
@@ -646,15 +660,52 @@ function AddModal({
 }) {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+
+  // Check if this is teacher form
+  const isTeacherForm = title.includes("giáo viên");
+
+  // Toggle subject selection
+  const toggleSubject = (subject: string) => {
+    setSelectedSubjects((prev) =>
+      prev.includes(subject)
+        ? prev.filter((s) => s !== subject)
+        : [...prev, subject]
+    );
+  };
+
+  // Select all subjects in a category
+  const toggleCategory = (subjects: string[]) => {
+    const allSelected = subjects.every((s) => selectedSubjects.includes(s));
+    if (allSelected) {
+      setSelectedSubjects((prev) => prev.filter((s) => !subjects.includes(s)));
+    } else {
+      setSelectedSubjects((prev) => [...new Set([...prev, ...subjects])]);
+    }
+  };
 
   const handleSubmit = () => {
-    console.log("=== AddModal SUBMIT ===", { selectedBranch, formData });
-    onSubmit({ ...formData, branchId: selectedBranch });
+    console.log("=== AddModal SUBMIT ===", {
+      selectedBranch,
+      formData,
+      selectedSubjects,
+    });
+    const submitData = { ...formData, branchId: selectedBranch };
+    if (isTeacherForm && selectedSubjects.length > 0) {
+      submitData["Môn dạy"] = selectedSubjects.join(", ");
+    }
+    onSubmit(submitData);
   };
+
+  // Filter out "Môn dạy" from fields for teacher form (we'll handle it separately)
+  const displayFields = isTeacherForm
+    ? fields.filter((f) => f !== "Môn dạy")
+    : fields;
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
-      <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0">
+      <Card className="w-full max-w-md p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
             ➕
@@ -676,7 +727,7 @@ function AddModal({
               </option>
             ))}
           </select>
-          {fields.map((f) => (
+          {displayFields.map((f) => (
             <Input
               key={f}
               placeholder={f}
@@ -687,6 +738,102 @@ function AddModal({
               }
             />
           ))}
+
+          {/* Subject Picker for Teachers */}
+          {isTeacherForm && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Môn dạy <span className="text-gray-400">(chọn nhiều)</span>
+              </label>
+
+              {/* Selected subjects display */}
+              <div
+                onClick={() => setShowSubjectPicker(!showSubjectPicker)}
+                className="w-full min-h-[42px] rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {selectedSubjects.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedSubjects.map((subject) => (
+                      <span
+                        key={subject}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                      >
+                        #{subject}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSubject(subject);
+                          }}
+                          className="hover:text-blue-900"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400">Nhấn để chọn môn dạy...</span>
+                )}
+              </div>
+
+              {/* Subject Picker Dropdown */}
+              {showSubjectPicker && (
+                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 max-h-[250px] overflow-y-auto">
+                  {SUBJECT_OPTIONS.map((cat) => (
+                    <div key={cat.category} className="mb-3 last:mb-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(cat.subjects)}
+                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
+                            cat.subjects.every((s) =>
+                              selectedSubjects.includes(s)
+                            )
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                        >
+                          {cat.category}
+                        </button>
+                        <span className="text-xs text-gray-400">
+                          {
+                            cat.subjects.filter((s) =>
+                              selectedSubjects.includes(s)
+                            ).length
+                          }
+                          /{cat.subjects.length}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 ml-1">
+                        {cat.subjects.map((subject) => (
+                          <button
+                            key={subject}
+                            type="button"
+                            onClick={() => toggleSubject(subject)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                              selectedSubjects.includes(subject)
+                                ? "bg-blue-500 text-white shadow-sm"
+                                : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                            }`}
+                          >
+                            #{subject}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowSubjectPicker(false)}
+                    className="w-full mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    ✓ Xong
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -1044,11 +1191,10 @@ export default function AdminDashboard({
       setShowModal(null);
     } catch (err: any) {
       console.error("Error creating user:", err);
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Lỗi khi tạo người dùng";
-      setAddUserError(Array.isArray(message) ? message.join(", ") : message);
+
+      // Lấy message từ error đã được dịch trong users-store
+      const message = err?.message || "Lỗi khi tạo người dùng";
+      setAddUserError(message);
     } finally {
       setAddUserLoading(false);
     }
@@ -1503,8 +1649,8 @@ export default function AdminDashboard({
                                 "Họ và tên",
                                 "Email",
                                 "Số điện thoại",
-                                "Mã học sinh",
                                 "Tên phụ huynh",
+                                "SĐT phụ huynh",
                               ],
                             }
                           : activeAccountTab === "parents"

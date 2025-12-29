@@ -12,23 +12,29 @@ import {
   UpdateSessionData,
 } from "@/lib/stores/schedule-store";
 import { Class } from "@/lib/stores/classes-store";
+import { User } from "@/lib/stores/auth-store";
 
 interface SessionFormModalProps {
   session: Session | null;
   classes: Class[];
+  teachers?: User[];
   onClose: () => void;
 }
 
 export default function SessionFormModal({
   session,
   classes,
+  teachers = [],
   onClose,
 }: SessionFormModalProps) {
   const { createSession, updateSession, checkConflict, isLoading } =
     useScheduleStore();
 
   const [formData, setFormData] = useState({
+    teacherId: "",
     classId: "",
+    title: "",
+    room: "",
     date: "",
     startTime: "08:00",
     endTime: "09:30",
@@ -39,17 +45,48 @@ export default function SessionFormModal({
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Filter classes by selected teacher
+  const filteredClasses = formData.teacherId
+    ? classes.filter((c) => {
+        const classTeacherId = c.teacherId || c.teacher?._id;
+        return classTeacherId === formData.teacherId;
+      })
+    : classes;
+
+  // Get selected teacher info
+  const selectedTeacher = teachers.find((t) => t._id === formData.teacherId);
+
   // Initialize form data when editing
   useEffect(() => {
     if (session) {
       const startDate = new Date(session.startTime);
       const endDate = new Date(session.endTime);
 
+      // Get class info
+      const classInfo =
+        typeof session.classId === "string"
+          ? classes.find((c) => c._id === session.classId)
+          : session.classId;
+
+      // Get teacher ID from class
+      let teacherId = "";
+      if (classInfo && typeof classInfo !== "string") {
+        if (classInfo.teacherId) {
+          teacherId =
+            typeof classInfo.teacherId === "string"
+              ? classInfo.teacherId
+              : classInfo.teacherId._id;
+        }
+      }
+
       setFormData({
+        teacherId: teacherId,
         classId:
           typeof session.classId === "string"
             ? session.classId
             : session.classId._id,
+        title: (session as any).title || "",
+        room: (session as any).room || "",
         date: startDate.toISOString().split("T")[0],
         startTime: startDate.toTimeString().slice(0, 5),
         endTime: endDate.toTimeString().slice(0, 5),
@@ -57,17 +94,13 @@ export default function SessionFormModal({
         note: session.note || "",
       });
     }
-  }, [session]);
-
-  // Get teacher from selected class
-  const selectedClass = classes.find((c) => c._id === formData.classId);
-  const teacherId = selectedClass?.teacherId;
+  }, [session, classes]);
 
   // Check for conflicts when time changes
   useEffect(() => {
     const checkForConflicts = async () => {
       if (
-        !teacherId ||
+        !formData.teacherId ||
         !formData.date ||
         !formData.startTime ||
         !formData.endTime
@@ -80,22 +113,8 @@ export default function SessionFormModal({
       const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
 
       try {
-        // Get teacherId as string
-        let teacherIdStr: string;
-        if (typeof teacherId === "string") {
-          teacherIdStr = teacherId;
-        } else if (
-          teacherId &&
-          typeof teacherId === "object" &&
-          "_id" in teacherId
-        ) {
-          teacherIdStr = (teacherId as { _id: string })._id;
-        } else {
-          return;
-        }
-
         const result = await checkConflict({
-          teacherId: teacherIdStr,
+          teacherId: formData.teacherId,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           excludeSessionId: session?._id,
@@ -116,7 +135,7 @@ export default function SessionFormModal({
     const debounceTimer = setTimeout(checkForConflicts, 500);
     return () => clearTimeout(debounceTimer);
   }, [
-    teacherId,
+    formData.teacherId,
     formData.date,
     formData.startTime,
     formData.endTime,
@@ -128,8 +147,14 @@ export default function SessionFormModal({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
+    if (!formData.teacherId) {
+      newErrors.teacherId = "Vui lòng chọn giáo viên";
+    }
     if (!formData.classId) {
       newErrors.classId = "Vui lòng chọn lớp học";
+    }
+    if (!formData.title.trim()) {
+      newErrors.title = "Vui lòng nhập tiêu đề buổi học";
     }
     if (!formData.date) {
       newErrors.date = "Vui lòng chọn ngày";
@@ -169,14 +194,19 @@ export default function SessionFormModal({
         await updateSession(session._id, updateData);
       } else {
         // Create new session
-        const createData: CreateSessionData = {
+        const createData: CreateSessionData & {
+          title?: string;
+          room?: string;
+        } = {
           classId: formData.classId,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           type: formData.type,
           note: formData.note || undefined,
+          title: formData.title || undefined,
+          room: formData.room || undefined,
         };
-        await createSession(createData);
+        await createSession(createData as CreateSessionData);
       }
       onClose();
     } catch (error) {
@@ -195,6 +225,10 @@ export default function SessionFormModal({
     // Clear error when user changes value
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    // Reset classId when teacher changes
+    if (name === "teacherId") {
+      setFormData((prev) => ({ ...prev, teacherId: value, classId: "" }));
     }
   };
 
@@ -227,7 +261,56 @@ export default function SessionFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Class Selection */}
+          {/* Teacher Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Giáo viên <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="teacherId"
+              value={formData.teacherId}
+              onChange={handleChange}
+              disabled={!!session}
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.teacherId ? "border-red-300" : "border-gray-200"
+              } ${session ? "bg-gray-100" : ""}`}
+            >
+              <option value="">-- Chọn giáo viên --</option>
+              {teachers.map((t) => (
+                <option key={t._id} value={t._id}>
+                  👨‍🏫 {t.name}{" "}
+                  {t.subjects && t.subjects.length > 0
+                    ? `(${t.subjects.join(", ")})`
+                    : ""}
+                </option>
+              ))}
+            </select>
+            {errors.teacherId && (
+              <p className="text-red-500 text-xs mt-1">{errors.teacherId}</p>
+            )}
+            {/* Hiển thị thông tin giáo viên */}
+            {selectedTeacher && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">👨‍🏫 {selectedTeacher.name}</span>
+                  {selectedTeacher.phone && (
+                    <span className="text-blue-600 ml-2">
+                      • 📞 {selectedTeacher.phone}
+                    </span>
+                  )}
+                </p>
+                {selectedTeacher.subjects &&
+                  selectedTeacher.subjects.length > 0 && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      <span className="font-medium">Môn dạy:</span>{" "}
+                      {selectedTeacher.subjects.join(", ")}
+                    </p>
+                  )}
+              </div>
+            )}
+          </div>
+
+          {/* Class Selection - based on teacher */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Lớp học <span className="text-red-500">*</span>
@@ -236,21 +319,63 @@ export default function SessionFormModal({
               name="classId"
               value={formData.classId}
               onChange={handleChange}
-              disabled={!!session} // Can't change class when editing
+              disabled={!!session || !formData.teacherId}
               className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.classId ? "border-red-300" : "border-gray-200"
-              } ${session ? "bg-gray-100" : ""}`}
+              } ${session || !formData.teacherId ? "bg-gray-100" : ""}`}
             >
-              <option value="">-- Chọn lớp học --</option>
-              {classes.map((c) => (
+              <option value="">
+                {!formData.teacherId
+                  ? "-- Chọn giáo viên trước --"
+                  : "-- Chọn lớp học --"}
+              </option>
+              {filteredClasses.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name} {c.teacher ? `- ${c.teacher.name}` : ""}
+                  📚 {c.name}
                 </option>
               ))}
             </select>
             {errors.classId && (
               <p className="text-red-500 text-xs mt-1">{errors.classId}</p>
             )}
+            {formData.teacherId && filteredClasses.length === 0 && (
+              <p className="text-amber-600 text-xs mt-1">
+                ⚠️ Giáo viên này chưa được phân công lớp nào
+              </p>
+            )}
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tiêu đề buổi học <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder="VD: Bài 5 - Phương trình bậc 2"
+              className={`rounded-xl ${errors.title ? "border-red-300" : ""}`}
+            />
+            {errors.title && (
+              <p className="text-red-500 text-xs mt-1">{errors.title}</p>
+            )}
+          </div>
+
+          {/* Room */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phòng học
+            </label>
+            <Input
+              type="text"
+              name="room"
+              value={formData.room}
+              onChange={handleChange}
+              placeholder="VD: Phòng 101, Tầng 1"
+              className="rounded-xl"
+            />
           </div>
 
           {/* Date */}

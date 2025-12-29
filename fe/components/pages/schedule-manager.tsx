@@ -771,6 +771,7 @@ export default function ScheduleManager({
         <SessionFormModal
           session={editingSession}
           classes={classes}
+          teachers={users.filter((u) => u.role === "teacher")}
           onClose={handleCloseModal}
         />
       )}

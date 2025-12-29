@@ -4,6 +4,135 @@ import api from "@/lib/api";
 
 export type UserRole = "student" | "teacher" | "parent" | "admin";
 
+// Helper function to translate error messages to Vietnamese
+export function translateErrorMessage(
+  error: any,
+  defaultMessage: string
+): string {
+  const status = error?.response?.status;
+  const message = error?.response?.data?.message || error?.message || "";
+  const msgLower = (typeof message === "string" ? message : "").toLowerCase();
+
+  // HTTP status code based errors
+  if (status === 401) {
+    if (msgLower.includes("password") || msgLower.includes("mật khẩu")) {
+      return "Mật khẩu không chính xác";
+    }
+    if (
+      msgLower.includes("invalid credentials") ||
+      msgLower.includes("unauthorized")
+    ) {
+      return "Email hoặc mật khẩu không chính xác";
+    }
+    return "Phên đăng nhập hết hạn. Vui lòng đăng nhập lại";
+  }
+
+  if (status === 403) {
+    return "Bạn không có quyền thực hiện thao tác này";
+  }
+
+  if (status === 404) {
+    if (
+      msgLower.includes("user") ||
+      msgLower.includes("account") ||
+      msgLower.includes("tài khoản")
+    ) {
+      return "Tài khoản không tồn tại";
+    }
+    return "Không tìm thấy dữ liệu";
+  }
+
+  if (status === 409) {
+    if (msgLower.includes("email")) {
+      return "Email này đã được sử dụng. Vui lòng dùng email khác";
+    }
+    if (
+      msgLower.includes("phone") ||
+      msgLower.includes("điện thoại") ||
+      msgLower.includes("sđt")
+    ) {
+      return "Số điện thoại này đã được sử dụng. Vui lòng dùng số khác";
+    }
+    if (
+      msgLower.includes("already exists") ||
+      msgLower.includes("duplicate") ||
+      msgLower.includes("tồn tại")
+    ) {
+      return "Thông tin này đã tồn tại trong hệ thống";
+    }
+    return "Dữ liệu bị trùng lặp. Vui lòng kiểm tra lại";
+  }
+
+  if (status === 400) {
+    if (msgLower.includes("email") && msgLower.includes("invalid")) {
+      return "Email không hợp lệ";
+    }
+    if (msgLower.includes("phone") && msgLower.includes("invalid")) {
+      return "Số điện thoại không hợp lệ";
+    }
+    if (msgLower.includes("password")) {
+      if (
+        msgLower.includes("weak") ||
+        msgLower.includes("short") ||
+        msgLower.includes("6")
+      ) {
+        return "Mật khẩu phải có ít nhất 6 ký tự";
+      }
+      return "Mật khẩu không hợp lệ";
+    }
+    if (msgLower.includes("required") || msgLower.includes("bắt buộc")) {
+      return "Vui lòng điền đầy đủ thông tin bắt buộc";
+    }
+    return "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại";
+  }
+
+  if (status === 500) {
+    return "Lỗi hệ thống. Vui lòng thử lại sau";
+  }
+
+  // Message content based translation
+  if (
+    msgLower.includes("user already exists") ||
+    msgLower.includes("already exists")
+  ) {
+    return "Tài khoản đã tồn tại";
+  }
+  if (
+    msgLower.includes("invalid credentials") ||
+    msgLower.includes("wrong password")
+  ) {
+    return "Email hoặc mật khẩu không chính xác";
+  }
+  if (
+    msgLower.includes("user not found") ||
+    msgLower.includes("account not found")
+  ) {
+    return "Tài khoản không tồn tại";
+  }
+  if (msgLower.includes("email already") || msgLower.includes("email exists")) {
+    return "Email này đã được sử dụng";
+  }
+  if (msgLower.includes("phone already") || msgLower.includes("phone exists")) {
+    return "Số điện thoại này đã được sử dụng";
+  }
+  if (msgLower.includes("network") || msgLower.includes("connection")) {
+    return "Lỗi kết nối mạng. Vui lòng kiểm tra internet";
+  }
+  if (msgLower.includes("timeout")) {
+    return "Yêu cầu quá thời gian. Vui lòng thử lại";
+  }
+
+  // Return the original message if it's already in Vietnamese or return default
+  if (message && typeof message === "string" && message.length > 0) {
+    // Check if message contains Vietnamese characters
+    if (/[à-ỹÀ-Ỹ]/.test(message)) {
+      return Array.isArray(message) ? message.join(", ") : message;
+    }
+  }
+
+  return defaultMessage;
+}
+
 export interface User {
   _id: string;
   id?: string;
@@ -108,7 +237,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
           return userWithId;
         } catch (error: any) {
-          const message = error.response?.data?.message || "Đăng nhập thất bại";
+          const message = translateErrorMessage(error, "Đăng nhập thất bại");
           set({
             isLoading: false,
             error: message,
@@ -140,7 +269,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
           return userWithId;
         } catch (error: any) {
-          const message = error.response?.data?.message || "Đăng ký thất bại";
+          const message = translateErrorMessage(error, "Đăng ký thất bại");
           set({
             isLoading: false,
             error: message,

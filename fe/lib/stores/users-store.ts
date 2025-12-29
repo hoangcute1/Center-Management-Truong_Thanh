@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 import type { User, UserRole } from "./auth-store";
+import { translateErrorMessage } from "./auth-store";
 
 interface UsersState {
   users: User[];
@@ -122,8 +123,10 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
         },
       });
     } catch (error: any) {
-      const message =
-        error.response?.data?.message || "Lỗi khi tải danh sách người dùng";
+      const message = translateErrorMessage(
+        error,
+        "Lỗi khi tải danh sách người dùng"
+      );
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -137,8 +140,10 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
       set({ selectedUser: user, isLoading: false });
       return user;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message || "Lỗi khi tải thông tin người dùng";
+      const message = translateErrorMessage(
+        error,
+        "Lỗi khi tải thông tin người dùng"
+      );
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -161,10 +166,12 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
     } catch (error: any) {
       console.error("=== users-store: API error ===", error); // Debug
       console.error("=== users-store: error.response ===", error.response); // Debug
-      const message = error.response?.data?.message || "Lỗi khi tạo người dùng";
+      const message = translateErrorMessage(error, "Lỗi khi tạo người dùng");
       set({ isLoading: false, error: message });
-      // Re-throw the original error to preserve response data
-      throw error;
+      // Throw error với message đã dịch
+      const translatedError = new Error(message);
+      (translatedError as any).originalError = error;
+      throw translatedError;
     }
   },
 
@@ -183,8 +190,10 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
 
       return updatedUser;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message || "Lỗi khi cập nhật người dùng";
+      const message = translateErrorMessage(
+        error,
+        "Lỗi khi cập nhật người dùng"
+      );
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -202,7 +211,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
         isLoading: false,
       }));
     } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi khi xóa người dùng";
+      const message = translateErrorMessage(error, "Lỗi khi xóa người dùng");
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -228,8 +237,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
       set({ isLoading: false });
       return response.data as ImportResponse;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message || "Lỗi khi import người dùng";
+      const message = translateErrorMessage(error, "Lỗi khi import người dùng");
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
@@ -251,7 +259,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
       a.click();
       URL.revokeObjectURL(url);
     } catch (error: any) {
-      const message = error.response?.data?.message || "Lỗi khi tải template";
+      const message = translateErrorMessage(error, "Lỗi khi tải template");
       set({ error: message });
       throw new Error(message);
     }
