@@ -46,4 +46,72 @@ export class ClassesService {
     const res = await this.classModel.findByIdAndDelete(id).exec();
     if (!res) throw new NotFoundException('Class not found');
   }
+
+  // Thêm học sinh vào lớp
+  async addStudentToClass(
+    classId: string,
+    studentId: string,
+  ): Promise<ClassEntity> {
+    const classDoc = await this.classModel.findById(classId).exec();
+    if (!classDoc) throw new NotFoundException('Class not found');
+
+    const studentObjectId = new Types.ObjectId(studentId);
+
+    // Kiểm tra học sinh đã trong lớp chưa
+    const isAlreadyInClass = classDoc.studentIds?.some(
+      (id) => id.toString() === studentId,
+    );
+
+    if (!isAlreadyInClass) {
+      await this.classModel
+        .findByIdAndUpdate(
+          classId,
+          { $addToSet: { studentIds: studentObjectId } },
+          { new: true },
+        )
+        .exec();
+    }
+
+    return this.findOne(classId);
+  }
+
+  // Xóa học sinh khỏi lớp
+  async removeStudentFromClass(
+    classId: string,
+    studentId: string,
+  ): Promise<ClassEntity> {
+    const classDoc = await this.classModel.findById(classId).exec();
+    if (!classDoc) throw new NotFoundException('Class not found');
+
+    await this.classModel
+      .findByIdAndUpdate(
+        classId,
+        { $pull: { studentIds: new Types.ObjectId(studentId) } },
+        { new: true },
+      )
+      .exec();
+
+    return this.findOne(classId);
+  }
+
+  // Thêm nhiều học sinh vào lớp
+  async addStudentsToClass(
+    classId: string,
+    studentIds: string[],
+  ): Promise<ClassEntity> {
+    const classDoc = await this.classModel.findById(classId).exec();
+    if (!classDoc) throw new NotFoundException('Class not found');
+
+    const studentObjectIds = studentIds.map((id) => new Types.ObjectId(id));
+
+    await this.classModel
+      .findByIdAndUpdate(
+        classId,
+        { $addToSet: { studentIds: { $each: studentObjectIds } } },
+        { new: true },
+      )
+      .exec();
+
+    return this.findOne(classId);
+  }
 }

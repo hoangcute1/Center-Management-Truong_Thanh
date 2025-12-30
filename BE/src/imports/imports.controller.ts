@@ -83,7 +83,7 @@ export class ImportsController {
       throw new BadRequestException('Role không hợp lệ');
     }
 
-    const buffer = this.importsService.generateTemplate(role);
+    const buffer = await this.importsService.generateTemplate(role);
     const filename = `template_${role}_${Date.now()}.xlsx`;
 
     res.setHeader(

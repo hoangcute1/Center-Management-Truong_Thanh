@@ -5,10 +5,10 @@ import {
   IsString,
   MinLength,
   IsArray,
-  IsNumber,
 } from 'class-validator';
 import { UserRole } from '../../common/enums/role.enum';
 import { UserStatus } from '../../common/enums/user-status.enum';
+import { Gender } from '../schemas/user.schema';
 
 export class CreateUserDto {
   @IsString()
@@ -40,11 +40,29 @@ export class CreateUserDto {
   dateOfBirth?: Date;
 
   @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
 
   @IsOptional()
   mustChangePassword?: boolean;
+
+  // Email con (dành cho phụ huynh)
+  @IsOptional()
+  @IsString()
+  childEmail?: string;
+
+  // Thông tin phụ huynh (của học sinh)
+  @IsOptional()
+  @IsString()
+  parentName?: string;
+
+  @IsOptional()
+  @IsString()
+  parentPhone?: string;
 
   // ===== Thông tin dành cho Giáo viên =====
   // Danh sách môn học giáo viên có thể dạy
@@ -62,9 +80,4 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   qualification?: string;
-
-  // Số năm kinh nghiệm
-  @IsOptional()
-  @IsNumber()
-  experienceYears?: number;
 }

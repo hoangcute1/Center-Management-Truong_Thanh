@@ -20,8 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NotificationCenter from "@/components/notification-center";
 import ImportUsersModal from "@/components/pages/import-users-modal";
+import ImportStudentsModal from "@/components/pages/import-students-modal";
+import ClassFormModal from "@/components/pages/class-form-modal";
 import ScheduleManager from "@/components/pages/schedule-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
+import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
 
 interface AdminDashboardProps {
@@ -109,37 +112,6 @@ const financeChart = [
   { month: "Tháng 4", revenue: 75, cost: 25 },
   { month: "Tháng 5", revenue: 68, cost: 23 },
   { month: "Tháng 6", revenue: 82, cost: 28 },
-];
-
-const courseList = [
-  {
-    name: "Toán Cơ Bản",
-    teacher: "Cô B",
-    students: 20,
-    revenue: "5.000.000 VND",
-    status: "active",
-  },
-  {
-    name: "Toán Nâng Cao",
-    teacher: "Thầy E",
-    students: 15,
-    revenue: "3.750.000 VND",
-    status: "active",
-  },
-  {
-    name: "Anh Văn",
-    teacher: "Thầy F",
-    students: 18,
-    revenue: "4.500.000 VND",
-    status: "active",
-  },
-  {
-    name: "Vật Lý",
-    teacher: "Cô G",
-    students: 12,
-    revenue: "3.000.000 VND",
-    status: "pending",
-  },
 ];
 
 const accounts = {
@@ -377,12 +349,21 @@ interface UserDetail {
   status?: string;
   avatarUrl?: string;
   dateOfBirth?: string;
+  gender?: "male" | "female" | "other";
   createdAt?: string;
   updatedAt?: string;
+  expiresAt?: string;
   subjects?: string[];
   teacherNote?: string;
   qualification?: string;
-  experienceYears?: number;
+  // Mã số
+  studentCode?: string;
+  teacherCode?: string;
+  parentCode?: string;
+  // Thông tin phụ huynh của học sinh
+  parentName?: string;
+  parentPhone?: string;
+  childEmail?: string;
 }
 
 function UserDetailModal({
@@ -504,11 +485,46 @@ function UserDetailModal({
                 </p>
               </div>
               <div>
+                <p className="text-gray-500">Giới tính</p>
+                <p className="font-medium text-gray-900">
+                  {user.gender === "male"
+                    ? "Nam"
+                    : user.gender === "female"
+                    ? "Nữ"
+                    : user.gender === "other"
+                    ? "Khác"
+                    : "Chưa cập nhật"}
+                </p>
+              </div>
+              <div>
                 <p className="text-gray-500">Cơ sở</p>
                 <p className="font-medium text-gray-900">🏢 {branchName}</p>
               </div>
             </div>
           </div>
+
+          {/* Thông tin phụ huynh (cho học sinh) */}
+          {user.role === "student" && (user.parentName || user.parentPhone) && (
+            <div className="bg-emerald-50 rounded-xl p-4 space-y-3">
+              <h4 className="font-semibold text-emerald-800 flex items-center gap-2">
+                <span>👨‍👩‍👧</span> Thông tin phụ huynh
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500">Họ tên phụ huynh</p>
+                  <p className="font-medium text-gray-900">
+                    {user.parentName || "Chưa cập nhật"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">SĐT phụ huynh</p>
+                  <p className="font-medium text-gray-900">
+                    {user.parentPhone || "Chưa cập nhật"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Thông tin giáo viên */}
           {user.role === "teacher" && (
@@ -526,14 +542,6 @@ function UserDetailModal({
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Kinh nghiệm</p>
-                  <p className="font-medium text-gray-900">
-                    {user.experienceYears
-                      ? `${user.experienceYears} năm`
-                      : "Chưa cập nhật"}
-                  </p>
-                </div>
-                <div className="sm:col-span-2">
                   <p className="text-gray-500">Trình độ</p>
                   <p className="font-medium text-gray-900">
                     {user.qualification || "Chưa cập nhật"}
@@ -558,9 +566,23 @@ function UserDetailModal({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-gray-500">Mã tài khoản</p>
-                <p className="font-medium text-gray-900 font-mono">
-                  #{user._id.slice(-8).toUpperCase()}
+                <p className="text-gray-500">
+                  {user.role === "student"
+                    ? "Mã số học sinh"
+                    : user.role === "teacher"
+                    ? "Mã số giáo viên"
+                    : user.role === "parent"
+                    ? "Mã số phụ huynh"
+                    : "Mã tài khoản"}
+                </p>
+                <p className="font-medium text-gray-900 font-mono text-lg">
+                  {user.role === "student" && user.studentCode
+                    ? user.studentCode
+                    : user.role === "teacher" && user.teacherCode
+                    ? user.teacherCode
+                    : user.role === "parent" && user.parentCode
+                    ? user.parentCode
+                    : `#${user._id.slice(-8).toUpperCase()}`}
                 </p>
               </div>
               <div>
@@ -577,6 +599,19 @@ function UserDetailModal({
                     : "Không xác định"}
                 </p>
               </div>
+              {(user.role === "student" || user.role === "parent") &&
+                user.expiresAt && (
+                  <div>
+                    <p className="text-gray-500">Hết hạn</p>
+                    <p className="font-medium text-gray-900">
+                      {new Date(user.expiresAt).toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                )}
               <div>
                 <p className="text-gray-500">Cập nhật lần cuối</p>
                 <p className="font-medium text-gray-900">
@@ -662,9 +697,13 @@ function AddModal({
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+  const [selectedGender, setSelectedGender] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
 
-  // Check if this is teacher form
+  // Check if this is teacher/student/parent form
   const isTeacherForm = title.includes("giáo viên");
+  const isStudentForm = title.includes("học sinh");
+  const isParentForm = title.includes("phụ huynh");
 
   // Toggle subject selection
   const toggleSubject = (subject: string) => {
@@ -690,18 +729,31 @@ function AddModal({
       selectedBranch,
       formData,
       selectedSubjects,
+      selectedGender,
+      dateOfBirth,
     });
     const submitData = { ...formData, branchId: selectedBranch };
     if (isTeacherForm && selectedSubjects.length > 0) {
       submitData["Môn dạy"] = selectedSubjects.join(", ");
     }
+    // Thêm giới tính (không áp dụng cho phụ huynh)
+    if (!isParentForm && selectedGender) {
+      submitData["Giới tính"] = selectedGender;
+    }
+    // Thêm ngày sinh (không áp dụng cho phụ huynh)
+    if (!isParentForm && dateOfBirth) {
+      submitData["Ngày sinh"] = dateOfBirth;
+    }
     onSubmit(submitData);
   };
 
   // Filter out "Môn dạy" from fields for teacher form (we'll handle it separately)
-  const displayFields = isTeacherForm
-    ? fields.filter((f) => f !== "Môn dạy")
-    : fields;
+  // Also filter out fields we handle separately
+  const displayFields = fields.filter((f) => {
+    if (isTeacherForm && f === "Môn dạy") return false;
+    if (f === "Giới tính" || f === "Ngày sinh") return false;
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
@@ -738,6 +790,40 @@ function AddModal({
               }
             />
           ))}
+
+          {/* Ngày sinh (không áp dụng cho phụ huynh) */}
+          {!isParentForm && (
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Ngày sinh
+              </label>
+              <Input
+                type="date"
+                className="rounded-xl border-gray-200"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Giới tính (không áp dụng cho phụ huynh) */}
+          {!isParentForm && (
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Giới tính
+              </label>
+              <select
+                value={selectedGender}
+                onChange={(e) => setSelectedGender(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Chọn giới tính --</option>
+                <option value="male">Nam</option>
+                <option value="female">Nữ</option>
+                <option value="other">Khác</option>
+              </select>
+            </div>
+          )}
 
           {/* Subject Picker for Teachers */}
           {isTeacherForm && (
@@ -986,6 +1072,9 @@ export default function AdminDashboard({
     fields: string[];
   }>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportStudentsModal, setShowImportStudentsModal] = useState(false);
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [editingClass, setEditingClass] = useState<any>(null);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchOption | null>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
@@ -1001,6 +1090,7 @@ export default function AdminDashboard({
     deleteBranch,
     isLoading: branchesLoading,
   } = useBranchesStore();
+  const { classes, fetchClasses } = useClassesStore();
   const {
     users,
     importUsers,
@@ -1064,7 +1154,10 @@ export default function AdminDashboard({
     fetchUsers().catch(() => {
       console.log("Could not fetch users - make sure backend is running");
     });
-  }, [fetchBranches, fetchUsers]);
+    fetchClasses().catch(() => {
+      console.log("Could not fetch classes - make sure backend is running");
+    });
+  }, [fetchBranches, fetchUsers, fetchClasses]);
 
   // Handlers for branches
   const handleAddBranch = () => {
@@ -1168,16 +1261,36 @@ export default function AdminDashboard({
         branchId: data.branchId,
       };
 
+      // Add date of birth and gender (not for parent)
+      if (role !== "parent") {
+        if (data["Ngày sinh"]) {
+          apiData.dateOfBirth = new Date(data["Ngày sinh"]);
+        }
+        if (data["Giới tính"]) {
+          apiData.gender = data["Giới tính"];
+        }
+      }
+
+      // Add student specific fields (parent info)
+      if (role === "student") {
+        const parentName = data["Tên phụ huynh"];
+        const parentPhone = data["SĐT phụ huynh"];
+        if (parentName) apiData.parentName = parentName.trim();
+        if (parentPhone) apiData.parentPhone = parentPhone.trim();
+      }
+
       // Add teacher specific fields
       if (role === "teacher") {
         const subjects = data["Môn dạy"];
         if (subjects) {
           apiData.subjects = subjects.split(",").map((s: string) => s.trim());
         }
-        const experience = data["Năm kinh nghiệm"];
-        if (experience) {
-          apiData.experienceYears = parseInt(experience);
-        }
+      }
+
+      // Add parent specific fields (child email)
+      if (role === "parent") {
+        const childEmail = data["Email con (học sinh)"];
+        if (childEmail) apiData.childEmail = childEmail.trim().toLowerCase();
       }
 
       console.log("Creating user with:", apiData);
@@ -1483,56 +1596,100 @@ export default function AdminDashboard({
                     </p>
                   </div>
                 </div>
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200">
-                  ➕ Thêm khóa học
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowImportStudentsModal(true)}
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl shadow-lg shadow-green-200"
+                  >
+                    📥 Import học sinh
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditingClass(null);
+                      setShowClassModal(true);
+                    }}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-200"
+                  >
+                    ➕ Thêm khóa học
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-3">
-                {courseList.map((course) => (
-                  <div
-                    key={course.name}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-gradient-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
-                        📖
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{course.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Giáo viên: {course.teacher}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6 mt-3 sm:mt-0">
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500">Học sinh</p>
-                        <p className="font-bold text-gray-900">
-                          {course.students}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500">Doanh thu</p>
-                        <p className="font-bold text-blue-600">
-                          {course.revenue}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          course.status === "active"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {course.status === "active" ? "Đang mở" : "Chờ duyệt"}
-                      </span>
-                      <Button variant="outline" className="rounded-xl">
-                        Sửa
-                      </Button>
-                    </div>
+                {classes.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-lg mb-2">📚</p>
+                    <p>Chưa có khóa học nào</p>
+                    <p className="text-sm">Nhấn "Thêm khóa học" để tạo mới</p>
                   </div>
-                ))}
+                ) : (
+                  classes.map((course) => (
+                    <div
+                      key={course._id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-gradient-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
+                          📖
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">
+                            {course.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Giáo viên:{" "}
+                            {course.teacher?.name || "Chưa phân công"}
+                          </p>
+                          {course.branch && (
+                            <p className="text-xs text-blue-500">
+                              Chi nhánh: {course.branch.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6 mt-3 sm:mt-0">
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Học sinh</p>
+                          <p className="font-bold text-gray-900">
+                            {course.studentIds?.length || 0}/
+                            {course.maxStudents || 30}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">Lịch học</p>
+                          <p className="font-bold text-blue-600">
+                            {course.schedule?.length || 0} buổi/tuần
+                          </p>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            course.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : course.status === "completed"
+                              ? "bg-gray-100 text-gray-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {course.status === "active"
+                            ? "Đang mở"
+                            : course.status === "completed"
+                            ? "Đã kết thúc"
+                            : "Tạm dừng"}
+                        </span>
+                        <Button
+                          variant="outline"
+                          className="rounded-xl"
+                          onClick={() => {
+                            setEditingClass(course);
+                            setShowClassModal(true);
+                          }}
+                        >
+                          ✏️ Sửa
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -1660,7 +1817,7 @@ export default function AdminDashboard({
                                 "Họ và tên",
                                 "Email",
                                 "Số điện thoại",
-                                "Số con",
+                                "Email con (học sinh)",
                               ],
                             }
                           : {
@@ -1670,7 +1827,6 @@ export default function AdminDashboard({
                                 "Email",
                                 "Số điện thoại",
                                 "Môn dạy",
-                                "Năm kinh nghiệm",
                               ],
                             }
                       )
@@ -2431,6 +2587,35 @@ export default function AdminDashboard({
                 alert("Lỗi khi xóa tài khoản");
               }
             }
+          }}
+        />
+      )}
+
+      {/* Import Students Modal */}
+      {showImportStudentsModal && (
+        <ImportStudentsModal
+          classes={classes}
+          branches={branches}
+          onClose={() => setShowImportStudentsModal(false)}
+          onSuccess={() => {
+            fetchClasses();
+            fetchUsers();
+          }}
+        />
+      )}
+
+      {/* Class Form Modal */}
+      {showClassModal && (
+        <ClassFormModal
+          classData={editingClass}
+          branches={branches}
+          teachers={users.filter((u) => u.role === "teacher")}
+          onClose={() => {
+            setShowClassModal(false);
+            setEditingClass(null);
+          }}
+          onSuccess={() => {
+            fetchClasses();
           }}
         />
       )}

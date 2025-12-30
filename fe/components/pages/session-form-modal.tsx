@@ -32,7 +32,7 @@ export default function SessionFormModal({
 
   const [formData, setFormData] = useState({
     teacherId: "",
-    classId: "",
+    subject: "", // Môn học được chọn
     title: "",
     room: "",
     date: "",
@@ -45,13 +45,10 @@ export default function SessionFormModal({
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Filter classes by selected teacher
-  const filteredClasses = formData.teacherId
-    ? classes.filter((c) => {
-        const classTeacherId = c.teacherId || c.teacher?._id;
-        return classTeacherId === formData.teacherId;
-      })
-    : classes;
+  // Get subjects that the selected teacher is authorized to teach
+  const teacherSubjects = formData.teacherId
+    ? teachers.find((t) => t._id === formData.teacherId)?.subjects || []
+    : [];
 
   // Get selected teacher info
   const selectedTeacher = teachers.find((t) => t._id === formData.teacherId);
@@ -62,31 +59,46 @@ export default function SessionFormModal({
       const startDate = new Date(session.startTime);
       const endDate = new Date(session.endTime);
 
-      // Get class info
-      const classInfo =
-        typeof session.classId === "string"
-          ? classes.find((c) => c._id === session.classId)
-          : session.classId;
-
-      // Get teacher ID from class
+      // Get teacherId directly from session or from classId
       let teacherId = "";
-      if (classInfo && typeof classInfo !== "string") {
-        if (classInfo.teacherId) {
-          teacherId =
-            typeof classInfo.teacherId === "string"
-              ? classInfo.teacherId
-              : classInfo.teacherId._id;
+      let subject = "";
+
+      // First try to get from session directly (new format)
+      if (session.teacherId) {
+        teacherId =
+          typeof session.teacherId === "string"
+            ? session.teacherId
+            : session.teacherId._id;
+      }
+      if (session.subject) {
+        subject = session.subject;
+      }
+
+      // Fallback to classId if not found (old format)
+      if (!teacherId || !subject) {
+        const classInfo =
+          typeof session.classId === "string"
+            ? classes.find((c) => c._id === session.classId)
+            : session.classId;
+
+        if (classInfo && typeof classInfo !== "string") {
+          if (!teacherId && classInfo.teacherId) {
+            teacherId =
+              typeof classInfo.teacherId === "string"
+                ? classInfo.teacherId
+                : classInfo.teacherId._id;
+          }
+          if (!subject) {
+            subject = (classInfo as any).subject || classInfo.name || "";
+          }
         }
       }
 
       setFormData({
         teacherId: teacherId,
-        classId:
-          typeof session.classId === "string"
-            ? session.classId
-            : session.classId._id,
-        title: (session as any).title || "",
-        room: (session as any).room || "",
+        subject: subject,
+        title: session.title || "",
+        room: session.room || "",
         date: startDate.toISOString().split("T")[0],
         startTime: startDate.toTimeString().slice(0, 5),
         endTime: endDate.toTimeString().slice(0, 5),
@@ -150,8 +162,8 @@ export default function SessionFormModal({
     if (!formData.teacherId) {
       newErrors.teacherId = "Vui lòng chọn giáo viên";
     }
-    if (!formData.classId) {
-      newErrors.classId = "Vui lòng chọn lớp học";
+    if (!formData.subject) {
+      newErrors.subject = "Vui lòng chọn môn học";
     }
     if (!formData.title.trim()) {
       newErrors.title = "Vui lòng nhập tiêu đề buổi học";
@@ -197,8 +209,12 @@ export default function SessionFormModal({
         const createData: CreateSessionData & {
           title?: string;
           room?: string;
+          teacherId?: string;
+          subject?: string;
         } = {
-          classId: formData.classId,
+          classId: "", // Will be handled by backend based on subject
+          teacherId: formData.teacherId,
+          subject: formData.subject,
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           type: formData.type,
@@ -226,9 +242,13 @@ export default function SessionFormModal({
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    // Reset classId when teacher changes
+    // Reset subject when teacher changes
     if (name === "teacherId") {
-      setFormData((prev) => ({ ...prev, teacherId: value, classId: "" }));
+      setFormData((prev) => ({
+        ...prev,
+        teacherId: value,
+        subject: "",
+      }));
     }
   };
 
@@ -310,37 +330,37 @@ export default function SessionFormModal({
             )}
           </div>
 
-          {/* Class Selection - based on teacher */}
+          {/* Subject Selection - based on teacher's authorized subjects */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lớp học <span className="text-red-500">*</span>
+              Môn học <span className="text-red-500">*</span>
             </label>
             <select
-              name="classId"
-              value={formData.classId}
+              name="subject"
+              value={formData.subject}
               onChange={handleChange}
               disabled={!!session || !formData.teacherId}
               className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.classId ? "border-red-300" : "border-gray-200"
+                errors.subject ? "border-red-300" : "border-gray-200"
               } ${session || !formData.teacherId ? "bg-gray-100" : ""}`}
             >
               <option value="">
                 {!formData.teacherId
                   ? "-- Chọn giáo viên trước --"
-                  : "-- Chọn lớp học --"}
+                  : "-- Chọn môn học --"}
               </option>
-              {filteredClasses.map((c) => (
-                <option key={c._id} value={c._id}>
-                  📚 {c.name}
+              {teacherSubjects.map((subject) => (
+                <option key={subject} value={subject}>
+                  📖 {subject}
                 </option>
               ))}
             </select>
-            {errors.classId && (
-              <p className="text-red-500 text-xs mt-1">{errors.classId}</p>
+            {errors.subject && (
+              <p className="text-red-500 text-xs mt-1">{errors.subject}</p>
             )}
-            {formData.teacherId && filteredClasses.length === 0 && (
+            {formData.teacherId && teacherSubjects.length === 0 && (
               <p className="text-amber-600 text-xs mt-1">
-                ⚠️ Giáo viên này chưa được phân công lớp nào
+                ⚠️ Giáo viên này chưa được cấp quyền dạy môn nào
               </p>
             )}
           </div>

@@ -2,6 +2,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
+import { ClassesService } from '../classes/classes.service';
+import { BranchesService } from '../branches/branches.service';
 import { UserRole } from '../common/enums/role.enum';
 import { UserStatus } from '../common/enums/user-status.enum';
 import {
@@ -18,7 +20,11 @@ export const DEFAULT_PASSWORD = '123456789';
 
 @Injectable()
 export class ImportsService {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly classesService: ClassesService,
+    private readonly branchesService: BranchesService,
+  ) {}
 
   // Trả về mật khẩu mặc định
   private generateTempPassword(): string {
@@ -64,9 +70,13 @@ export class ImportsService {
       namsinh: 'dateOfBirth',
       monday: 'subject',
       mon: 'subject',
-      emailphuhuynh: 'parentEmail',
-      emailcon: 'childrenEmails',
-      emailhocsinh: 'childrenEmails',
+      gioitinh: 'gender',
+      tenphuhuynh: 'parentName',
+      sdtphuhuynh: 'parentPhone',
+      emailcon: 'childEmail',
+      emailhocsinh: 'childEmail',
+      coso: 'branch',
+      chinhanh: 'branch',
     };
 
     const result: Record<string, any> = {};
@@ -119,6 +129,7 @@ export class ImportsService {
     const results: ImportResult[] = [];
     let successful = 0;
     let failed = 0;
+    const createdUserIds: string[] = []; // Lưu ID các user được tạo thành công
 
     for (let i = 0; i < rawData.length; i++) {
       const rowIndex = i + 2; // +2 vì row 1 là header, index bắt đầu từ 0
@@ -143,8 +154,25 @@ export class ImportsService {
       const tempPassword = this.generateTempPassword();
 
       try {
+        // Map giới tính
+        let gender: 'male' | 'female' | 'other' | undefined;
+        if (row.gender) {
+          const genderStr = String(row.gender).toLowerCase().trim();
+          if (genderStr === 'nam' || genderStr === 'male') {
+            gender = 'male';
+          } else if (
+            genderStr === 'nữ' ||
+            genderStr === 'nu' ||
+            genderStr === 'female'
+          ) {
+            gender = 'female';
+          } else {
+            gender = 'other';
+          }
+        }
+
         // Tạo user với mustChangePassword = true
-        await this.usersService.create({
+        const createData: any = {
           name: String(row.name).trim(),
           email: String(row.email).trim().toLowerCase(),
           phone: row.phone ? String(row.phone).trim() : undefined,
@@ -152,9 +180,28 @@ export class ImportsService {
           role: dto.role,
           branchId: dto.branchId,
           dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth) : undefined,
+          gender,
           status: UserStatus.Active,
           mustChangePassword: true,
-        } as any);
+        };
+
+        // Thêm thông tin phụ huynh cho học sinh
+        if (dto.role === UserRole.Student) {
+          if (row.parentName)
+            createData.parentName = String(row.parentName).trim();
+          if (row.parentPhone)
+            createData.parentPhone = String(row.parentPhone).trim();
+        }
+
+        // Thêm email con cho phụ huynh
+        if (dto.role === UserRole.Parent && row.childEmail) {
+          createData.childEmail = String(row.childEmail).trim().toLowerCase();
+        }
+
+        const newUser = await this.usersService.create(createData);
+
+        // Lưu ID để thêm vào lớp sau
+        createdUserIds.push((newUser as any)._id.toString());
 
         results.push({
           success: true,
@@ -179,16 +226,38 @@ export class ImportsService {
       }
     }
 
+    // Nếu có classId và role là student, thêm học sinh vào lớp
+    if (
+      dto.classId &&
+      dto.role === UserRole.Student &&
+      createdUserIds.length > 0
+    ) {
+      try {
+        await this.classesService.addStudentsToClass(
+          dto.classId,
+          createdUserIds,
+        );
+      } catch (error: any) {
+        console.error('Error adding students to class:', error);
+        // Không throw error vì user đã được tạo thành công
+      }
+    }
+
     return {
       total: rawData.length,
       successful,
       failed,
       results,
+      classId: dto.classId, // Trả về classId để frontend biết
     };
   }
 
   // Tạo file template Excel
-  generateTemplate(role: UserRole): Buffer {
+  async generateTemplate(role: UserRole, branchId?: string): Promise<Buffer> {
+    // Lấy danh sách cơ sở để thêm vào dropdown
+    const branches = await this.branchesService.findAll();
+    const branchNames = branches.map((b) => b.name).join(', ');
+
     let headers: string[];
     let sampleData: any[];
 
@@ -199,7 +268,10 @@ export class ImportsService {
           'Email',
           'Số điện thoại',
           'Ngày sinh',
-          'Email phụ huynh',
+          'Giới tính',
+          'Tên phụ huynh',
+          'SĐT phụ huynh',
+          'Cơ sở',
         ];
         sampleData = [
           {
@@ -207,26 +279,53 @@ export class ImportsService {
             Email: 'nguyenvana@email.com',
             'Số điện thoại': '0123456789',
             'Ngày sinh': '2010-01-15',
-            'Email phụ huynh': 'phuhuynha@email.com',
+            'Giới tính': 'Nam',
+            'Tên phụ huynh': 'Nguyễn Văn Cha',
+            'SĐT phụ huynh': '0912345678',
+            'Cơ sở': branches[0]?.name || 'Cơ sở 1',
           },
           {
             'Họ tên': 'Trần Thị B',
             Email: 'tranthib@email.com',
             'Số điện thoại': '0987654321',
             'Ngày sinh': '2011-05-20',
-            'Email phụ huynh': 'phuhuynhb@email.com',
+            'Giới tính': 'Nữ',
+            'Tên phụ huynh': 'Trần Văn Mẹ',
+            'SĐT phụ huynh': '0987654321',
+            'Cơ sở': branches[0]?.name || 'Cơ sở 1',
           },
         ];
+        // Thêm ghi chú về các cơ sở có sẵn
+        if (branches.length > 0) {
+          sampleData.push({
+            'Họ tên': `[GHI CHÚ: Cơ sở có sẵn: ${branchNames}]`,
+            Email: '',
+            'Số điện thoại': '',
+            'Ngày sinh': '',
+            'Giới tính': '[Nam/Nữ]',
+            'Tên phụ huynh': '',
+            'SĐT phụ huynh': '',
+            'Cơ sở': '',
+          });
+        }
         break;
 
       case UserRole.Teacher:
-        headers = ['Họ tên', 'Email', 'Số điện thoại', 'Ngày sinh', 'Môn dạy'];
+        headers = [
+          'Họ tên',
+          'Email',
+          'Số điện thoại',
+          'Ngày sinh',
+          'Giới tính',
+          'Môn dạy',
+        ];
         sampleData = [
           {
             'Họ tên': 'Cô Nguyễn Thị C',
             Email: 'nguyenthic@email.com',
             'Số điện thoại': '0111222333',
             'Ngày sinh': '1990-03-10',
+            'Giới tính': 'Nữ',
             'Môn dạy': 'Toán',
           },
           {
@@ -234,6 +333,7 @@ export class ImportsService {
             Email: 'tranvand@email.com',
             'Số điện thoại': '0444555666',
             'Ngày sinh': '1985-08-25',
+            'Giới tính': 'Nam',
             'Môn dạy': 'Anh Văn',
           },
         ];
@@ -252,7 +352,7 @@ export class ImportsService {
             'Họ tên': 'Phụ huynh B',
             Email: 'phuhuynhb@email.com',
             'Số điện thoại': '0999000111',
-            'Email con (học sinh)': 'tranthib@email.com, tranthic@email.com',
+            'Email con (học sinh)': 'tranthib@email.com',
           },
         ];
         break;

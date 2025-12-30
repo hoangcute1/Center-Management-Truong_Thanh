@@ -27,7 +27,8 @@ export class SessionsService {
   async create(user: UserDocument, dto: CreateSessionDto) {
     const doc = new this.model({
       ...dto,
-      classId: new Types.ObjectId(dto.classId),
+      classId: dto.classId ? new Types.ObjectId(dto.classId) : undefined,
+      teacherId: dto.teacherId ? new Types.ObjectId(dto.teacherId) : undefined,
       startTime: new Date(dto.startTime),
       endTime: new Date(dto.endTime),
       createdBy: user._id,
@@ -89,9 +90,10 @@ export class SessionsService {
         select: 'name subject teacherId schedule',
         populate: {
           path: 'teacherId',
-          select: 'name email',
+          select: 'name email subjects',
         },
       })
+      .populate('teacherId', 'name email subjects')
       .populate('createdBy', 'name email')
       .populate('approvedBy', 'name email')
       .sort({ startTime: 1 })
@@ -283,6 +285,7 @@ export class SessionsService {
         status: { $ne: 'cancelled' },
       })
       .populate('classId', 'name subject')
+      .populate('teacherId', 'name email subjects')
       .sort({ startTime: 1 })
       .exec();
 
@@ -318,6 +321,7 @@ export class SessionsService {
           select: 'name',
         },
       })
+      .populate('teacherId', 'name email subjects')
       .sort({ startTime: 1 })
       .exec();
 
@@ -381,9 +385,10 @@ export class SessionsService {
         select: 'name subject teacherId studentIds',
         populate: {
           path: 'teacherId',
-          select: 'name email',
+          select: 'name email subjects',
         },
       })
+      .populate('teacherId', 'name email subjects')
       .populate('createdBy', 'name email')
       .populate('approvedBy', 'name email')
       .exec();

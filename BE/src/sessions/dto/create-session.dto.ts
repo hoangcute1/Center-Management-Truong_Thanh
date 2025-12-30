@@ -13,8 +13,25 @@ export enum SessionType {
 }
 
 export class CreateSessionDto {
+  @IsOptional()
   @IsString()
-  classId: string;
+  classId?: string;
+
+  @IsOptional()
+  @IsString()
+  teacherId?: string;
+
+  @IsOptional()
+  @IsString()
+  subject?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  room?: string;
 
   @IsDateString()
   startTime: string;

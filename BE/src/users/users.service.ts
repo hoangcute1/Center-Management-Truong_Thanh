@@ -23,6 +23,49 @@ interface FindAllFilters {
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
+  // Sinh mã số tự động cho học sinh, giáo viên, phụ huynh
+  private async generateUserCode(
+    role: UserRole,
+    childEmail?: string,
+  ): Promise<string> {
+    if (role === UserRole.Student) {
+      const count = await this.userModel.countDocuments({
+        role: UserRole.Student,
+      });
+      const nextNumber = count + 1;
+      return `HS${nextNumber.toString().padStart(4, '0')}`;
+    }
+
+    if (role === UserRole.Teacher) {
+      const count = await this.userModel.countDocuments({
+        role: UserRole.Teacher,
+      });
+      const nextNumber = count + 1;
+      return `GV${nextNumber.toString().padStart(4, '0')}`;
+    }
+
+    if (role === UserRole.Parent && childEmail) {
+      // Tìm học sinh theo email để lấy mã
+      const student = await this.userModel.findOne({
+        email: childEmail.toLowerCase().trim(),
+        role: UserRole.Student,
+      });
+      if (student && student.studentCode) {
+        // Lấy số từ mã học sinh (HS0001 -> 0001)
+        const studentNumber = student.studentCode.replace('HS', '');
+        return `PH${studentNumber}`;
+      }
+      // Nếu không tìm thấy học sinh, tạo mã mặc định
+      const count = await this.userModel.countDocuments({
+        role: UserRole.Parent,
+      });
+      const nextNumber = count + 1;
+      return `PH${nextNumber.toString().padStart(4, '0')}`;
+    }
+
+    return '';
+  }
+
   async create(dto: CreateUserDto): Promise<User> {
     const or: any[] = [{ email: dto.email }];
     if (dto.phone) {
@@ -32,8 +75,31 @@ export class UsersService {
     if (exists) {
       throw new ConflictException('User already exists');
     }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const created = new this.userModel({ ...dto, passwordHash });
+
+    // Tạo mã số theo role
+    const userCode = await this.generateUserCode(
+      dto.role || UserRole.Student,
+      dto.childEmail,
+    );
+
+    // Tính ngày hết hạn (5 năm sau)
+    const expiresAt = new Date();
+    expiresAt.setFullYear(expiresAt.getFullYear() + 5);
+
+    const userData: any = { ...dto, passwordHash, expiresAt };
+
+    // Gán mã số theo role
+    if (dto.role === UserRole.Student) {
+      userData.studentCode = userCode;
+    } else if (dto.role === UserRole.Teacher) {
+      userData.teacherCode = userCode;
+    } else if (dto.role === UserRole.Parent) {
+      userData.parentCode = userCode;
+    }
+
+    const created = new this.userModel(userData);
     return created.save();
   }
 
@@ -89,6 +155,16 @@ export class UsersService {
     if (!res) throw new NotFoundException('User not found');
   }
 
+  // Xóa các tài khoản đã hết hạn (5 năm)
+  async removeExpiredAccounts(): Promise<number> {
+    const now = new Date();
+    const result = await this.userModel.deleteMany({
+      expiresAt: { $lte: now },
+      role: { $in: [UserRole.Student, UserRole.Parent] }, // Chỉ xóa học sinh và phụ huynh
+    });
+    return result.deletedCount;
+  }
+
   // Lấy danh sách giáo viên theo môn học
   async findTeachersBySubject(subject: string): Promise<User[]> {
     return this.userModel
@@ -129,5 +205,16 @@ export class UsersService {
     ]);
 
     return stats;
+  }
+
+  // Tìm học sinh theo email (để phụ huynh liên kết)
+  async findStudentByEmail(email: string): Promise<User | null> {
+    return this.userModel
+      .findOne({
+        email: email.toLowerCase().trim(),
+        role: UserRole.Student,
+      })
+      .select('-passwordHash')
+      .exec();
   }
 }

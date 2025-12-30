@@ -6,9 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useScheduleStore,
   Session,
-  SessionStatus,
   SessionType,
-  getStatusColor,
   getTypeColor,
   getSessionClassName,
   getSessionTeacherName,
@@ -81,7 +79,6 @@ export default function ScheduleManager({
   const [selectedTeacherFilter, setSelectedTeacherFilter] =
     useState<string>("");
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("");
 
   // Stores
   const {
@@ -140,7 +137,6 @@ export default function ScheduleManager({
     if (selectedClassFilter) query.classId = selectedClassFilter;
     if (selectedTeacherFilter) query.teacherId = selectedTeacherFilter;
     if (selectedBranchFilter) query.branchId = selectedBranchFilter;
-    if (selectedStatusFilter) query.status = selectedStatusFilter;
 
     fetchSchedule(query).catch(console.error);
     fetchStatistics(
@@ -153,7 +149,6 @@ export default function ScheduleManager({
     selectedClassFilter,
     selectedTeacherFilter,
     selectedBranchFilter,
-    selectedStatusFilter,
     fetchSchedule,
     fetchStatistics,
   ]);
@@ -225,24 +220,6 @@ export default function ScheduleManager({
     }
   };
 
-  const handleApproveSession = async (session: Session) => {
-    try {
-      await updateSession(session._id, { status: SessionStatus.Approved });
-    } catch (error) {
-      console.error("Error approving session:", error);
-    }
-  };
-
-  const handleCancelSession = async (session: Session) => {
-    if (confirm("Bạn có chắc muốn hủy buổi học này?")) {
-      try {
-        await updateSession(session._id, { status: SessionStatus.Cancelled });
-      } catch (error) {
-        console.error("Error cancelling session:", error);
-      }
-    }
-  };
-
   // Close modal
   const handleCloseModal = () => {
     setShowCreateModal(false);
@@ -259,8 +236,8 @@ export default function ScheduleManager({
       return (
         <div
           key={session._id}
-          className={`p-1.5 rounded text-xs cursor-pointer hover:opacity-80 ${getStatusColor(
-            session.status
+          className={`p-1.5 rounded text-xs cursor-pointer hover:opacity-80 ${getTypeColor(
+            session.type
           )}`}
           onClick={() => handleEditSession(session)}
           title={`${className} - ${teacherName}\n${timeStr}`}
@@ -274,15 +251,7 @@ export default function ScheduleManager({
     return (
       <Card
         key={session._id}
-        className="p-3 hover:shadow-md transition-shadow cursor-pointer border-l-4"
-        style={{
-          borderLeftColor:
-            session.status === SessionStatus.Approved
-              ? "#22c55e"
-              : session.status === SessionStatus.Pending
-              ? "#eab308"
-              : "#ef4444",
-        }}
+        className="p-3 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500"
         onClick={() => handleEditSession(session)}
       >
         <div className="flex items-start justify-between gap-2">
@@ -293,17 +262,6 @@ export default function ScheduleManager({
             <div className="text-sm text-gray-600">{teacherName}</div>
             <div className="text-sm text-gray-500 mt-1">{timeStr}</div>
             <div className="flex gap-1.5 mt-2 flex-wrap">
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                  session.status
-                )}`}
-              >
-                {session.status === SessionStatus.Approved
-                  ? "Đã duyệt"
-                  : session.status === SessionStatus.Pending
-                  ? "Chờ duyệt"
-                  : "Đã hủy"}
-              </span>
               <span
                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${getTypeColor(
                   session.type
@@ -318,33 +276,17 @@ export default function ScheduleManager({
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            {session.status === SessionStatus.Pending &&
-              userRole === "admin" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs h-7 text-green-600 border-green-200 hover:bg-green-50"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleApproveSession(session);
-                  }}
-                >
-                  ✓
-                </Button>
-              )}
-            {session.status !== SessionStatus.Cancelled && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancelSession(session);
-                }}
-              >
-                ✕
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteSession(session);
+              }}
+            >
+              ✕
+            </Button>
           </div>
         </div>
       </Card>
@@ -595,29 +537,11 @@ export default function ScheduleManager({
 
       {/* Statistics */}
       {statistics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
             <div className="text-sm text-gray-600">Tổng buổi học</div>
             <div className="text-2xl font-bold text-blue-700">
               {statistics.total}
-            </div>
-          </Card>
-          <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
-            <div className="text-sm text-gray-600">Đã duyệt</div>
-            <div className="text-2xl font-bold text-green-700">
-              {statistics.byStatus?.approved || 0}
-            </div>
-          </Card>
-          <Card className="p-4 bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-100">
-            <div className="text-sm text-gray-600">Chờ duyệt</div>
-            <div className="text-2xl font-bold text-yellow-700">
-              {statistics.byStatus?.pending || 0}
-            </div>
-          </Card>
-          <Card className="p-4 bg-gradient-to-br from-red-50 to-rose-50 border-red-100">
-            <div className="text-sm text-gray-600">Đã hủy</div>
-            <div className="text-2xl font-bold text-red-700">
-              {statistics.byStatus?.cancelled || 0}
             </div>
           </Card>
         </div>
@@ -665,21 +589,9 @@ export default function ScheduleManager({
             ))}
           </select>
 
-          <select
-            value={selectedStatusFilter}
-            onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="approved">Đã duyệt</option>
-            <option value="cancelled">Đã hủy</option>
-          </select>
-
           {(selectedClassFilter ||
             selectedTeacherFilter ||
-            selectedBranchFilter ||
-            selectedStatusFilter) && (
+            selectedBranchFilter) && (
             <Button
               variant="outline"
               size="sm"
@@ -687,7 +599,6 @@ export default function ScheduleManager({
                 setSelectedClassFilter("");
                 setSelectedTeacherFilter("");
                 setSelectedBranchFilter("");
-                setSelectedStatusFilter("");
               }}
               className="text-gray-500"
             >

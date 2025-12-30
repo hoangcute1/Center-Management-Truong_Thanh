@@ -15,7 +15,7 @@ export enum SessionType {
 
 export interface Session {
   _id: string;
-  classId:
+  classId?:
     | string
     | {
         _id: string;
@@ -27,6 +27,17 @@ export interface Session {
           email: string;
         };
       };
+  teacherId?:
+    | string
+    | {
+        _id: string;
+        name: string;
+        email: string;
+        subjects?: string[];
+      };
+  subject?: string;
+  title?: string;
+  room?: string;
   startTime: string;
   endTime: string;
   type: SessionType;
@@ -47,7 +58,11 @@ export interface Session {
 }
 
 export interface CreateSessionData {
-  classId: string;
+  classId?: string;
+  teacherId?: string;
+  subject?: string;
+  title?: string;
+  room?: string;
   startTime: string;
   endTime: string;
   type?: SessionType;
@@ -391,6 +406,15 @@ export const useScheduleStore = create<ScheduleState & ScheduleActions>(
 
 // Helper functions
 export const getSessionClassName = (session: Session): string => {
+  // First check for title (new format)
+  if (session.title) {
+    return session.title;
+  }
+  // Then check for subject (new format)
+  if (session.subject) {
+    return session.subject;
+  }
+  // Fallback to classId (old format)
   if (typeof session.classId === "string") {
     return session.classId;
   }
@@ -398,6 +422,14 @@ export const getSessionClassName = (session: Session): string => {
 };
 
 export const getSessionTeacherName = (session: Session): string => {
+  // First check for teacherId directly on session (new format)
+  if (session.teacherId) {
+    if (typeof session.teacherId === "string") {
+      return session.teacherId;
+    }
+    return session.teacherId.name || "Unknown";
+  }
+  // Fallback to classId.teacherId (old format)
   if (typeof session.classId === "string") {
     return "Unknown";
   }

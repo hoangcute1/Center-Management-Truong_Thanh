@@ -6,8 +6,20 @@ export type SessionDocument = HydratedDocument<Session>;
 
 @Schema({ timestamps: true })
 export class Session {
-  @Prop({ type: Types.ObjectId, ref: 'ClassEntity', required: true })
-  classId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'ClassEntity', required: false })
+  classId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  teacherId?: Types.ObjectId;
+
+  @Prop()
+  subject?: string;
+
+  @Prop()
+  title?: string;
+
+  @Prop()
+  room?: string;
 
   @Prop({ required: true })
   startTime: Date;

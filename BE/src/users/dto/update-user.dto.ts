@@ -6,10 +6,10 @@ import {
   IsOptional,
   IsString,
   IsArray,
-  IsNumber,
 } from 'class-validator';
 import { UserRole } from '../../common/enums/role.enum';
 import { UserStatus } from '../../common/enums/user-status.enum';
+import { Gender } from '../schemas/user.schema';
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
@@ -28,6 +28,24 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsBoolean()
   mustChangePassword?: boolean;
 
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  // Thông tin phụ huynh của học sinh
+  @IsOptional()
+  @IsString()
+  parentName?: string;
+
+  @IsOptional()
+  @IsString()
+  parentPhone?: string;
+
+  // Email con (dành cho phụ huynh)
+  @IsOptional()
+  @IsString()
+  childEmail?: string;
+
   // ===== Thông tin dành cho Giáo viên =====
   @IsOptional()
   @IsArray()
@@ -41,8 +59,4 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsString()
   qualification?: string;
-
-  @IsOptional()
-  @IsNumber()
-  experienceYears?: number;
 }

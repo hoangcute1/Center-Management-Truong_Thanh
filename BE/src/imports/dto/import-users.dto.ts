@@ -55,4 +55,5 @@ export interface ImportResponse {
   successful: number;
   failed: number;
   results: ImportResult[];
+  classId?: string; // ID lớp học đã thêm học sinh vào
 }
