@@ -17,10 +17,16 @@ export class ClassEntity {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   teacherId?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'Branch' })
+  branchId?: Types.ObjectId;
+
+  @Prop({ default: 30 })
+  maxStudents?: number;
+
   @Prop({
     type: [
       {
-        dayOfWeek: String,
+        dayOfWeek: Number,
         startTime: String,
         endTime: String,
         room: String,
@@ -28,7 +34,7 @@ export class ClassEntity {
     ],
   })
   schedule?: {
-    dayOfWeek: string;
+    dayOfWeek: number;
     startTime: string;
     endTime: string;
     room?: string;

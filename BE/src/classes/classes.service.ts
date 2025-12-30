@@ -20,16 +20,31 @@ export class ClassesService {
   }
 
   async findAllForUser(user: UserDocument): Promise<ClassEntity[]> {
-    if (user.role === UserRole.Admin) return this.classModel.find().exec();
+    if (user.role === UserRole.Admin)
+      return this.classModel
+        .find()
+        .populate('teacherId', 'name email')
+        .populate('branchId', 'name')
+        .exec();
     if (user.role === UserRole.Teacher)
-      return this.classModel.find({ teacherId: user._id }).exec();
+      return this.classModel
+        .find({ teacherId: user._id })
+        .populate('teacherId', 'name email')
+        .populate('branchId', 'name')
+        .exec();
     return this.classModel
       .find({ studentIds: { $in: [new Types.ObjectId(user._id)] } })
+      .populate('teacherId', 'name email')
+      .populate('branchId', 'name')
       .exec();
   }
 
   async findOne(id: string): Promise<ClassEntity> {
-    const doc = await this.classModel.findById(id).exec();
+    const doc = await this.classModel
+      .findById(id)
+      .populate('teacherId', 'name email')
+      .populate('branchId', 'name')
+      .exec();
     if (!doc) throw new NotFoundException('Class not found');
     return doc;
   }

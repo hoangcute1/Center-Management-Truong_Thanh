@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsDateString,
+  IsNumber,
   IsOptional,
   IsString,
   ValidateNested,
@@ -8,8 +9,8 @@ import {
 import { Type } from 'class-transformer';
 
 class ScheduleItemDto {
-  @IsString()
-  dayOfWeek: string;
+  @IsNumber()
+  dayOfWeek: number;
 
   @IsString()
   startTime: string;
@@ -39,6 +40,14 @@ export class CreateClassDto {
   teacherId?: string;
 
   @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  maxStudents?: number;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ScheduleItemDto)
@@ -55,4 +64,8 @@ export class CreateClassDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 }

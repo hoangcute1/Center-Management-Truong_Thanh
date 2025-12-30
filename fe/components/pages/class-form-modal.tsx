@@ -109,13 +109,24 @@ export default function ClassFormModal({
     }
 
     try {
+      // Clean schedule data - remove _id and ensure dayOfWeek is number
+      const cleanSchedules = schedules.map(
+        ({ dayOfWeek, startTime, endTime, room }) => ({
+          dayOfWeek:
+            typeof dayOfWeek === "string" ? parseInt(dayOfWeek, 10) : dayOfWeek,
+          startTime,
+          endTime,
+          room: room || undefined,
+        })
+      );
+
       const submitData = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         teacherId: formData.teacherId,
         branchId: formData.branchId,
         maxStudents: formData.maxStudents,
-        schedule: schedules.length > 0 ? schedules : undefined,
+        schedule: cleanSchedules.length > 0 ? cleanSchedules : undefined,
         startDate: formData.startDate || undefined,
         endDate: formData.endDate || undefined,
         ...(isEditing && { status: formData.status }),

@@ -29,18 +29,46 @@ export class UsersService {
     childEmail?: string,
   ): Promise<string> {
     if (role === UserRole.Student) {
-      const count = await this.userModel.countDocuments({
-        role: UserRole.Student,
-      });
-      const nextNumber = count + 1;
+      // Tìm mã số học sinh cao nhất hiện có
+      const lastStudent = await this.userModel
+        .findOne({
+          role: UserRole.Student,
+          studentCode: { $exists: true, $ne: null },
+        })
+        .sort({ studentCode: -1 })
+        .select('studentCode')
+        .lean();
+
+      let nextNumber = 1;
+      if (lastStudent && lastStudent.studentCode) {
+        const currentNumber = parseInt(
+          lastStudent.studentCode.replace('HS', ''),
+          10,
+        );
+        nextNumber = currentNumber + 1;
+      }
       return `HS${nextNumber.toString().padStart(4, '0')}`;
     }
 
     if (role === UserRole.Teacher) {
-      const count = await this.userModel.countDocuments({
-        role: UserRole.Teacher,
-      });
-      const nextNumber = count + 1;
+      // Tìm mã số giáo viên cao nhất hiện có
+      const lastTeacher = await this.userModel
+        .findOne({
+          role: UserRole.Teacher,
+          teacherCode: { $exists: true, $ne: null },
+        })
+        .sort({ teacherCode: -1 })
+        .select('teacherCode')
+        .lean();
+
+      let nextNumber = 1;
+      if (lastTeacher && lastTeacher.teacherCode) {
+        const currentNumber = parseInt(
+          lastTeacher.teacherCode.replace('GV', ''),
+          10,
+        );
+        nextNumber = currentNumber + 1;
+      }
       return `GV${nextNumber.toString().padStart(4, '0')}`;
     }
 
@@ -55,11 +83,24 @@ export class UsersService {
         const studentNumber = student.studentCode.replace('HS', '');
         return `PH${studentNumber}`;
       }
-      // Nếu không tìm thấy học sinh, tạo mã mặc định
-      const count = await this.userModel.countDocuments({
-        role: UserRole.Parent,
-      });
-      const nextNumber = count + 1;
+      // Nếu không tìm thấy học sinh, tìm mã phụ huynh cao nhất
+      const lastParent = await this.userModel
+        .findOne({
+          role: UserRole.Parent,
+          parentCode: { $exists: true, $ne: null },
+        })
+        .sort({ parentCode: -1 })
+        .select('parentCode')
+        .lean();
+
+      let nextNumber = 1;
+      if (lastParent && lastParent.parentCode) {
+        const currentNumber = parseInt(
+          lastParent.parentCode.replace('PH', ''),
+          10,
+        );
+        nextNumber = currentNumber + 1;
+      }
       return `PH${nextNumber.toString().padStart(4, '0')}`;
     }
 

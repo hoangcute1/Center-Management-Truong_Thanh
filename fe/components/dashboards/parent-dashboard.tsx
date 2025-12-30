@@ -21,6 +21,37 @@ interface ParentDashboardProps {
   onLogout: () => void;
 }
 
+const overviewStats = [
+  {
+    label: "Khóa học",
+    value: 3,
+    note: "Đang theo học",
+    icon: "📚",
+    color: "from-blue-500 to-blue-600",
+  },
+  {
+    label: "Điểm TB",
+    value: 8.2,
+    note: "Kết quả tốt",
+    icon: "⭐",
+    color: "from-emerald-500 to-emerald-600",
+  },
+  {
+    label: "Buổi học",
+    value: 28,
+    note: "Tổng buổi",
+    icon: "📅",
+    color: "from-amber-500 to-orange-500",
+  },
+  {
+    label: "Xếp loại",
+    value: "Tốt",
+    note: "Đánh giá chung",
+    icon: "🏆",
+    color: "from-purple-500 to-purple-600",
+  },
+];
+
 const child = {
   name: "Nguyễn Thị C",
   grade: "Lớp 10",
@@ -315,51 +346,123 @@ export default function ParentDashboard({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <Tabs defaultValue="overview">
-          <TabsList>
-            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-            <TabsTrigger value="schedule">Lịch học</TabsTrigger>
-            <TabsTrigger value="progress">Tiến độ</TabsTrigger>
-            <TabsTrigger value="payment">Thanh toán</TabsTrigger>
-            <TabsTrigger value="invoice">Hóa đơn</TabsTrigger>
-            <TabsTrigger value="contact">Liên hệ</TabsTrigger>
+      <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Xin chào 👋</p>
+              <h2 className="text-2xl font-bold mt-1">{user.name}</h2>
+              <p className="text-blue-100 mt-2 text-sm">
+                Chào mừng bạn quay trở lại theo dõi việc học của con!
+              </p>
+            </div>
+            <div className="hidden md:block text-6xl opacity-80">👨‍👩‍👧</div>
+          </div>
+        </div>
+
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="w-full overflow-x-auto flex gap-1 rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100 justify-start md:justify-center">
+            <TabsTrigger
+              value="overview"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📊 Tổng quan
+            </TabsTrigger>
+            <TabsTrigger
+              value="schedule"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📅 Lịch học
+            </TabsTrigger>
+            <TabsTrigger
+              value="progress"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📈 Tiến độ
+            </TabsTrigger>
+            <TabsTrigger
+              value="payment"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              💳 Thanh toán
+            </TabsTrigger>
+            <TabsTrigger
+              value="invoice"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🧾 Hóa đơn
+            </TabsTrigger>
+            <TabsTrigger
+              value="contact"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              💬 Liên hệ
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview">
+          <TabsContent value="overview" className="mt-6 space-y-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+              {overviewStats.map((item) => (
+                <Card
+                  key={item.label}
+                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-90`}
+                  />
+                  <div className="relative p-5 text-white">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-white/80 text-sm font-medium">
+                          {item.label}
+                        </p>
+                        <p className="text-3xl font-bold mt-2">{item.value}</p>
+                        <p className="text-white/70 text-xs mt-1">
+                          {item.note}
+                        </p>
+                      </div>
+                      <span className="text-4xl opacity-80">{item.icon}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
             <Card className="p-5 space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Con của bạn</p>
-                  <p className="font-semibold text-gray-900">{child.name}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Khối</p>
-                  <p className="font-semibold text-gray-900">{child.grade}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Khóa học</p>
-                  <p className="font-semibold text-gray-900">
-                    {child.classCount}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-900 text-lg">
+                    Thông tin con
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {child.name} - {child.grade}
                   </p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Điểm TB</p>
-                  <p className="font-semibold text-green-700">
-                    {child.avgScore}
-                  </p>
-                </div>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setShowDetail(true)}
+                >
+                  Xem chi tiết
+                </Button>
               </div>
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => setShowDetail(true)}
-              >
-                Xem chi tiết
-              </Button>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {courses.map((course) => (
+                  <Card key={course.subject} className="p-3 bg-gray-50">
+                    <p className="font-semibold text-gray-900">
+                      {course.subject}
+                    </p>
+                    <p className="text-lg font-bold text-blue-600">
+                      {course.score}
+                    </p>
+                    <p className="text-xs text-gray-500">{course.teacher}</p>
+                  </Card>
+                ))}
+              </div>
             </Card>
           </TabsContent>
 
-          <TabsContent value="schedule">
+          <TabsContent value="schedule" className="mt-6">
             <Card className="p-5 space-y-4">
               <p className="font-semibold text-gray-900 text-lg">
                 Lịch học tuần này
@@ -422,7 +525,7 @@ export default function ParentDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="progress">
+          <TabsContent value="progress" className="mt-6">
             <Card className="p-5">
               <p className="font-semibold text-gray-900 mb-3">
                 Tiến độ học tập con
@@ -459,7 +562,7 @@ export default function ParentDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="payment">
+          <TabsContent value="payment" className="mt-6">
             <Card className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -480,7 +583,7 @@ export default function ParentDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="invoice">
+          <TabsContent value="invoice" className="mt-6">
             <Card className="p-5">
               <p className="font-semibold text-gray-900 mb-2">
                 Danh sách hóa đơn
@@ -489,7 +592,7 @@ export default function ParentDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="contact">
+          <TabsContent value="contact" className="mt-6">
             <Card className="p-5 space-y-3">
               <p className="font-semibold text-gray-900">
                 Liên hệ với giáo viên

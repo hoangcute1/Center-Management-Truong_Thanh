@@ -44,10 +44,34 @@ type DaySession = {
 };
 
 const overviewCards = [
-  { label: "Lớp dạy", value: 5, note: "Khóa học" },
-  { label: "Tổng học sinh", value: 45, note: "Đang theo học" },
-  { label: "Buổi dạy tuần", value: 7, note: "Tiết học" },
-  { label: "Điểm TB lớp", value: 7.8, note: "Kết quả tốt", highlight: true },
+  {
+    label: "Lớp dạy",
+    value: 5,
+    note: "Khóa học",
+    icon: "📚",
+    color: "from-blue-500 to-blue-600",
+  },
+  {
+    label: "Tổng học sinh",
+    value: 45,
+    note: "Đang theo học",
+    icon: "👨‍🎓",
+    color: "from-emerald-500 to-emerald-600",
+  },
+  {
+    label: "Buổi dạy tuần",
+    value: 7,
+    note: "Tiết học",
+    icon: "📅",
+    color: "from-amber-500 to-orange-500",
+  },
+  {
+    label: "Điểm TB lớp",
+    value: 7.8,
+    note: "Kết quả tốt",
+    icon: "⭐",
+    color: "from-purple-500 to-purple-600",
+  },
 ];
 
 const barData = [
@@ -299,61 +323,43 @@ const scheduleWeek: { day: string; date: string; sessions: DaySession[] }[] = [
   { day: "CHỦ NHẬT", date: "11/01", sessions: [] },
 ];
 
-const teachingBadges = [
+// Mock data for teaching documents
+const teachingDocuments = [
   {
-    id: "fast-reply",
-    title: "Phản hồi nhanh",
-    desc: "Trả lời phụ huynh < 30 phút",
-    value: "18 lượt tuần này",
-    tone: "border-amber-200 bg-amber-50",
+    id: "doc1",
+    name: "Tài liệu Toán 10 - Chương 1",
+    type: "PDF",
+    size: "2.4 MB",
+    uploadDate: "05/01/2025",
+    className: "Toán 10A",
+    downloads: 24,
   },
   {
-    id: "consistency",
-    title: "Duy trì chất lượng",
-    desc: "Điểm hài lòng > 4.5",
-    value: "12/12 buổi gần nhất",
-    tone: "border-emerald-200 bg-emerald-50",
+    id: "doc2",
+    name: "Bài tập Toán 10 - Tuần 2",
+    type: "DOCX",
+    size: "1.1 MB",
+    uploadDate: "08/01/2025",
+    className: "Toán 10A",
+    downloads: 18,
   },
   {
-    id: "materials",
-    title: "Tài liệu đầy đủ",
-    desc: "Tải tài liệu trước giờ học",
-    value: "6/7 buổi tuần này",
-    tone: "border-sky-200 bg-sky-50",
-  },
-  {
-    id: "attendance",
-    title: "Điểm danh chuẩn",
-    desc: "Chốt điểm danh trong ngày",
-    value: "100% lớp phụ trách",
-    tone: "border-violet-200 bg-violet-50",
-  },
-];
-
-const badgeLeaderboard = [
-  {
-    name: "Cô Lan",
+    id: "doc3",
+    name: "Tài liệu Toán 10B - Đại số",
+    type: "PDF",
+    size: "3.2 MB",
+    uploadDate: "09/01/2025",
     className: "Toán 10B",
-    badges: 18,
-    highlight: "Tăng 3 huy hiệu tuần này",
+    downloads: 32,
   },
   {
-    name: "Thầy Minh",
-    className: "Lý 11A",
-    badges: 16,
-    highlight: "Giữ vị trí 2 tuần liền",
-  },
-  {
-    name: "Cô Hạnh",
-    className: "Hóa 12",
-    badges: 14,
-    highlight: "Vượt 2 bậc",
-  },
-  {
-    name: "Thầy Nam",
-    className: "Toán 9",
-    badges: 12,
-    highlight: "Mới tham gia đua top",
+    id: "doc4",
+    name: "Slide bài giảng - Hình học",
+    type: "PPTX",
+    size: "5.8 MB",
+    uploadDate: "10/01/2025",
+    className: "Toán 10A",
+    downloads: 15,
   },
 ];
 
@@ -732,7 +738,7 @@ function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function MedalIcon({ className }: { className?: string }) {
+function FileIcon({ className }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -740,9 +746,45 @@ function MedalIcon({ className }: { className?: string }) {
       fill="currentColor"
       className={className}
     >
-      <path d="M7 2h10l-1.5 5h-7L7 2z" />
-      <circle cx="12" cy="13" r="5" />
-      <path d="M9.5 18.5 8 22l4-2 4 2-1.5-3.5" />
+      <path
+        fillRule="evenodd"
+        d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V7.875L14.25 1.5H5.625zM14.25 3.75v3.375c0 .621.504 1.125 1.125 1.125h3.375L14.25 3.75zM9 11.25a.75.75 0 000 1.5h6a.75.75 0 000-1.5H9zm-.75 3.75a.75.75 0 01.75-.75h6a.75.75 0 010 1.5H9a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5h3a.75.75 0 000-1.5H9z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function UploadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path
+        fillRule="evenodd"
+        d="M11.47 2.47a.75.75 0 011.06 0l4.5 4.5a.75.75 0 01-1.06 1.06l-3.22-3.22V16.5a.75.75 0 01-1.5 0V4.81L8.03 8.03a.75.75 0 01-1.06-1.06l4.5-4.5zM3 15.75a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path
+        fillRule="evenodd"
+        d="M12 2.25a.75.75 0 01.75.75v11.69l3.22-3.22a.75.75 0 111.06 1.06l-4.5 4.5a.75.75 0 01-1.06 0l-4.5-4.5a.75.75 0 111.06-1.06l3.22 3.22V3a.75.75 0 01.75-.75zm-9 13.5a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
@@ -802,28 +844,84 @@ export default function TeacherDashboard({
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Xin chào 👋</p>
+              <h2 className="text-2xl font-bold mt-1">{user.name}</h2>
+              <p className="text-blue-100 mt-2 text-sm">
+                Chào mừng bạn quay trở lại bảng điều khiển giáo viên!
+              </p>
+            </div>
+            <div className="hidden md:block text-6xl opacity-80">👨‍🏫</div>
+          </div>
+        </div>
+
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="w-full overflow-x-auto">
-            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-            <TabsTrigger value="students">Học sinh</TabsTrigger>
-            <TabsTrigger value="schedule">Lịch dạy</TabsTrigger>
-            <TabsTrigger value="evaluation">Đánh giá</TabsTrigger>
-            <TabsTrigger value="contact">Liên hệ</TabsTrigger>
+          <TabsList className="w-full overflow-x-auto flex gap-1 rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100 justify-start md:justify-center">
+            <TabsTrigger
+              value="overview"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📊 Tổng quan
+            </TabsTrigger>
+            <TabsTrigger
+              value="students"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              👨‍🎓 Học sinh
+            </TabsTrigger>
+            <TabsTrigger
+              value="schedule"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📅 Lịch dạy
+            </TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📄 Tài liệu
+            </TabsTrigger>
+            <TabsTrigger
+              value="evaluation"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              ⭐ Đánh giá
+            </TabsTrigger>
+            <TabsTrigger
+              value="contact"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              💬 Liên hệ
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-4 space-y-4">
+          <TabsContent value="overview" className="mt-6 space-y-4">
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {overviewCards.map((item) => (
-                <Card key={item.label} className="p-4">
-                  <p className="text-sm text-gray-600 mb-2">{item.label}</p>
-                  <p
-                    className={`text-3xl font-bold ${
-                      item.highlight ? "text-green-600" : "text-gray-900"
-                    }`}
-                  >
-                    {item.value}
-                  </p>
-                  <p className="text-xs text-gray-500">{item.note}</p>
+                <Card
+                  key={item.label}
+                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-90`}
+                  />
+                  <div className="relative p-5 text-white">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-white/80 text-sm font-medium">
+                          {item.label}
+                        </p>
+                        <p className="text-3xl font-bold mt-2">{item.value}</p>
+                        <p className="text-white/70 text-xs mt-1">
+                          {item.note}
+                        </p>
+                      </div>
+                      <span className="text-4xl opacity-80">{item.icon}</span>
+                    </div>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -854,86 +952,9 @@ export default function TeacherDashboard({
                 </ResponsiveContainer>
               </div>
             </Card>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-gray-900">
-                    Huy hiệu giảng dạy
-                  </p>
-                  <span className="text-xs text-gray-500">
-                    Cập nhật theo tuần
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {teachingBadges.map((badge) => (
-                    <div
-                      key={badge.id}
-                      className={`rounded-lg border ${badge.tone} p-3 flex gap-3 items-start`}
-                    >
-                      <div className="h-12 w-12 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
-                        <MedalIcon className="h-6 w-6 text-amber-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="font-semibold text-gray-900">
-                          {badge.title}
-                        </p>
-                        <p className="text-xs text-gray-600 leading-snug">
-                          {badge.desc}
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {badge.value}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              <Card className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-gray-900">
-                    Đua top huy hiệu
-                  </p>
-                  <span className="text-xs text-gray-500">
-                    BXH toàn trung tâm
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {badgeLeaderboard.map((row, index) => (
-                    <div
-                      key={row.name}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="h-8 w-8 rounded-full bg-gray-100 text-sm font-bold text-gray-800 flex items-center justify-center">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-gray-900 leading-tight">
-                            {row.name}
-                          </p>
-                          <p className="text-xs text-gray-500 leading-tight">
-                            {row.className}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-blue-700">
-                          {row.badges} huy hiệu
-                        </p>
-                        <p className="text-xs text-gray-500 leading-tight">
-                          {row.highlight}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
           </TabsContent>
 
-          <TabsContent value="students" className="mt-4 space-y-3">
+          <TabsContent value="students" className="mt-6 space-y-3">
             <div className="flex flex-wrap gap-2">
               {Object.entries(classTabs).map(([key, label]) => (
                 <Button
@@ -1049,7 +1070,7 @@ export default function TeacherDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="schedule" className="mt-4">
+          <TabsContent value="schedule" className="mt-6">
             <Card className="p-5 space-y-4">
               <p className="font-semibold text-gray-900 text-lg">
                 Lịch dạy tuần này
@@ -1124,7 +1145,140 @@ export default function TeacherDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="evaluation" className="mt-4">
+          <TabsContent value="documents" className="mt-6 space-y-4">
+            <Card className="p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-gray-900 text-lg">
+                    Tài liệu học tập
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Quản lý và chia sẻ tài liệu với học sinh
+                  </p>
+                </div>
+                <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+                  <UploadIcon className="h-4 w-4" />
+                  Tải lên tài liệu mới
+                </Button>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="p-4 bg-blue-50 border-blue-100">
+                    <p className="text-sm text-gray-600">Tổng tài liệu</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {teachingDocuments.length}
+                    </p>
+                  </Card>
+                  <Card className="p-4 bg-green-50 border-green-100">
+                    <p className="text-sm text-gray-600">Lượt tải xuống</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {teachingDocuments.reduce(
+                        (sum, doc) => sum + doc.downloads,
+                        0
+                      )}
+                    </p>
+                  </Card>
+                  <Card className="p-4 bg-orange-50 border-orange-100">
+                    <p className="text-sm text-gray-600">Lớp được chia sẻ</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {new Set(teachingDocuments.map((d) => d.className)).size}
+                    </p>
+                  </Card>
+                </div>
+
+                <div className="space-y-3">
+                  {teachingDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`h-12 w-12 rounded-lg flex items-center justify-center ${
+                            doc.type === "PDF"
+                              ? "bg-red-100"
+                              : doc.type === "DOCX"
+                              ? "bg-blue-100"
+                              : doc.type === "PPTX"
+                              ? "bg-orange-100"
+                              : "bg-gray-100"
+                          }`}
+                        >
+                          <FileIcon
+                            className={`h-6 w-6 ${
+                              doc.type === "PDF"
+                                ? "text-red-600"
+                                : doc.type === "DOCX"
+                                ? "text-blue-600"
+                                : doc.type === "PPTX"
+                                ? "text-orange-600"
+                                : "text-gray-600"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {doc.name}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span>{doc.type}</span>
+                            <span>•</span>
+                            <span>{doc.size}</span>
+                            <span>•</span>
+                            <span>{doc.className}</span>
+                            <span>•</span>
+                            <span>{doc.uploadDate}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right hidden sm:block">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {doc.downloads} lượt tải
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1"
+                          >
+                            <DownloadIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline">Tải xuống</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            Xoá
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Card className="p-4 border-dashed border-2 border-gray-300 bg-gray-50">
+                  <div className="text-center py-8">
+                    <UploadIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 font-medium">
+                      Kéo thả tài liệu vào đây
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      hoặc click để chọn file từ máy tính
+                    </p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Hỗ trợ: PDF, DOCX, PPTX, XLSX (tối đa 50MB)
+                    </p>
+                  </div>
+                </Card>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="evaluation" className="mt-6">
             <Card className="p-4">
               <p className="font-semibold text-gray-900 mb-2">
                 Đánh giá từ học sinh
@@ -1143,7 +1297,7 @@ export default function TeacherDashboard({
             </Card>
           </TabsContent>
 
-          <TabsContent value="contact" className="mt-4">
+          <TabsContent value="contact" className="mt-6">
             <Card className="p-4 space-y-3">
               <p className="font-semibold text-gray-900">
                 Liên hệ với học sinh
