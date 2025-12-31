@@ -186,9 +186,7 @@ export class SessionsService {
 
       // Check if this day matches any schedule
       for (const schedule of classDoc.schedule) {
-        const scheduleDayNum =
-          dayMap[schedule.dayOfWeek.toLowerCase()] ??
-          parseInt(schedule.dayOfWeek);
+        const scheduleDayNum = schedule.dayOfWeek;
 
         if (scheduleDayNum === dayOfWeek) {
           // Parse time

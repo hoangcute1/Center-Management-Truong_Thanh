@@ -6,6 +6,8 @@ export interface Class {
   id?: string;
   name: string;
   description?: string;
+  subject?: string;
+  grade?: string;
   teacherId: string;
   branchId: string;
   schedule: ClassSchedule[];
@@ -76,6 +78,8 @@ interface FetchClassesParams {
 interface CreateClassData {
   name: string;
   description?: string;
+  subject?: string;
+  grade?: string;
   teacherId: string;
   branchId: string;
   schedule?: ClassSchedule[];
@@ -87,6 +91,8 @@ interface CreateClassData {
 interface UpdateClassData {
   name?: string;
   description?: string;
+  subject?: string;
+  grade?: string;
   teacherId?: string;
   branchId?: string;
   schedule?: ClassSchedule[];

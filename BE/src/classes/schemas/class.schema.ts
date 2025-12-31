@@ -12,6 +12,9 @@ export class ClassEntity {
   subject?: string;
 
   @Prop()
+  grade?: string;
+
+  @Prop()
   description?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })

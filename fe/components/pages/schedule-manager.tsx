@@ -16,7 +16,6 @@ import { useClassesStore, Class } from "@/lib/stores/classes-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useUsersStore } from "@/lib/stores/users-store";
 import SessionFormModal from "./session-form-modal";
-import GenerateSessionsModal from "./generate-sessions-modal";
 
 interface ScheduleManagerProps {
   userRole?: string;
@@ -66,6 +65,32 @@ const DAYS_OF_WEEK = [
   "CN",
 ];
 
+// Colors for classes - each class gets a unique color
+const CLASS_COLORS = [
+  "bg-blue-100 border-blue-400 text-blue-800",
+  "bg-green-100 border-green-400 text-green-800",
+  "bg-purple-100 border-purple-400 text-purple-800",
+  "bg-orange-100 border-orange-400 text-orange-800",
+  "bg-pink-100 border-pink-400 text-pink-800",
+  "bg-teal-100 border-teal-400 text-teal-800",
+  "bg-indigo-100 border-indigo-400 text-indigo-800",
+  "bg-rose-100 border-rose-400 text-rose-800",
+  "bg-cyan-100 border-cyan-400 text-cyan-800",
+  "bg-amber-100 border-amber-400 text-amber-800",
+];
+
+// Interface for class-based schedules
+interface ClassScheduleEvent {
+  classId: string;
+  className: string;
+  teacherName: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  colorIndex: number;
+}
+
 export default function ScheduleManager({
   userRole = "admin",
   userId,
@@ -73,7 +98,6 @@ export default function ScheduleManager({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"week" | "month" | "list">("week");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("");
   const [selectedTeacherFilter, setSelectedTeacherFilter] =
@@ -158,6 +182,57 @@ export default function ScheduleManager({
     return users.filter((u) => u.role === "teacher");
   }, [users]);
 
+  // Generate class-based schedule events from classes
+  const classScheduleEvents = useMemo(() => {
+    const events: ClassScheduleEvent[] = [];
+    let filteredClasses = classes;
+
+    // Apply filters
+    if (selectedBranchFilter) {
+      filteredClasses = filteredClasses.filter(
+        (c) =>
+          c.branchId === selectedBranchFilter ||
+          c.branch?._id === selectedBranchFilter
+      );
+    }
+    if (selectedClassFilter) {
+      filteredClasses = filteredClasses.filter(
+        (c) => c._id === selectedClassFilter
+      );
+    }
+    if (selectedTeacherFilter) {
+      filteredClasses = filteredClasses.filter(
+        (c) =>
+          c.teacherId === selectedTeacherFilter ||
+          c.teacher?._id === selectedTeacherFilter
+      );
+    }
+
+    filteredClasses.forEach((cls, classIndex) => {
+      if (cls.schedule && cls.schedule.length > 0) {
+        cls.schedule.forEach((sched) => {
+          events.push({
+            classId: cls._id,
+            className: cls.name,
+            teacherName: cls.teacher?.name || "Chưa phân công",
+            dayOfWeek: sched.dayOfWeek,
+            startTime: sched.startTime,
+            endTime: sched.endTime,
+            room: sched.room,
+            colorIndex: classIndex % CLASS_COLORS.length,
+          });
+        });
+      }
+    });
+
+    return events;
+  }, [
+    classes,
+    selectedBranchFilter,
+    selectedClassFilter,
+    selectedTeacherFilter,
+  ]);
+
   // Navigate week/month
   const navigatePrev = () => {
     const newDate = new Date(currentDate);
@@ -194,6 +269,26 @@ export default function ScheduleManager({
       const sessionDate = sessionStart.toDateString();
       return sessionDate === targetDate.toDateString() && sessionHour === hour;
     });
+  };
+
+  // Get class schedules for a specific day (by dayOfWeek index) and hour
+  const getClassSchedulesForSlot = (
+    dayIndex: number,
+    hour: number
+  ): ClassScheduleEvent[] => {
+    // Convert dayIndex (0=Monday, 6=Sunday) to dayOfWeek (1=Monday, 0=Sunday)
+    const targetDayOfWeek = dayIndex === 6 ? 0 : dayIndex + 1;
+
+    return classScheduleEvents.filter((event) => {
+      const startHour = parseInt(event.startTime.split(":")[0], 10);
+      return event.dayOfWeek === targetDayOfWeek && startHour === hour;
+    });
+  };
+
+  // Get class schedules for a specific date (for month view)
+  const getClassSchedulesForDate = (date: Date): ClassScheduleEvent[] => {
+    const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, etc.
+    return classScheduleEvents.filter((event) => event.dayOfWeek === dayOfWeek);
   };
 
   // Get sessions for a specific date (for month view)
@@ -293,6 +388,54 @@ export default function ScheduleManager({
     );
   };
 
+  // Render class schedule card (from class's weekly schedule)
+  const renderClassScheduleCard = (
+    event: ClassScheduleEvent,
+    compact = false
+  ) => {
+    const colorClass = CLASS_COLORS[event.colorIndex];
+
+    if (compact) {
+      return (
+        <div
+          key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
+          className={`p-1.5 rounded text-xs border-l-2 ${colorClass}`}
+          title={`${event.className} - ${event.teacherName}\n${
+            event.startTime
+          } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}`}
+        >
+          <div className="font-medium truncate">{event.className}</div>
+          <div className="text-[10px] opacity-70">
+            {event.startTime} - {event.endTime}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Card
+        key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
+        className={`p-3 transition-shadow border-l-4 ${colorClass}`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold truncate">{event.className}</div>
+            <div className="text-sm opacity-80">{event.teacherName}</div>
+            <div className="text-sm opacity-70 mt-1">
+              {event.startTime} - {event.endTime}
+            </div>
+            {event.room && (
+              <div className="text-xs opacity-60 mt-1">📍 {event.room}</div>
+            )}
+            <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium bg-white/50">
+              Lịch cố định
+            </span>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   // Render week view
   const renderWeekView = () => {
     const weekDates = Array.from({ length: 7 }, (_, i) => {
@@ -336,11 +479,20 @@ export default function ScheduleManager({
                 </div>
                 {Array.from({ length: 7 }, (_, dayIndex) => {
                   const slotSessions = getSessionsForSlot(dayIndex, hour);
+                  const slotClassSchedules = getClassSchedulesForSlot(
+                    dayIndex,
+                    hour
+                  );
                   return (
                     <div
                       key={dayIndex}
-                      className="min-h-[60px] p-1 border-r last:border-r-0 hover:bg-gray-50"
+                      className="min-h-[60px] p-1 border-r last:border-r-0 hover:bg-gray-50 space-y-1"
                     >
+                      {/* Render class schedules (recurring) */}
+                      {slotClassSchedules.map((event) =>
+                        renderClassScheduleCard(event, true)
+                      )}
+                      {/* Render sessions (one-time events) */}
                       {slotSessions.map((session) =>
                         renderSessionCard(session, true)
                       )}
@@ -416,6 +568,8 @@ export default function ScheduleManager({
               const isCurrentMonth = date.getMonth() === month;
               const isToday = date.toDateString() === new Date().toDateString();
               const daySessions = getSessionsForDate(date);
+              const dayClassSchedules = getClassSchedulesForDate(date);
+              const totalItems = daySessions.length + dayClassSchedules.length;
 
               return (
                 <div
@@ -436,12 +590,17 @@ export default function ScheduleManager({
                     {date.getDate()}
                   </div>
                   <div className="space-y-1">
+                    {/* Render class schedules first */}
+                    {dayClassSchedules
+                      .slice(0, 2)
+                      .map((event) => renderClassScheduleCard(event, true))}
+                    {/* Then render sessions */}
                     {daySessions
-                      .slice(0, 3)
+                      .slice(0, Math.max(0, 3 - dayClassSchedules.length))
                       .map((session) => renderSessionCard(session, true))}
-                    {daySessions.length > 3 && (
+                    {totalItems > 3 && (
                       <div className="text-xs text-gray-500 text-center">
-                        +{daySessions.length - 3} khác
+                        +{totalItems - 3} khác
                       </div>
                     )}
                   </div>
@@ -512,7 +671,7 @@ export default function ScheduleManager({
             📅 Quản lý Lịch dạy học
           </h2>
           <p className="text-gray-500 text-sm mt-1">
-            Sắp xếp và quản lý lịch dạy của giáo viên và học sinh
+            Xem lịch các lớp và tạo buổi học bất thường (học bù, kiểm tra)
           </p>
         </div>
 
@@ -521,17 +680,8 @@ export default function ScheduleManager({
             onClick={() => setShowCreateModal(true)}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
           >
-            ➕ Thêm buổi học
+            ➕ Thêm buổi học bất thường
           </Button>
-          {userRole === "admin" && (
-            <Button
-              variant="outline"
-              onClick={() => setShowGenerateModal(true)}
-              className="border-blue-200 text-blue-600 hover:bg-blue-50"
-            >
-              ⚡ Tạo tự động
-            </Button>
-          )}
         </div>
       </div>
 
@@ -684,13 +834,6 @@ export default function ScheduleManager({
           classes={classes}
           teachers={users.filter((u) => u.role === "teacher")}
           onClose={handleCloseModal}
-        />
-      )}
-
-      {showGenerateModal && (
-        <GenerateSessionsModal
-          classes={classes}
-          onClose={() => setShowGenerateModal(false)}
         />
       )}
     </div>

@@ -22,7 +22,9 @@ import NotificationCenter from "@/components/notification-center";
 import ImportUsersModal from "@/components/pages/import-users-modal";
 import ImportStudentsModal from "@/components/pages/import-students-modal";
 import ClassFormModal from "@/components/pages/class-form-modal";
+import ClassStudentsModal from "@/components/pages/class-students-modal";
 import ScheduleManager from "@/components/pages/schedule-manager";
+import AttendanceManager from "@/components/pages/attendance-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
@@ -1080,6 +1082,8 @@ export default function AdminDashboard({
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
   const [selectedUserDetail, setSelectedUserDetail] =
     useState<UserDetail | null>(null);
+  const [classStudentsModal, setClassStudentsModal] = useState<any>(null);
+  const [classSearchQuery, setClassSearchQuery] = useState("");
 
   // Stores
   const {
@@ -1413,6 +1417,12 @@ export default function AdminDashboard({
               📅 Lịch dạy học
             </TabsTrigger>
             <TabsTrigger
+              value="attendance"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📋 Điểm danh
+            </TabsTrigger>
+            <TabsTrigger
               value="settings"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -1615,6 +1625,28 @@ export default function AdminDashboard({
                 </div>
               </div>
 
+              {/* Search Bar for Classes */}
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  🔍
+                </span>
+                <Input
+                  type="text"
+                  placeholder="Tìm kiếm khóa học theo tên, giáo viên, môn học..."
+                  value={classSearchQuery}
+                  onChange={(e) => setClassSearchQuery(e.target.value)}
+                  className="pl-9 pr-8 w-full rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500"
+                />
+                {classSearchQuery && (
+                  <button
+                    onClick={() => setClassSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
               <div className="space-y-3">
                 {classes.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
@@ -1623,73 +1655,107 @@ export default function AdminDashboard({
                     <p className="text-sm">Nhấn "Thêm khóa học" để tạo mới</p>
                   </div>
                 ) : (
-                  classes.map((course) => (
-                    <div
-                      key={course._id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-gradient-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
-                          📖
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">
-                            {course.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Giáo viên:{" "}
-                            {course.teacher?.name || "Chưa phân công"}
-                          </p>
-                          {course.branch && (
-                            <p className="text-xs text-blue-500">
-                              Chi nhánh: {course.branch.name}
+                  classes
+                    .filter((course) => {
+                      if (!classSearchQuery.trim()) return true;
+                      const query = classSearchQuery.toLowerCase();
+                      return (
+                        course.name?.toLowerCase().includes(query) ||
+                        course.teacher?.name?.toLowerCase().includes(query) ||
+                        course.branch?.name?.toLowerCase().includes(query) ||
+                        (course as any).subject?.toLowerCase().includes(query)
+                      );
+                    })
+                    .map((course) => (
+                      <div
+                        key={course._id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 bg-gradient-to-r from-white to-gray-50 hover:border-blue-200 hover:shadow-md transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
+                            📖
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {course.name}
                             </p>
-                          )}
+                            <p className="text-xs text-gray-500">
+                              Giáo viên:{" "}
+                              {course.teacher?.name || "Chưa phân công"}
+                            </p>
+                            {course.branch && (
+                              <p className="text-xs text-blue-500">
+                                Chi nhánh: {course.branch.name}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-6 mt-3 sm:mt-0">
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500">Học sinh</p>
-                          <p className="font-bold text-gray-900">
-                            {course.studentIds?.length || 0}/
-                            {course.maxStudents || 30}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500">Lịch học</p>
-                          <p className="font-bold text-blue-600">
-                            {course.schedule?.length || 0} buổi/tuần
-                          </p>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            course.status === "active"
-                              ? "bg-emerald-100 text-emerald-700"
+                        <div className="flex items-center gap-4 mt-3 sm:mt-0">
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Học sinh</p>
+                            <p className="font-bold text-gray-900">
+                              {course.studentIds?.length || 0}/
+                              {course.maxStudents || 30}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Lịch học</p>
+                            <p className="font-bold text-blue-600">
+                              {course.schedule?.length || 0} buổi/tuần
+                            </p>
+                          </div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              course.status === "active"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : course.status === "completed"
+                                ? "bg-gray-100 text-gray-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {course.status === "active"
+                              ? "Đang mở"
                               : course.status === "completed"
-                              ? "bg-gray-100 text-gray-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
-                        >
-                          {course.status === "active"
-                            ? "Đang mở"
-                            : course.status === "completed"
-                            ? "Đã kết thúc"
-                            : "Tạm dừng"}
-                        </span>
-                        <Button
-                          variant="outline"
-                          className="rounded-xl"
-                          onClick={() => {
-                            setEditingClass(course);
-                            setShowClassModal(true);
-                          }}
-                        >
-                          ✏️ Sửa
-                        </Button>
+                              ? "Đã kết thúc"
+                              : "Tạm dừng"}
+                          </span>
+                          <Button
+                            variant="outline"
+                            className="rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
+                            onClick={() => setClassStudentsModal(course)}
+                          >
+                            👥 Danh sách
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="rounded-xl"
+                            onClick={() => {
+                              setEditingClass(course);
+                              setShowClassModal(true);
+                            }}
+                          >
+                            ✏️ Sửa
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))
                 )}
+                {classSearchQuery &&
+                  classes.filter((course) => {
+                    const query = classSearchQuery.toLowerCase();
+                    return (
+                      course.name?.toLowerCase().includes(query) ||
+                      course.teacher?.name?.toLowerCase().includes(query) ||
+                      course.branch?.name?.toLowerCase().includes(query) ||
+                      (course as any).subject?.toLowerCase().includes(query)
+                    );
+                  }).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-lg mb-2">🔍</p>
+                      <p>Không tìm thấy khóa học nào phù hợp</p>
+                      <p className="text-sm">Thử tìm kiếm với từ khóa khác</p>
+                    </div>
+                  )}
               </div>
             </Card>
           </TabsContent>
@@ -2458,6 +2524,11 @@ export default function AdminDashboard({
             <ScheduleManager userRole={user.role} userId={user.id} />
           </TabsContent>
 
+          {/* Tab Điểm danh */}
+          <TabsContent value="attendance" className="mt-6">
+            <AttendanceManager />
+          </TabsContent>
+
           {/* Tab Cài đặt */}
           <TabsContent value="settings" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
@@ -2616,6 +2687,21 @@ export default function AdminDashboard({
           }}
           onSuccess={() => {
             fetchClasses();
+          }}
+        />
+      )}
+
+      {/* Class Students Modal */}
+      {classStudentsModal && (
+        <ClassStudentsModal
+          classData={classStudentsModal}
+          branchId={
+            classStudentsModal.branchId || classStudentsModal.branch?._id
+          }
+          onClose={() => setClassStudentsModal(null)}
+          onUpdate={() => {
+            fetchClasses();
+            fetchUsers();
           }}
         />
       )}

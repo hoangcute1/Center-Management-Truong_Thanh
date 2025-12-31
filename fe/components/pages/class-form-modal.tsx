@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,11 +8,18 @@ import {
   type Class,
   type ClassSchedule,
 } from "@/lib/stores/classes-store";
+import { SUBJECT_LIST } from "@/lib/constants/subjects";
 
 interface ClassFormModalProps {
   classData?: Class | null;
   branches: Array<{ _id: string; name: string }>;
-  teachers: Array<{ _id: string; name: string; email: string }>;
+  teachers: Array<{
+    _id: string;
+    name: string;
+    email: string;
+    branchId?: string;
+    subjects?: string[];
+  }>;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -27,6 +34,16 @@ const DAYS_OF_WEEK = [
   { value: 0, label: "Chủ nhật" },
 ];
 
+const GRADE_LEVELS = [
+  { value: "10", label: "Lớp 10" },
+  { value: "11", label: "Lớp 11" },
+  { value: "12", label: "Lớp 12" },
+  { value: "9", label: "Lớp 9" },
+  { value: "8", label: "Lớp 8" },
+  { value: "7", label: "Lớp 7" },
+  { value: "6", label: "Lớp 6" },
+];
+
 export default function ClassFormModal({
   classData,
   branches,
@@ -34,13 +51,16 @@ export default function ClassFormModal({
   onClose,
   onSuccess,
 }: ClassFormModalProps) {
-  const { createClass, updateClass, isLoading } = useClassesStore();
+  const { createClass, updateClass, deleteClass, isLoading } =
+    useClassesStore();
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     teacherId: "",
     branchId: "",
+    subject: "",
+    grade: "",
     maxStudents: 30,
     startDate: "",
     endDate: "",
@@ -49,17 +69,60 @@ export default function ClassFormModal({
 
   const [schedules, setSchedules] = useState<ClassSchedule[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isEditing = !!classData;
+
+  // Filter teachers by selected branch and subject
+  const filteredTeachers = useMemo(() => {
+    let result = teachers;
+
+    // Filter by branch
+    if (formData.branchId) {
+      result = result.filter(
+        (t) => !t.branchId || t.branchId === formData.branchId
+      );
+    }
+
+    // Filter by subject - check if teacher teaches this subject
+    if (formData.subject) {
+      result = result.filter(
+        (t) =>
+          t.subjects &&
+          t.subjects.some(
+            (s) =>
+              s.toLowerCase().includes(formData.subject.toLowerCase()) ||
+              formData.subject
+                .toLowerCase()
+                .includes(s.toLowerCase().replace(/\d+/g, "").trim())
+          )
+      );
+    }
+
+    return result;
+  }, [teachers, formData.branchId, formData.subject]);
+
+  // Auto-generate class name when subject and grade change
+  useEffect(() => {
+    if (!isEditing && formData.subject && formData.grade) {
+      const autoName = `${formData.subject} - Lớp ${formData.grade}`;
+      setFormData((prev) => ({ ...prev, name: autoName }));
+    }
+  }, [formData.subject, formData.grade, isEditing]);
 
   // Initialize form data when editing
   useEffect(() => {
     if (classData) {
+      // Extract subject and grade from name if possible (fallback)
+      const nameMatch = classData.name?.match(/(.+)\s*-\s*Lớp\s*(\d+)/);
+
       setFormData({
         name: classData.name || "",
         description: classData.description || "",
         teacherId: classData.teacherId || classData.teacher?._id || "",
         branchId: classData.branchId || classData.branch?._id || "",
+        subject: classData.subject || (nameMatch ? nameMatch[1].trim() : ""),
+        grade: classData.grade || (nameMatch ? nameMatch[2] : ""),
         maxStudents: classData.maxStudents || 30,
         startDate: classData.startDate ? classData.startDate.split("T")[0] : "",
         endDate: classData.endDate ? classData.endDate.split("T")[0] : "",
@@ -90,13 +153,27 @@ export default function ClassFormModal({
     setSchedules(newSchedules);
   };
 
+  // Handle delete class
+  const handleDeleteClass = async () => {
+    if (!classData) return;
+
+    try {
+      await deleteClass(classData._id);
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Có lỗi khi xóa khóa học");
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     // Validation
     if (!formData.name.trim()) {
-      setError("Vui lòng nhập tên khóa học");
+      setError("Vui lòng nhập tiêu đề khóa học");
       return;
     }
     if (!formData.branchId) {
@@ -125,6 +202,8 @@ export default function ClassFormModal({
         description: formData.description.trim() || undefined,
         teacherId: formData.teacherId,
         branchId: formData.branchId,
+        subject: formData.subject || undefined,
+        grade: formData.grade || undefined,
         maxStudents: formData.maxStudents,
         schedule: cleanSchedules.length > 0 ? cleanSchedules : undefined,
         startDate: formData.startDate || undefined,
@@ -144,13 +223,6 @@ export default function ClassFormModal({
       setError(err.message || "Có lỗi xảy ra");
     }
   };
-
-  // Filter teachers by selected branch
-  const filteredTeachers = formData.branchId
-    ? teachers.filter(
-        (t: any) => !t.branchId || t.branchId === formData.branchId
-      )
-    : teachers;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -209,19 +281,65 @@ export default function ClassFormModal({
 
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Name */}
+              {/* Title - Moved to top */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Tên khóa học <span className="text-red-500">*</span>
+                  Tiêu đề <span className="text-red-500">*</span>
                 </label>
                 <Input
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder="VD: Toán lớp 10 - Nâng cao"
+                  placeholder="VD: Toán - Lớp 10 (Tự động tạo khi chọn môn và khối)"
                   className="rounded-xl"
                 />
+              </div>
+
+              {/* Subject Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Môn học <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.subject}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      subject: e.target.value,
+                      teacherId: "", // Reset teacher when subject changes
+                    })
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Chọn môn học --</option>
+                  {SUBJECT_LIST.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Grade Level Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Khối lớp <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.grade}
+                  onChange={(e) =>
+                    setFormData({ ...formData, grade: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Chọn khối --</option>
+                  {GRADE_LEVELS.map((grade) => (
+                    <option key={grade.value} value={grade.value}>
+                      {grade.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Branch */}
@@ -263,16 +381,31 @@ export default function ClassFormModal({
                   disabled={!formData.branchId}
                 >
                   <option value="">
-                    {formData.branchId
-                      ? "-- Chọn giáo viên --"
-                      : "-- Chọn chi nhánh trước --"}
+                    {!formData.branchId
+                      ? "-- Chọn chi nhánh trước --"
+                      : filteredTeachers.length === 0
+                      ? "-- Không có giáo viên phù hợp --"
+                      : "-- Chọn giáo viên --"}
                   </option>
                   {filteredTeachers.map((teacher) => (
                     <option key={teacher._id} value={teacher._id}>
                       {teacher.name} ({teacher.email})
+                      {teacher.subjects &&
+                        teacher.subjects.length > 0 &&
+                        ` - Dạy: ${teacher.subjects.slice(0, 2).join(", ")}${
+                          teacher.subjects.length > 2 ? "..." : ""
+                        }`}
                     </option>
                   ))}
                 </select>
+                {formData.branchId &&
+                  formData.subject &&
+                  filteredTeachers.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Không tìm thấy giáo viên dạy môn "{formData.subject}"
+                      tại chi nhánh này
+                    </p>
+                  )}
               </div>
 
               {/* Max Students */}
@@ -485,52 +618,104 @@ export default function ClassFormModal({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-5 border-t">
-            <Button
-              type="button"
-              onClick={onClose}
-              variant="outline"
-              className="rounded-xl"
-              disabled={isLoading}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl"
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Đang xử lý...
-                </span>
-              ) : isEditing ? (
-                "Cập nhật"
-              ) : (
-                "Tạo khóa học"
+          <div className="flex justify-between gap-3 mt-6 pt-5 border-t">
+            <div>
+              {isEditing && (
+                <Button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  variant="outline"
+                  className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
+                  disabled={isLoading}
+                >
+                  🗑️ Xóa khóa học
+                </Button>
               )}
-            </Button>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                onClick={onClose}
+                variant="outline"
+                className="rounded-xl"
+                disabled={isLoading}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl"
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Đang xử lý...
+                  </span>
+                ) : isEditing ? (
+                  "Cập nhật"
+                ) : (
+                  "Tạo khóa học"
+                )}
+              </Button>
+            </div>
           </div>
         </form>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
+            <div className="bg-white rounded-xl p-6 m-4 max-w-sm shadow-2xl">
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  Xác nhận xóa khóa học
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Bạn có chắc muốn xóa khóa học "{classData?.name}"? Hành động
+                  này không thể hoàn tác.
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isLoading}
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    className="flex-1 rounded-xl bg-red-600 hover:bg-red-700"
+                    onClick={handleDeleteClass}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Đang xóa..." : "Xóa"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -33,6 +33,10 @@ export class CreateClassDto {
 
   @IsOptional()
   @IsString()
+  grade?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @IsOptional()

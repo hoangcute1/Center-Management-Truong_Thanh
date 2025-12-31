@@ -38,7 +38,7 @@ export default function SessionFormModal({
     date: "",
     startTime: "08:00",
     endTime: "09:30",
-    type: SessionType.Regular,
+    type: SessionType.Makeup, // Default to makeup since we removed regular
     note: "",
   });
 
@@ -262,12 +262,12 @@ export default function SessionFormModal({
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900">
-              {session ? "Chỉnh sửa buổi học" : "Thêm buổi học mới"}
+              {session ? "Chỉnh sửa buổi học" : "Thêm buổi học bất thường"}
             </h3>
             <p className="text-sm text-gray-500">
               {session
                 ? "Cập nhật thông tin buổi học"
-                : "Điền thông tin để tạo buổi học"}
+                : "Tạo buổi học bù hoặc kiểm tra"}
             </p>
           </div>
         </div>
@@ -464,10 +464,13 @@ export default function SessionFormModal({
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value={SessionType.Regular}>📚 Buổi học thường</option>
               <option value={SessionType.Makeup}>🔄 Học bù</option>
               <option value={SessionType.Exam}>📝 Kiểm tra</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Chỉ tạo buổi học bất thường tại đây. Buổi học thường được tự động
+              tạo từ lịch học của lớp.
+            </p>
           </div>
 
           {/* Note */}
@@ -500,7 +503,7 @@ export default function SessionFormModal({
               ) : session ? (
                 "💾 Lưu thay đổi"
               ) : (
-                "➕ Tạo buổi học"
+                "➕ Tạo buổi học bất thường"
               )}
             </Button>
             <Button
