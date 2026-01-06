@@ -116,11 +116,31 @@ export default function ClassFormModal({
       // Extract subject and grade from name if possible (fallback)
       const nameMatch = classData.name?.match(/(.+)\s*-\s*Lớp\s*(\d+)/);
 
+      // Handle branchId - could be string or object with _id
+      let branchIdValue = "";
+      if (typeof classData.branchId === "string") {
+        branchIdValue = classData.branchId;
+      } else if (classData.branchId && typeof classData.branchId === "object") {
+        branchIdValue = (classData.branchId as any)._id || "";
+      } else if (classData.branch?._id) {
+        branchIdValue = classData.branch._id;
+      }
+
+      // Handle teacherId - could be string or object with _id
+      let teacherIdValue = "";
+      if (typeof classData.teacherId === "string") {
+        teacherIdValue = classData.teacherId;
+      } else if (classData.teacherId && typeof classData.teacherId === "object") {
+        teacherIdValue = (classData.teacherId as any)._id || "";
+      } else if (classData.teacher?._id) {
+        teacherIdValue = classData.teacher._id;
+      }
+
       setFormData({
         name: classData.name || "",
         description: classData.description || "",
-        teacherId: classData.teacherId || classData.teacher?._id || "",
-        branchId: classData.branchId || classData.branch?._id || "",
+        teacherId: teacherIdValue,
+        branchId: branchIdValue,
         subject: classData.subject || (nameMatch ? nameMatch[1].trim() : ""),
         grade: classData.grade || (nameMatch ? nameMatch[2] : ""),
         maxStudents: classData.maxStudents || 30,

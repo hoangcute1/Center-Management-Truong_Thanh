@@ -8,8 +8,9 @@ export interface Class {
   description?: string;
   subject?: string;
   grade?: string;
-  teacherId: string;
-  branchId: string;
+  // teacherId and branchId can be string (ID) or populated object
+  teacherId: string | { _id: string; name: string; email: string };
+  branchId: string | { _id: string; name: string };
   schedule: ClassSchedule[];
   studentIds: string[];
   maxStudents: number;
@@ -18,7 +19,7 @@ export interface Class {
   endDate?: string;
   createdAt?: string;
   updatedAt?: string;
-  // Populated fields
+  // Populated fields (aliases when populated)
   teacher?: {
     _id: string;
     name: string;
@@ -124,8 +125,25 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
           ? response.data
           : response.data.classes || [];
 
+        // Normalize class data to ensure teacher and branch aliases are set
+        const normalizedClasses = classes.map((c: any) => {
+          const normalized = { ...c, id: c._id };
+          
+          // Set teacher alias from populated teacherId
+          if (c.teacherId && typeof c.teacherId === "object" && c.teacherId._id) {
+            normalized.teacher = c.teacherId;
+          }
+          
+          // Set branch alias from populated branchId
+          if (c.branchId && typeof c.branchId === "object" && c.branchId._id) {
+            normalized.branch = c.branchId;
+          }
+          
+          return normalized;
+        });
+
         set({
-          classes: classes.map((c: Class) => ({ ...c, id: c._id })),
+          classes: normalizedClasses,
           isLoading: false,
           pagination: {
             ...get().pagination,

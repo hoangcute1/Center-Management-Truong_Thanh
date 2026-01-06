@@ -1084,6 +1084,7 @@ export default function AdminDashboard({
     useState<UserDetail | null>(null);
   const [classStudentsModal, setClassStudentsModal] = useState<any>(null);
   const [classSearchQuery, setClassSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Stores
   const {
@@ -1372,7 +1373,22 @@ export default function AdminDashboard({
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs 
+          defaultValue="overview" 
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value);
+            // Refetch data when switching tabs to ensure fresh data
+            if (value === "courses") {
+              fetchClasses().catch(console.error);
+            } else if (value === "accounts") {
+              fetchUsers().catch(console.error);
+            } else if (value === "branches") {
+              fetchBranches().catch(console.error);
+            }
+          }}
+          className="w-full"
+        >
           <TabsList className="w-full overflow-x-auto flex gap-1 rounded-2xl bg-white p-1.5 shadow-sm border border-gray-100 justify-start md:justify-center">
             <TabsTrigger
               value="overview"
