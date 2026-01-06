@@ -29,19 +29,18 @@ export default function ClassStudentsModal({
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(true);
 
   // Get current students in class
   const currentStudents = classData.students || [];
   const currentStudentIds = classData.studentIds || [];
 
-  // Get all students from the same branch that are not in this class
+  // Get all students that are not in this class
+  // Allow students from any branch since a student can be in multiple classes
   const availableStudents = useMemo(() => {
     const students = users.filter((u) => u.role === "student");
-    const branchStudents = branchId
-      ? students.filter((s) => s.branchId === branchId)
-      : students;
-    return branchStudents.filter((s) => !currentStudentIds.includes(s._id));
-  }, [users, branchId, currentStudentIds]);
+    return students.filter((s) => !currentStudentIds.includes(s._id));
+  }, [users, currentStudentIds]);
 
   // Filter students by search query
   const filteredCurrentStudents = useMemo(() => {
@@ -66,7 +65,13 @@ export default function ClassStudentsModal({
 
   // Fetch users on mount
   useEffect(() => {
-    fetchUsers({ role: "student" }).catch(console.error);
+    setIsLoadingStudents(true);
+    fetchUsers({ role: "student" })
+      .then(() => setIsLoadingStudents(false))
+      .catch((err) => {
+        console.error(err);
+        setIsLoadingStudents(false);
+      });
   }, [fetchUsers]);
 
   // Handle add student
@@ -85,6 +90,7 @@ export default function ClassStudentsModal({
       onUpdate();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
+      // Show the error message from backend (including schedule conflict)
       setError(err.message || "Có lỗi khi thêm học sinh");
     }
   };
@@ -196,41 +202,55 @@ export default function ClassStudentsModal({
               <h4 className="font-semibold text-blue-800 mb-3">
                 Thêm học sinh vào lớp
               </h4>
-              <div className="flex gap-2">
-                <select
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Chọn học sinh --</option>
-                  {filteredAvailableStudents.map((student) => (
-                    <option key={student._id} value={student._id}>
-                      {student.name} ({student.email})
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onClick={handleAddStudent}
-                  disabled={isLoading || !selectedStudentId}
-                  className="rounded-xl bg-blue-600 hover:bg-blue-700"
-                >
-                  {isLoading ? "Đang thêm..." : "Thêm"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddStudent(false);
-                    setSelectedStudentId("");
-                  }}
-                  className="rounded-xl"
-                >
-                  Hủy
-                </Button>
-              </div>
-              {availableStudents.length === 0 && (
-                <p className="text-sm text-amber-600 mt-2">
-                  ⚠️ Không còn học sinh nào có thể thêm vào lớp này
-                </p>
+              {isLoadingStudents ? (
+                <div className="text-center py-4 text-gray-500">
+                  <span className="animate-spin inline-block mr-2">⏳</span>
+                  Đang tải danh sách học sinh...
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedStudentId}
+                      onChange={(e) => setSelectedStudentId(e.target.value)}
+                      className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">
+                        -- Chọn học sinh ({availableStudents.length} học sinh có
+                        thể thêm) --
+                      </option>
+                      {filteredAvailableStudents.map((student) => (
+                        <option key={student._id} value={student._id}>
+                          {student.name} ({student.email})
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      onClick={handleAddStudent}
+                      disabled={isLoading || !selectedStudentId}
+                      className="rounded-xl bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isLoading ? "Đang thêm..." : "Thêm"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowAddStudent(false);
+                        setSelectedStudentId("");
+                        setError(null);
+                      }}
+                      className="rounded-xl"
+                    >
+                      Hủy
+                    </Button>
+                  </div>
+                  {availableStudents.length === 0 && (
+                    <p className="text-sm text-amber-600 mt-2">
+                      ⚠️ Không còn học sinh nào có thể thêm vào lớp này. Hãy tạo
+                      thêm tài khoản học sinh trong tab Tài khoản.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}

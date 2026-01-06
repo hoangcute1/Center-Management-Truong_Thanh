@@ -103,6 +103,35 @@ interface UpdateClassData {
   endDate?: string;
 }
 
+// Helper function to normalize class data from API
+const normalizeClass = (c: any): Class => {
+  const normalized: any = { ...c, id: c._id };
+
+  // Set teacher alias from populated teacherId
+  if (c.teacherId && typeof c.teacherId === "object" && c.teacherId._id) {
+    normalized.teacher = c.teacherId;
+  }
+
+  // Set branch alias from populated branchId
+  if (c.branchId && typeof c.branchId === "object" && c.branchId._id) {
+    normalized.branch = c.branchId;
+  }
+
+  // Set students alias and normalize studentIds to string array
+  if (c.studentIds && Array.isArray(c.studentIds)) {
+    if (c.studentIds.length > 0 && typeof c.studentIds[0] === "object") {
+      // studentIds is populated with full user objects
+      normalized.students = c.studentIds;
+      normalized.studentIds = c.studentIds.map((s: any) => s._id);
+    } else {
+      // studentIds is already string array
+      normalized.studentIds = c.studentIds;
+    }
+  }
+
+  return normalized as Class;
+};
+
 export const useClassesStore = create<ClassesState & ClassesActions>(
   (set, get) => ({
     // State
@@ -125,22 +154,8 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
           ? response.data
           : response.data.classes || [];
 
-        // Normalize class data to ensure teacher and branch aliases are set
-        const normalizedClasses = classes.map((c: any) => {
-          const normalized = { ...c, id: c._id };
-          
-          // Set teacher alias from populated teacherId
-          if (c.teacherId && typeof c.teacherId === "object" && c.teacherId._id) {
-            normalized.teacher = c.teacherId;
-          }
-          
-          // Set branch alias from populated branchId
-          if (c.branchId && typeof c.branchId === "object" && c.branchId._id) {
-            normalized.branch = c.branchId;
-          }
-          
-          return normalized;
-        });
+        // Normalize class data using helper function
+        const normalizedClasses = classes.map(normalizeClass);
 
         set({
           classes: normalizedClasses,
@@ -162,7 +177,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
       set({ isLoading: true, error: null });
       try {
         const response = await api.get(`/classes/${id}`);
-        const classData = { ...response.data, id: response.data._id };
+        const classData = normalizeClass(response.data);
         set({ selectedClass: classData, isLoading: false });
         return classData;
       } catch (error: any) {
@@ -177,7 +192,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
       set({ isLoading: true, error: null });
       try {
         const response = await api.post("/classes", data);
-        const newClass = { ...response.data, id: response.data._id };
+        const newClass = normalizeClass(response.data);
 
         set((state) => ({
           classes: [...state.classes, newClass],
@@ -196,7 +211,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
       set({ isLoading: true, error: null });
       try {
         const response = await api.patch(`/classes/${id}`, data);
-        const updatedClass = { ...response.data, id: response.data._id };
+        const updatedClass = normalizeClass(response.data);
 
         set((state) => ({
           classes: state.classes.map((c) => (c._id === id ? updatedClass : c)),
@@ -241,7 +256,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
 
         // Refetch the class to get updated student list
         const response = await api.get(`/classes/${classId}`);
-        const updatedClass = { ...response.data, id: response.data._id };
+        const updatedClass = normalizeClass(response.data);
 
         set((state) => ({
           classes: state.classes.map((c) =>
@@ -268,7 +283,7 @@ export const useClassesStore = create<ClassesState & ClassesActions>(
 
         // Refetch the class to get updated student list
         const response = await api.get(`/classes/${classId}`);
-        const updatedClass = { ...response.data, id: response.data._id };
+        const updatedClass = normalizeClass(response.data);
 
         set((state) => ({
           classes: state.classes.map((c) =>

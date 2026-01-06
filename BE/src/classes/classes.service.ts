@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ClassEntity, ClassDocument } from './schemas/class.schema';
@@ -6,12 +10,15 @@ import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { UserRole } from '../common/enums/role.enum';
 import { UserDocument } from '../users/schemas/user.schema';
+import { Session, SessionDocument } from '../sessions/schemas/session.schema';
 
 @Injectable()
 export class ClassesService {
   constructor(
     @InjectModel(ClassEntity.name)
     private readonly classModel: Model<ClassDocument>,
+    @InjectModel(Session.name)
+    private readonly sessionModel: Model<SessionDocument>,
   ) {}
 
   async create(dto: CreateClassDto): Promise<ClassEntity> {
@@ -73,6 +80,68 @@ export class ClassesService {
   async remove(id: string): Promise<void> {
     const res = await this.classModel.findByIdAndDelete(id).exec();
     if (!res) throw new NotFoundException('Class not found');
+
+    // Xóa tất cả sessions liên quan đến lớp này
+    await this.sessionModel
+      .deleteMany({ classId: new Types.ObjectId(id) })
+      .exec();
+  }
+
+  // Kiểm tra xung đột lịch học của học sinh
+  async checkStudentScheduleConflict(
+    studentId: string,
+    classId: string,
+  ): Promise<{ hasConflict: boolean; conflictingClasses: string[] }> {
+    // Lấy lớp đang muốn thêm học sinh vào
+    const targetClass = await this.classModel.findById(classId).exec();
+    if (
+      !targetClass ||
+      !targetClass.schedule ||
+      targetClass.schedule.length === 0
+    ) {
+      return { hasConflict: false, conflictingClasses: [] };
+    }
+
+    // Lấy tất cả các lớp mà học sinh này đang học
+    const studentClasses = await this.classModel
+      .find({ studentIds: { $in: [new Types.ObjectId(studentId)] } })
+      .exec();
+
+    const conflictingClasses: string[] = [];
+
+    // Kiểm tra xung đột lịch
+    for (const existingClass of studentClasses) {
+      if (!existingClass.schedule) continue;
+
+      for (const targetSchedule of targetClass.schedule) {
+        for (const existingSchedule of existingClass.schedule) {
+          // Check if same day
+          if (targetSchedule.dayOfWeek === existingSchedule.dayOfWeek) {
+            // Parse times
+            const targetStart = this.parseTime(targetSchedule.startTime);
+            const targetEnd = this.parseTime(targetSchedule.endTime);
+            const existingStart = this.parseTime(existingSchedule.startTime);
+            const existingEnd = this.parseTime(existingSchedule.endTime);
+
+            // Check overlap
+            if (targetStart < existingEnd && targetEnd > existingStart) {
+              conflictingClasses.push(existingClass.name);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      hasConflict: conflictingClasses.length > 0,
+      conflictingClasses: [...new Set(conflictingClasses)], // Remove duplicates
+    };
+  }
+
+  private parseTime(timeStr: string): number {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
   }
 
   // Thêm học sinh vào lớp
@@ -90,15 +159,28 @@ export class ClassesService {
       (id) => id.toString() === studentId,
     );
 
-    if (!isAlreadyInClass) {
-      await this.classModel
-        .findByIdAndUpdate(
-          classId,
-          { $addToSet: { studentIds: studentObjectId } },
-          { new: true },
-        )
-        .exec();
+    if (isAlreadyInClass) {
+      throw new BadRequestException('Học sinh đã có trong lớp này');
     }
+
+    // Kiểm tra xung đột lịch học
+    const conflictCheck = await this.checkStudentScheduleConflict(
+      studentId,
+      classId,
+    );
+    if (conflictCheck.hasConflict) {
+      throw new BadRequestException(
+        `Học sinh bị trùng lịch với lớp: ${conflictCheck.conflictingClasses.join(', ')}`,
+      );
+    }
+
+    await this.classModel
+      .findByIdAndUpdate(
+        classId,
+        { $addToSet: { studentIds: studentObjectId } },
+        { new: true },
+      )
+      .exec();
 
     return this.findOne(classId);
   }

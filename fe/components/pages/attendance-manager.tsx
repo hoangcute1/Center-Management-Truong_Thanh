@@ -33,24 +33,18 @@ function AttendanceDetailModal({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching attendance data
-    // In real app, this would be an API call
-    const mockData: StudentAttendance[] = (classData.students || []).map(
-      (student, index) => ({
+    // Load actual students from the class
+    // TODO: Fetch actual attendance records from API for this date
+    const realStudents: StudentAttendance[] = (classData.students || []).map(
+      (student) => ({
         studentId: student._id,
         studentName: student.name,
-        status:
-          index % 5 === 0 ? "absent" : index % 7 === 0 ? "late" : "present",
-        consecutiveAbsences: index % 5 === 0 ? (index % 3) + 1 : 0,
-        checkInTime:
-          index % 5 !== 0
-            ? `${8 + (index % 2)}:${(index * 7) % 60 < 10 ? "0" : ""}${
-                (index * 7) % 60
-              }`
-            : undefined,
+        status: "present" as const, // Default to present, will be updated from attendance API
+        consecutiveAbsences: 0, // Will come from attendance API
+        checkInTime: undefined,
       })
     );
-    setAttendanceData(mockData);
+    setAttendanceData(realStudents);
     setIsLoading(false);
   }, [classData]);
 
@@ -258,15 +252,17 @@ export default function AttendanceManager() {
     return result;
   }, [classes, selectedBranchFilter, searchQuery]);
 
-  // Generate mock attendance data for each class
+  // Get actual attendance data from classes
+  // For now, show student counts from real data - attendance will need backend support
   const getClassAttendanceStats = (classData: Class) => {
-    const totalStudents = classData.studentIds?.length || 0;
-    // Mock data - in real app this would come from API
-    const present = Math.floor(totalStudents * 0.85);
-    const absent = totalStudents - present;
-    const attendanceRate =
-      totalStudents > 0 ? Math.round((present / totalStudents) * 100) : 0;
-    const hasConsecutiveAbsent = absent > 0 && Math.random() > 0.5;
+    const totalStudents =
+      classData.students?.length || classData.studentIds?.length || 0;
+    // TODO: Replace with real attendance data from API when available
+    // For now, showing placeholder based on student count
+    const present = totalStudents; // All students until attendance is marked
+    const absent = 0;
+    const attendanceRate = totalStudents > 0 ? 100 : 0;
+    const hasConsecutiveAbsent = false; // Will come from attendance API
 
     return {
       totalStudents,
@@ -357,7 +353,18 @@ export default function AttendanceManager() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Tỷ lệ có mặt TB</p>
-              <p className="text-2xl font-bold text-green-700">92%</p>
+              <p className="text-2xl font-bold text-green-700">
+                {filteredClasses.length > 0
+                  ? Math.round(
+                      filteredClasses.reduce(
+                        (acc, c) =>
+                          acc + getClassAttendanceStats(c).attendanceRate,
+                        0
+                      ) / filteredClasses.length
+                    )
+                  : 0}
+                %
+              </p>
             </div>
           </div>
         </Card>
@@ -389,7 +396,8 @@ export default function AttendanceManager() {
               <p className="text-sm text-gray-600">Tổng học sinh</p>
               <p className="text-2xl font-bold text-amber-700">
                 {filteredClasses.reduce(
-                  (acc, c) => acc + (c.studentIds?.length || 0),
+                  (acc, c) =>
+                    acc + (c.students?.length || c.studentIds?.length || 0),
                   0
                 )}
               </p>
