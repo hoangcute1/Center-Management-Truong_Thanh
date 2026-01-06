@@ -16,7 +16,13 @@ export class ClassesService {
 
   async create(dto: CreateClassDto): Promise<ClassEntity> {
     const doc = new this.classModel({ ...dto });
-    return doc.save();
+    await doc.save();
+    await doc.populate([
+      { path: 'teacherId', select: 'name email' },
+      { path: 'branchId', select: 'name' },
+      { path: 'studentIds', select: 'name email role branchId' },
+    ]);
+    return doc;
   }
 
   async findAllForUser(user: UserDocument): Promise<ClassEntity[]> {
@@ -25,17 +31,20 @@ export class ClassesService {
         .find()
         .populate('teacherId', 'name email')
         .populate('branchId', 'name')
+        .populate('studentIds', 'name email role branchId')
         .exec();
     if (user.role === UserRole.Teacher)
       return this.classModel
         .find({ teacherId: user._id })
         .populate('teacherId', 'name email')
         .populate('branchId', 'name')
+        .populate('studentIds', 'name email role branchId')
         .exec();
     return this.classModel
       .find({ studentIds: { $in: [new Types.ObjectId(user._id)] } })
       .populate('teacherId', 'name email')
       .populate('branchId', 'name')
+      .populate('studentIds', 'name email role branchId')
       .exec();
   }
 
@@ -44,6 +53,7 @@ export class ClassesService {
       .findById(id)
       .populate('teacherId', 'name email')
       .populate('branchId', 'name')
+      .populate('studentIds', 'name email role branchId')
       .exec();
     if (!doc) throw new NotFoundException('Class not found');
     return doc;
@@ -52,6 +62,9 @@ export class ClassesService {
   async update(id: string, dto: UpdateClassDto): Promise<ClassEntity> {
     const updated = await this.classModel
       .findByIdAndUpdate(id, dto, { new: true })
+      .populate('teacherId', 'name email')
+      .populate('branchId', 'name')
+      .populate('studentIds', 'name email role branchId')
       .exec();
     if (!updated) throw new NotFoundException('Class not found');
     return updated;

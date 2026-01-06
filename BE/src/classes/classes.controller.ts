@@ -50,4 +50,34 @@ export class ClassesController {
   remove(@Param('id') id: string) {
     return this.classesService.remove(id);
   }
+
+  // Thêm 1 học sinh vào lớp
+  @Post(':id/students')
+  @Roles(UserRole.Admin)
+  addStudent(
+    @Param('id') id: string,
+    @Body('studentId') studentId: string,
+  ) {
+    return this.classesService.addStudentToClass(id, studentId);
+  }
+
+  // Xóa 1 học sinh khỏi lớp
+  @Delete(':id/students/:studentId')
+  @Roles(UserRole.Admin)
+  removeStudent(
+    @Param('id') id: string,
+    @Param('studentId') studentId: string,
+  ) {
+    return this.classesService.removeStudentFromClass(id, studentId);
+  }
+
+  // Thêm nhiều học sinh vào lớp (hỗ trợ import nhanh)
+  @Post(':id/students/bulk')
+  @Roles(UserRole.Admin)
+  addStudents(
+    @Param('id') id: string,
+    @Body('studentIds') studentIds: string[],
+  ) {
+    return this.classesService.addStudentsToClass(id, studentIds);
+  }
 }
