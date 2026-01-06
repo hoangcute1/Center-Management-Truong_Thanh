@@ -42,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body
+        suppressHydrationWarning
         className={`${manrope.className} ${jetbrainsMono.className} font-sans antialiased`}
       >
         {children}
