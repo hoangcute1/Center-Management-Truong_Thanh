@@ -18,6 +18,7 @@ import { InvitesModule } from './invites/invites.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { BranchesModule } from './branches/branches.module';
 import { ImportsModule } from './imports/imports.module';
+import { IncidentsModule } from './incidents/incidents.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ImportsModule } from './imports/imports.module';
     ApprovalsModule,
     BranchesModule,
     ImportsModule,
+    IncidentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

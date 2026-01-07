@@ -25,6 +25,7 @@ import ClassFormModal from "@/components/pages/class-form-modal";
 import ClassStudentsModal from "@/components/pages/class-students-modal";
 import ScheduleManager from "@/components/pages/schedule-manager";
 import AttendanceManager from "@/components/pages/attendance-manager";
+import IncidentsManager from "@/components/pages/incidents-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
@@ -1373,8 +1374,8 @@ export default function AdminDashboard({
           </div>
         </div>
 
-        <Tabs 
-          defaultValue="overview" 
+        <Tabs
+          defaultValue="overview"
           value={activeTab}
           onValueChange={(value) => {
             setActiveTab(value);
@@ -1437,6 +1438,12 @@ export default function AdminDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               📋 Điểm danh
+            </TabsTrigger>
+            <TabsTrigger
+              value="incidents"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🐛 Sự cố
             </TabsTrigger>
             <TabsTrigger
               value="settings"
@@ -2545,6 +2552,11 @@ export default function AdminDashboard({
             <AttendanceManager />
           </TabsContent>
 
+          {/* Tab Sự cố */}
+          <TabsContent value="incidents" className="mt-6">
+            <IncidentsManager />
+          </TabsContent>
+
           {/* Tab Cài đặt */}
           <TabsContent value="settings" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
@@ -2712,7 +2724,9 @@ export default function AdminDashboard({
         <ClassStudentsModal
           classData={classStudentsModal}
           branchId={
-            classStudentsModal.branchId || classStudentsModal.branch?._id
+            typeof classStudentsModal.branchId === "object"
+              ? classStudentsModal.branchId._id
+              : classStudentsModal.branchId || classStudentsModal.branch?._id
           }
           onClose={() => setClassStudentsModal(null)}
           onUpdate={() => {

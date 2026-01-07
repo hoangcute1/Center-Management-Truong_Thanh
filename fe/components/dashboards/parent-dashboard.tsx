@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
+import IncidentReportModal from "@/components/pages/incident-report-modal";
 
 interface ParentDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -308,6 +309,7 @@ export default function ParentDashboard({
     role: string;
   } | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showIncidentReport, setShowIncidentReport] = useState(false);
 
   const paidBadge = child.paid ? (
     <Badge variant="success">Đã thanh toán</Badge>
@@ -332,6 +334,14 @@ export default function ParentDashboard({
           </div>
           <div className="flex items-center gap-2">
             <NotificationCenter userRole={user.role} />
+            <Button
+              variant="ghost"
+              onClick={() => setShowIncidentReport(true)}
+              className="text-gray-600 hover:text-orange-600 hover:bg-orange-50 border border-gray-200"
+              title="Báo cáo sự cố"
+            >
+              🐛 Sự cố
+            </Button>
             <Button variant="ghost" className="border border-gray-200">
               Cài đặt
             </Button>
@@ -630,6 +640,15 @@ export default function ParentDashboard({
         />
       )}
       {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
+      {showIncidentReport && (
+        <IncidentReportModal
+          isOpen={showIncidentReport}
+          onClose={() => setShowIncidentReport(false)}
+          userName={user.name}
+          userEmail={user.email}
+          userRole={user.role}
+        />
+      )}
     </div>
   );
 }

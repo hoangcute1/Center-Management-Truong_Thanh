@@ -128,4 +128,91 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
+
+  async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      // Không tiết lộ email có tồn tại hay không vì lý do bảo mật
+      return {
+        success: true,
+        message:
+          'Nếu email tồn tại trong hệ thống, chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.',
+      };
+    }
+
+    // TODO: Gửi email reset password trong môi trường production
+    // Hiện tại, tạo yêu cầu để admin xử lý
+    await this.approvalsService.createPasswordResetRequest(
+      (user as any)._id?.toString(),
+      email,
+    );
+
+    return {
+      success: true,
+      message:
+        'Yêu cầu đặt lại mật khẩu đã được gửi. Admin sẽ liên hệ với bạn qua email hoặc số điện thoại đăng ký.',
+    };
+  }
+
+  async contactAdmin(dto: {
+    name: string;
+    email: string;
+    phone?: string;
+    message: string;
+    type: string;
+  }) {
+    // Lưu yêu cầu liên hệ vào hệ thống để admin xem
+    await this.approvalsService.createContactRequest(dto);
+
+    return {
+      success: true,
+      message:
+        'Yêu cầu của bạn đã được gửi. Admin sẽ liên hệ lại sớm nhất có thể.',
+    };
+  }
+
+  async validateLogin(dto: { email: string; role: string; branchId: string }) {
+    const user = await this.usersService.findByEmail(dto.email);
+
+    if (!user) {
+      return { valid: true }; // Không tiết lộ email không tồn tại
+    }
+
+    const errors: string[] = [];
+
+    // Kiểm tra vai trò
+    if ((user as any).role !== dto.role) {
+      errors.push(
+        `Vai trò không đúng. Tài khoản này có vai trò "${this.translateRole((user as any).role)}".`,
+      );
+    }
+
+    // Kiểm tra chi nhánh (admin không cần kiểm tra chi nhánh)
+    if (
+      (user as any).role !== 'admin' &&
+      (user as any).branchId &&
+      (user as any).branchId !== dto.branchId
+    ) {
+      errors.push('Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.');
+    }
+
+    if (errors.length > 0) {
+      return {
+        valid: false,
+        errors,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  private translateRole(role: string): string {
+    const roleMap: Record<string, string> = {
+      student: 'Học sinh',
+      teacher: 'Giáo viên',
+      parent: 'Phụ huynh',
+      admin: 'Quản trị viên',
+    };
+    return roleMap[role] || role;
+  }
 }

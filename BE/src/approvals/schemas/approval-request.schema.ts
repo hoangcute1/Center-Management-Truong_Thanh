@@ -1,11 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 
 export type ApprovalRequestDocument = HydratedDocument<ApprovalRequest>;
 
 export enum ApprovalType {
   Register = 'register',
   LinkParent = 'link_parent',
+  PasswordReset = 'password_reset',
+  Contact = 'contact',
 }
 
 export enum ApprovalStatus {
@@ -19,8 +21,8 @@ export class ApprovalRequest {
   @Prop({ required: true, enum: ApprovalType, type: String })
   type: ApprovalType;
 
-  @Prop({ required: true })
-  userId: string;
+  @Prop()
+  userId?: string;
 
   @Prop({
     required: true,
@@ -32,6 +34,9 @@ export class ApprovalRequest {
 
   @Prop()
   approvedBy?: string;
+
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  metadata?: Record<string, any>;
 }
 
 export const ApprovalRequestSchema =

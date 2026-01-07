@@ -3,7 +3,12 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuthStore } from "@/lib/stores/auth-store";
+import {
+  useAuthStore,
+  forgotPassword,
+  contactAdmin,
+  validateLogin,
+} from "@/lib/stores/auth-store";
 import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
 import { toast } from "@/components/ui/toast";
 
@@ -61,14 +66,34 @@ const ROLE_CONFIG = {
 
 type Role = "student" | "teacher" | "parent" | "admin";
 
+// Modal types
+type ModalType = "forgot-password" | "contact-admin" | null;
+
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [selectedRole, setSelectedRole] = useState<Role | "">("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [branchId, setBranchId] = useState("cs1");
+  const [branchId, setBranchId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+
+  // Forgot password form
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+
+  // Contact admin form
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactType, setContactType] = useState<
+    "register" | "support" | "other"
+  >("register");
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState(false);
 
   // Zustand stores
   const {
@@ -84,6 +109,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     fetchBranches().catch(console.error);
   }, [fetchBranches]);
 
+  // Set default branchId when branches are loaded
+  useEffect(() => {
+    if (branches.length > 0 && !branchId) {
+      setBranchId(branches[0]._id);
+    }
+  }, [branches, branchId]);
+
   // Get actual branches or fallback to demo branches
   const displayBranches =
     branches.length > 0
@@ -91,12 +123,61 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       : BRANCHES;
 
   // Handle real API login
-  const handleLogin = async (loginEmail: string, loginPassword: string) => {
+  const handleLogin = async (
+    loginEmail: string,
+    loginPassword: string,
+    loginRole?: Role
+  ) => {
     setIsLoading(true);
     setError(null);
 
     try {
+      // Validate role and branch before login if role is selected
+      if (loginRole && branchId) {
+        const validation = await validateLogin({
+          email: loginEmail,
+          role: loginRole,
+          branchId: branchId,
+        });
+
+        if (
+          !validation.valid &&
+          validation.errors &&
+          validation.errors.length > 0
+        ) {
+          setError(validation.errors.join("\n"));
+          toast.error(validation.errors[0]);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const userData = await login(loginEmail, loginPassword);
+
+      // Verify role matches if selected
+      if (loginRole && userData.role !== loginRole) {
+        setError(
+          `Vai trò không đúng. Tài khoản này có vai trò "${
+            ROLE_CONFIG[userData.role as Role]?.label || userData.role
+          }".`
+        );
+        toast.error("Vai trò không đúng!");
+        setIsLoading(false);
+        return;
+      }
+
+      // Verify branch matches (except for admin)
+      if (
+        userData.role !== "admin" &&
+        branchId &&
+        userData.branchId &&
+        userData.branchId !== branchId
+      ) {
+        setError("Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.");
+        toast.error("Cơ sở không đúng!");
+        setIsLoading(false);
+        return;
+      }
 
       // Show success toast
       toast.success(`Chào mừng ${userData.name}! 🎉`);
@@ -124,13 +205,78 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   const handleDemoLogin = async (role: Role) => {
     const demoUser = DEMO_USERS[role];
-    await handleLogin(demoUser.email, demoUser.password);
+    await handleLogin(demoUser.email, demoUser.password, role);
   };
 
   const handleCustomLogin = async () => {
-    if (email && password) {
-      await handleLogin(email, password);
+    if (!selectedRole) {
+      setError("Vui lòng chọn vai trò trước khi đăng nhập.");
+      toast.error("Vui lòng chọn vai trò!");
+      return;
     }
+    if (!branchId && selectedRole !== "admin") {
+      setError("Vui lòng chọn cơ sở trước khi đăng nhập.");
+      toast.error("Vui lòng chọn cơ sở!");
+      return;
+    }
+    if (email && password) {
+      await handleLogin(email, password, selectedRole);
+    }
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) {
+      toast.error("Vui lòng nhập email!");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const result = await forgotPassword(forgotEmail);
+      setForgotSuccess(true);
+      toast.success(result.message);
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra!");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Handle contact admin
+  const handleContactAdmin = async () => {
+    if (!contactName || !contactEmail || !contactMessage) {
+      toast.error("Vui lòng điền đầy đủ thông tin!");
+      return;
+    }
+    setContactLoading(true);
+    try {
+      const result = await contactAdmin({
+        name: contactName,
+        email: contactEmail,
+        phone: contactPhone,
+        message: contactMessage,
+        type: contactType,
+      });
+      setContactSuccess(true);
+      toast.success(result.message);
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra!");
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  // Reset modal state
+  const closeModal = () => {
+    setActiveModal(null);
+    setForgotEmail("");
+    setForgotSuccess(false);
+    setContactName("");
+    setContactEmail("");
+    setContactPhone("");
+    setContactMessage("");
+    setContactType("register");
+    setContactSuccess(false);
   };
 
   return (
@@ -384,7 +530,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   />
                   <span className="text-gray-600">Ghi nhớ</span>
                 </label>
-                <button className="text-blue-600 hover:text-blue-700 font-medium">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal("forgot-password")}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
                   Quên mật khẩu?
                 </button>
               </div>
@@ -392,7 +542,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               {/* Login Button */}
               <Button
                 onClick={handleCustomLogin}
-                disabled={isLoading || !email || !password}
+                disabled={
+                  isLoading ||
+                  !email ||
+                  !password ||
+                  !selectedRole ||
+                  (!branchId && selectedRole !== "admin")
+                }
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 
                   text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-blue-200/50 
                   transition-all duration-300 hover:-translate-y-0.5 text-sm sm:text-base
@@ -432,7 +588,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <div className="mt-4 sm:mt-6 text-center">
               <p className="text-xs sm:text-sm text-gray-500">
                 Chưa có tài khoản?{" "}
-                <button className="text-blue-600 hover:text-blue-700 font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal("contact-admin")}
+                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                >
                   Liên hệ Admin
                 </button>
               </p>
@@ -445,6 +605,283 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </p>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {activeModal === "forgot-password" && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
+                    🔐
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      Quên mật khẩu
+                    </h2>
+                    <p className="text-blue-100 text-sm">
+                      Yêu cầu đặt lại mật khẩu
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              {forgotSuccess ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">✅</span>
+                  </div>
+                  <h3 className="font-semibold text-lg text-gray-900 mb-2">
+                    Yêu cầu đã được gửi!
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Admin sẽ liên hệ với bạn qua email hoặc số điện thoại đăng
+                    ký để hỗ trợ đặt lại mật khẩu.
+                  </p>
+                  <Button
+                    onClick={closeModal}
+                    className="mt-4 w-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl"
+                  >
+                    Đóng
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Nhập email đăng ký tài khoản. Admin sẽ liên hệ để hỗ trợ bạn
+                    đặt lại mật khẩu.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                        <span>✉️</span> Email
+                      </label>
+                      <Input
+                        type="email"
+                        placeholder="email@example.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={closeModal}
+                        className="flex-1 rounded-xl"
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        onClick={handleForgotPassword}
+                        disabled={forgotLoading || !forgotEmail}
+                        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl"
+                      >
+                        {forgotLoading ? "Đang gửi..." : "Gửi yêu cầu"}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Admin Modal */}
+      {activeModal === "contact-admin" && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg">
+                    📞
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      Liên hệ Admin
+                    </h2>
+                    <p className="text-purple-100 text-sm">
+                      Gửi yêu cầu hỗ trợ
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
+              {contactSuccess ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">✅</span>
+                  </div>
+                  <h3 className="font-semibold text-lg text-gray-900 mb-2">
+                    Yêu cầu đã được gửi!
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Admin sẽ liên hệ lại với bạn sớm nhất có thể. Cảm ơn bạn đã
+                    quan tâm!
+                  </p>
+                  <Button
+                    onClick={closeModal}
+                    className="mt-4 w-full bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl"
+                  >
+                    Đóng
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Contact Type */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                      <span>📋</span> Loại yêu cầu
+                    </label>
+                    <select
+                      value={contactType}
+                      onChange={(e) => setContactType(e.target.value as any)}
+                      className="w-full rounded-xl border-2 border-gray-100 bg-gray-50 px-4 py-2 text-sm focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="register">🎓 Đăng ký tài khoản mới</option>
+                      <option value="support">🛠️ Hỗ trợ kỹ thuật</option>
+                      <option value="other">💬 Khác</option>
+                    </select>
+                  </div>
+
+                  {/* Name */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                      <span>👤</span> Họ tên{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Nguyễn Văn A"
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                      <span>✉️</span> Email{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="email"
+                      placeholder="email@example.com"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                      <span>📱</span> Số điện thoại
+                    </label>
+                    <Input
+                      type="tel"
+                      placeholder="0901234567"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Message */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
+                      <span>💬</span> Nội dung{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      placeholder={
+                        contactType === "register"
+                          ? "Tôi muốn đăng ký tài khoản cho con/em tôi học tại cơ sở..."
+                          : "Mô tả chi tiết vấn đề của bạn..."
+                      }
+                      value={contactMessage}
+                      onChange={(e) => setContactMessage(e.target.value)}
+                      rows={4}
+                      className="w-full rounded-xl border-2 border-gray-100 bg-gray-50 px-4 py-2 text-sm focus:outline-none focus:border-purple-500 resize-none"
+                    />
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={closeModal}
+                      className="flex-1 rounded-xl"
+                    >
+                      Hủy
+                    </Button>
+                    <Button
+                      onClick={handleContactAdmin}
+                      disabled={
+                        contactLoading ||
+                        !contactName ||
+                        !contactEmail ||
+                        !contactMessage
+                      }
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl"
+                    >
+                      {contactLoading ? "Đang gửi..." : "Gửi yêu cầu"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -375,3 +375,52 @@ export const useAuthStore = create<AuthState & AuthActions>()(
     }
   )
 );
+
+// API functions for forgot password and contact admin (không cần authentication)
+export async function forgotPassword(
+  email: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await api.post("/auth/forgot-password", { email });
+    return response.data;
+  } catch (error: any) {
+    const message = translateErrorMessage(
+      error,
+      "Có lỗi xảy ra. Vui lòng thử lại."
+    );
+    throw new Error(message);
+  }
+}
+
+export async function contactAdmin(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+  type: "register" | "support" | "other";
+}): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await api.post("/auth/contact-admin", data);
+    return response.data;
+  } catch (error: any) {
+    const message = translateErrorMessage(
+      error,
+      "Có lỗi xảy ra. Vui lòng thử lại."
+    );
+    throw new Error(message);
+  }
+}
+
+export async function validateLogin(data: {
+  email: string;
+  role: string;
+  branchId: string;
+}): Promise<{ valid: boolean; errors?: string[] }> {
+  try {
+    const response = await api.post("/auth/validate-login", data);
+    return response.data;
+  } catch (error: any) {
+    // If validation fails, just return valid=true to proceed with login
+    return { valid: true };
+  }
+}

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
+import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
@@ -791,6 +792,7 @@ export default function StudentDashboard({
   } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
+  const [showIncidentReport, setShowIncidentReport] = useState(false);
 
   // Week navigation state
   const [selectedYear, setSelectedYear] = useState<number>(() =>
@@ -1050,6 +1052,15 @@ export default function StudentDashboard({
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationCenter userRole={user.role} />
+            <Button
+              variant="ghost"
+              onClick={() => setShowIncidentReport(true)}
+              className="hidden md:flex items-center gap-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+              title="Báo cáo sự cố"
+            >
+              <span>🐛</span>
+              <span className="hidden lg:inline">Sự cố</span>
+            </Button>
             <Button
               variant="ghost"
               onClick={() => setShowSettings(true)}
@@ -1838,6 +1849,15 @@ export default function StudentDashboard({
         <SettingsModal
           user={{ name: user.name, email: user.email }}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showIncidentReport && (
+        <IncidentReportModal
+          isOpen={showIncidentReport}
+          onClose={() => setShowIncidentReport(false)}
+          userName={user.name}
+          userEmail={user.email}
+          userRole={user.role}
         />
       )}
     </div>

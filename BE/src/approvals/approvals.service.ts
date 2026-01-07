@@ -26,6 +26,32 @@ export class ApprovalsService {
     });
   }
 
+  async createPasswordResetRequest(userId: string, email: string) {
+    return this.approvalModel.create({
+      userId,
+      type: ApprovalType.PasswordReset,
+      status: ApprovalStatus.Pending,
+      metadata: { email, requestedAt: new Date() },
+    });
+  }
+
+  async createContactRequest(dto: {
+    name: string;
+    email: string;
+    phone?: string;
+    message: string;
+    type: string;
+  }) {
+    return this.approvalModel.create({
+      type: ApprovalType.Contact,
+      status: ApprovalStatus.Pending,
+      metadata: {
+        ...dto,
+        requestedAt: new Date(),
+      },
+    });
+  }
+
   async listPending() {
     return this.approvalModel.find({ status: ApprovalStatus.Pending }).lean();
   }

@@ -6,6 +6,11 @@ import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterByInviteDto } from './dto/register-by-invite.dto';
 import { ForceChangePasswordDto } from './dto/change-password.dto';
+import {
+  ForgotPasswordDto,
+  ContactAdminDto,
+  ValidateLoginDto,
+} from './dto/forgot-password.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
@@ -50,5 +55,28 @@ export class AuthController {
   changePassword(@Request() req: any, @Body() dto: ForceChangePasswordDto) {
     const userId = req.user._id?.toString() || req.user.id;
     return this.authService.changePassword(userId, dto.newPassword);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Yêu cầu đặt lại mật khẩu' })
+  @ApiBody({ type: ForgotPasswordDto })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('contact-admin')
+  @ApiOperation({ summary: 'Gửi yêu cầu liên hệ admin' })
+  @ApiBody({ type: ContactAdminDto })
+  contactAdmin(@Body() dto: ContactAdminDto) {
+    return this.authService.contactAdmin(dto);
+  }
+
+  @Post('validate-login')
+  @ApiOperation({
+    summary: 'Kiểm tra vai trò và chi nhánh trước khi đăng nhập',
+  })
+  @ApiBody({ type: ValidateLoginDto })
+  validateLogin(@Body() dto: ValidateLoginDto) {
+    return this.authService.validateLogin(dto);
   }
 }

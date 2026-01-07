@@ -25,6 +25,7 @@ export default function ClassStudentsModal({
   const { users, fetchUsers } = useUsersStore();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [addSearchQuery, setAddSearchQuery] = useState("");
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,37 +36,76 @@ export default function ClassStudentsModal({
   const currentStudents = classData.students || [];
   const currentStudentIds = classData.studentIds || [];
 
-  // Get all students that are not in this class
-  // Allow students from any branch since a student can be in multiple classes
-  const availableStudents = useMemo(() => {
-    const students = users.filter((u) => u.role === "student");
-    return students.filter((s) => !currentStudentIds.includes(s._id));
-  }, [users, currentStudentIds]);
+  // Normalize branchId - có thể là string hoặc object
+  const normalizedBranchId = useMemo(() => {
+    if (!branchId) return undefined;
+    if (typeof branchId === "object" && (branchId as any)._id) {
+      return (branchId as any)._id;
+    }
+    return branchId;
+  }, [branchId]);
 
-  // Filter students by search query
+  // Get all students that are not in this class - filter by branchId
+  const availableStudents = useMemo(() => {
+    const students = users.filter((u) => {
+      // Only students
+      if (u.role !== "student") return false;
+      // Only same branch if branchId is provided
+      if (normalizedBranchId) {
+        const userBranchId =
+          typeof u.branchId === "object" && (u.branchId as any)?._id
+            ? (u.branchId as any)._id
+            : u.branchId;
+        if (userBranchId && userBranchId !== normalizedBranchId) return false;
+      }
+      // Not already in class
+      if (currentStudentIds.includes(u._id)) return false;
+      return true;
+    });
+    return students;
+  }, [users, currentStudentIds, normalizedBranchId]);
+
+  // Filter students by search query - current students list
   const filteredCurrentStudents = useMemo(() => {
     if (!searchQuery.trim()) return currentStudents;
     const query = searchQuery.toLowerCase();
     return currentStudents.filter(
       (s) =>
         s.name?.toLowerCase().includes(query) ||
-        s.email?.toLowerCase().includes(query)
+        s.email?.toLowerCase().includes(query) ||
+        (s as any).phone?.toLowerCase().includes(query) ||
+        (s as any).studentCode?.toLowerCase().includes(query)
     );
   }, [currentStudents, searchQuery]);
 
+  // Filter available students by advanced search (email, phone, studentCode, name)
   const filteredAvailableStudents = useMemo(() => {
-    if (!searchQuery.trim()) return availableStudents;
-    const query = searchQuery.toLowerCase();
-    return availableStudents.filter(
-      (s) =>
-        s.name?.toLowerCase().includes(query) ||
-        s.email?.toLowerCase().includes(query)
-    );
-  }, [availableStudents, searchQuery]);
+    if (!addSearchQuery.trim()) return availableStudents.slice(0, 50); // Limit to 50 for performance
+    const query = addSearchQuery.toLowerCase().trim();
 
-  // Fetch users on mount
+    return availableStudents
+      .filter((s) => {
+        const name = (s.name || "").toLowerCase();
+        const email = (s.email || "").toLowerCase();
+        const phone = ((s as any).phone || "").toLowerCase();
+        const studentCode = ((s as any).studentCode || "").toLowerCase();
+
+        // Priority search: exact match first, then partial match
+        return (
+          email.includes(query) ||
+          phone.includes(query) ||
+          studentCode.includes(query) ||
+          name.includes(query)
+        );
+      })
+      .slice(0, 50);
+  }, [availableStudents, addSearchQuery]);
+
+  // Fetch users on mount - fetch students from the same branch
   useEffect(() => {
     setIsLoadingStudents(true);
+    // Fetch students - không filter theo branch để lấy tất cả students
+    // Việc filter theo branch sẽ được thực hiện ở frontend
     fetchUsers({ role: "student" })
       .then(() => setIsLoadingStudents(false))
       .catch((err) => {
@@ -209,6 +249,30 @@ export default function ClassStudentsModal({
                 </div>
               ) : (
                 <>
+                  {/* Search Input for Adding Students */}
+                  <div className="mb-3">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        🔍
+                      </span>
+                      <Input
+                        type="text"
+                        placeholder="Tìm theo email, SĐT, mã học sinh, hoặc tên..."
+                        value={addSearchQuery}
+                        onChange={(e) => {
+                          setAddSearchQuery(e.target.value);
+                          setSelectedStudentId("");
+                        }}
+                        className="pl-9 rounded-xl text-sm"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Nhập email, số điện thoại, mã học sinh (VD: HS0001)
+                      hoặc tên để tìm nhanh
+                    </p>
+                  </div>
+
+                  {/* Student Selection */}
                   <div className="flex gap-2">
                     <select
                       value={selectedStudentId}
@@ -216,12 +280,18 @@ export default function ClassStudentsModal({
                       className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">
-                        -- Chọn học sinh ({availableStudents.length} học sinh có
-                        thể thêm) --
+                        -- Chọn học sinh ({filteredAvailableStudents.length}/
+                        {availableStudents.length} học sinh) --
                       </option>
                       {filteredAvailableStudents.map((student) => (
                         <option key={student._id} value={student._id}>
-                          {student.name} ({student.email})
+                          {(student as any).studentCode
+                            ? `[${(student as any).studentCode}] `
+                            : ""}
+                          {student.name} • {student.email}
+                          {(student as any).phone
+                            ? ` • ${(student as any).phone}`
+                            : ""}
                         </option>
                       ))}
                     </select>
@@ -237,6 +307,7 @@ export default function ClassStudentsModal({
                       onClick={() => {
                         setShowAddStudent(false);
                         setSelectedStudentId("");
+                        setAddSearchQuery("");
                         setError(null);
                       }}
                       className="rounded-xl"
@@ -244,12 +315,68 @@ export default function ClassStudentsModal({
                       Hủy
                     </Button>
                   </div>
+
+                  {/* Quick Add - Show matching students as cards */}
+                  {addSearchQuery &&
+                    filteredAvailableStudents.length > 0 &&
+                    filteredAvailableStudents.length <= 10 && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-medium text-gray-600">
+                          Kết quả tìm kiếm:
+                        </p>
+                        <div className="grid gap-2 max-h-48 overflow-y-auto">
+                          {filteredAvailableStudents.map((student) => (
+                            <button
+                              key={student._id}
+                              onClick={() => setSelectedStudentId(student._id)}
+                              className={`flex items-center gap-3 p-2 rounded-lg border text-left transition-all ${
+                                selectedStudentId === student._id
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                              }`}
+                            >
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-sm">
+                                👨‍🎓
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm text-gray-900 truncate">
+                                  {(student as any).studentCode && (
+                                    <span className="text-blue-600">
+                                      [{(student as any).studentCode}]{" "}
+                                    </span>
+                                  )}
+                                  {student.name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {student.email}
+                                  {(student as any).phone &&
+                                    ` • ${(student as any).phone}`}
+                                </p>
+                              </div>
+                              {selectedStudentId === student._id && (
+                                <span className="text-blue-600">✓</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                   {availableStudents.length === 0 && (
                     <p className="text-sm text-amber-600 mt-2">
                       ⚠️ Không còn học sinh nào có thể thêm vào lớp này. Hãy tạo
                       thêm tài khoản học sinh trong tab Tài khoản.
                     </p>
                   )}
+
+                  {addSearchQuery &&
+                    filteredAvailableStudents.length === 0 &&
+                    availableStudents.length > 0 && (
+                      <p className="text-sm text-amber-600 mt-2">
+                        ⚠️ Không tìm thấy học sinh phù hợp với "{addSearchQuery}
+                        ". Thử tìm kiếm với từ khóa khác.
+                      </p>
+                    )}
                 </>
               )}
             </div>
