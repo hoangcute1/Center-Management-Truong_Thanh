@@ -23,12 +23,32 @@ interface LoginPageProps {
   }) => void;
 }
 
-// Demo users để test nhanh (sẽ xóa sau khi có API hoàn chỉnh)
+// Demo users để test nhanh - Tài khoản demo thật từ database
 const DEMO_USERS = {
-  student: { email: "student@example.com", password: "123456" },
-  teacher: { email: "teacher@example.com", password: "123456" },
-  parent: { email: "parent@example.com", password: "123456" },
-  admin: { email: "admin@example.com", password: "123456" },
+  student: {
+    email: "student.an@truongthanh.edu.vn",
+    password: "123456",
+    name: "Nguyễn Văn An",
+    code: "HS0001",
+  },
+  teacher: {
+    email: "teacher.binh@truongthanh.edu.vn",
+    password: "123456",
+    name: "Trần Thị Bình",
+    code: "GV0001",
+  },
+  parent: {
+    email: "parent.hung@truongthanh.edu.vn",
+    password: "123456",
+    name: "Nguyễn Văn Hùng",
+    code: "PH0001",
+  },
+  admin: {
+    email: "admin@truongthanh.edu.vn",
+    password: "123456",
+    name: "Admin Trường Thành",
+    code: "ADMIN",
+  },
 };
 
 const BRANCHES = [
@@ -393,31 +413,40 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-xs">
                   ⚡
                 </span>
-                Đăng nhập nhanh (Demo)
+                Đăng nhập nhanh (Demo) - Mật khẩu: 123456
               </p>
-              <div className="grid grid-cols-4 sm:grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3">
                 {(["student", "teacher", "parent", "admin"] as const).map(
                   (role) => {
                     const config = ROLE_CONFIG[role];
+                    const demoInfo = DEMO_USERS[role];
                     return (
                       <button
                         key={role}
                         onClick={() => handleDemoLogin(role)}
                         disabled={isLoading}
+                        title={`${demoInfo.name}\n${demoInfo.email}\nMã: ${demoInfo.code}`}
                         className={`
-                          relative group p-2 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r ${config.color} ${config.hoverColor}
+                          relative group p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-r ${config.color} ${config.hoverColor}
                           text-white font-medium transition-all duration-300
                           hover:shadow-lg hover:shadow-blue-200/50 hover:-translate-y-0.5
                           disabled:opacity-50 disabled:cursor-not-allowed
                           active:scale-95
                         `}
                       >
-                        <span className="text-xl sm:text-2xl block mb-0.5 sm:mb-1">
-                          {config.icon}
-                        </span>
-                        <span className="text-[10px] sm:text-sm leading-tight">
-                          {config.label}
-                        </span>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <span className="text-xl sm:text-2xl">
+                            {config.icon}
+                          </span>
+                          <div className="text-left flex-1 min-w-0">
+                            <span className="text-xs sm:text-sm font-semibold block">
+                              {config.label}
+                            </span>
+                            <span className="text-[9px] sm:text-[10px] opacity-80 block truncate">
+                              {demoInfo.code}
+                            </span>
+                          </div>
+                        </div>
                       </button>
                     );
                   }
