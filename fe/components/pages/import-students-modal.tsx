@@ -44,9 +44,16 @@ export default function ImportStudentsModal({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter classes by selected branch
+  // Filter classes by selected branch - handle both string and object branchId
   const filteredClasses = selectedBranchId
-    ? classes.filter((c) => c.branchId === selectedBranchId)
+    ? classes.filter((c) => {
+        // branchId can be string or object {_id, name}
+        const classBranchId =
+          typeof c.branchId === "object" && c.branchId
+            ? (c.branchId as any)._id
+            : c.branchId;
+        return classBranchId === selectedBranchId;
+      })
     : classes;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

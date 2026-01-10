@@ -322,41 +322,76 @@ export default function ClassStudentsModal({
                     filteredAvailableStudents.length <= 10 && (
                       <div className="mt-3 space-y-2">
                         <p className="text-xs font-medium text-gray-600">
-                          Kết quả tìm kiếm:
+                          Kết quả tìm kiếm ({filteredAvailableStudents.length}{" "}
+                          học sinh):
                         </p>
                         <div className="grid gap-2 max-h-48 overflow-y-auto">
                           {filteredAvailableStudents.map((student) => (
-                            <button
+                            <div
                               key={student._id}
-                              onClick={() => setSelectedStudentId(student._id)}
-                              className={`flex items-center gap-3 p-2 rounded-lg border text-left transition-all ${
+                              className={`flex items-center gap-3 p-2 rounded-lg border transition-all ${
                                 selectedStudentId === student._id
                                   ? "border-blue-500 bg-blue-50"
                                   : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                               }`}
                             >
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-sm">
-                                👨‍🎓
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm text-gray-900 truncate">
-                                  {(student as any).studentCode && (
-                                    <span className="text-blue-600">
-                                      [{(student as any).studentCode}]{" "}
-                                    </span>
-                                  )}
-                                  {student.name}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">
-                                  {student.email}
-                                  {(student as any).phone &&
-                                    ` • ${(student as any).phone}`}
-                                </p>
-                              </div>
-                              {selectedStudentId === student._id && (
-                                <span className="text-blue-600">✓</span>
-                              )}
-                            </button>
+                              <button
+                                onClick={() =>
+                                  setSelectedStudentId(student._id)
+                                }
+                                className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-sm shrink-0">
+                                  👨‍🎓
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-gray-900 truncate">
+                                    {(student as any).studentCode && (
+                                      <span className="text-blue-600">
+                                        [{(student as any).studentCode}]{" "}
+                                      </span>
+                                    )}
+                                    {student.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {student.email}
+                                    {(student as any).phone &&
+                                      ` • ${(student as any).phone}`}
+                                  </p>
+                                </div>
+                              </button>
+                              {/* Quick Add Button */}
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  setSelectedStudentId(student._id);
+                                  setError(null);
+                                  try {
+                                    await addStudentToClass(
+                                      classData._id,
+                                      student._id
+                                    );
+                                    setSuccessMessage(
+                                      `Đã thêm ${student.name} vào lớp!`
+                                    );
+                                    setAddSearchQuery("");
+                                    onUpdate();
+                                    setTimeout(
+                                      () => setSuccessMessage(null),
+                                      3000
+                                    );
+                                  } catch (err: any) {
+                                    setError(
+                                      err.message || "Có lỗi khi thêm học sinh"
+                                    );
+                                  }
+                                }}
+                                disabled={isLoading}
+                                className="rounded-lg bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-xs shrink-0"
+                              >
+                                ➕ Thêm
+                              </Button>
+                            </div>
                           ))}
                         </div>
                       </div>

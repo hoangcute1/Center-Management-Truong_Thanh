@@ -2724,9 +2724,12 @@ export default function AdminDashboard({
         <ClassStudentsModal
           classData={classStudentsModal}
           branchId={
-            typeof classStudentsModal.branchId === "object"
+            typeof classStudentsModal.branchId === "object" &&
+            classStudentsModal.branchId
               ? classStudentsModal.branchId._id
-              : classStudentsModal.branchId || classStudentsModal.branch?._id
+              : classStudentsModal.branchId ||
+                classStudentsModal.branch?._id ||
+                ""
           }
           onClose={() => setClassStudentsModal(null)}
           onUpdate={() => {
