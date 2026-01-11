@@ -273,47 +273,52 @@ export default function ClassStudentsModal({
                   </div>
 
                   {/* Student Selection */}
-                  <div className="flex gap-2">
-                    <select
-                      value={selectedStudentId}
-                      onChange={(e) => setSelectedStudentId(e.target.value)}
-                      className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">
-                        -- Chọn học sinh ({filteredAvailableStudents.length}/
-                        {availableStudents.length} học sinh) --
-                      </option>
-                      {filteredAvailableStudents.map((student) => (
-                        <option key={student._id} value={student._id}>
-                          {(student as any).studentCode
-                            ? `[${(student as any).studentCode}] `
-                            : ""}
-                          {student.name} • {student.email}
-                          {(student as any).phone
-                            ? ` • ${(student as any).phone}`
-                            : ""}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 min-w-0">
+                      <select
+                        value={selectedStudentId}
+                        onChange={(e) => setSelectedStudentId(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
+                        style={{ maxWidth: "100%" }}
+                      >
+                        <option value="">
+                          -- Chọn học sinh ({filteredAvailableStudents.length}/
+                          {availableStudents.length} học sinh) --
                         </option>
-                      ))}
-                    </select>
-                    <Button
-                      onClick={handleAddStudent}
-                      disabled={isLoading || !selectedStudentId}
-                      className="rounded-xl bg-blue-600 hover:bg-blue-700"
-                    >
-                      {isLoading ? "Đang thêm..." : "Thêm"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowAddStudent(false);
-                        setSelectedStudentId("");
-                        setAddSearchQuery("");
-                        setError(null);
-                      }}
-                      className="rounded-xl"
-                    >
-                      Hủy
-                    </Button>
+                        {filteredAvailableStudents.map((student) => (
+                          <option key={student._id} value={student._id}>
+                            {(student as any).studentCode
+                              ? `[${(student as any).studentCode}] `
+                              : ""}
+                            {student.name} • {student.email}
+                            {(student as any).phone
+                              ? ` • ${(student as any).phone}`
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        onClick={handleAddStudent}
+                        disabled={isLoading || !selectedStudentId}
+                        className="rounded-xl bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+                      >
+                        {isLoading ? "Đang thêm..." : "Thêm"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowAddStudent(false);
+                          setSelectedStudentId("");
+                          setAddSearchQuery("");
+                          setError(null);
+                        }}
+                        className="rounded-xl whitespace-nowrap"
+                      >
+                        Hủy
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Quick Add - Show matching students as cards */}

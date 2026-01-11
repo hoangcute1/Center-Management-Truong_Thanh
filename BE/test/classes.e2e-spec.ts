@@ -186,6 +186,22 @@ describe('Classes API (e2e)', () => {
       expect(Array.isArray(res.body)).toBe(true);
     });
 
+    it('teacher should only see classes they teach', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/classes')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .expect(200);
+
+      // All classes returned should have teacherId matching our teacher
+      res.body.forEach((classItem: any) => {
+        const classTeacherId =
+          typeof classItem.teacherId === 'object'
+            ? classItem.teacherId._id
+            : classItem.teacherId;
+        expect(classTeacherId).toBe(teacherId);
+      });
+    });
+
     it('student should see classes', async () => {
       const res = await request(app.getHttpServer())
         .get('/classes')

@@ -22,7 +22,19 @@ export class ClassesService {
   ) {}
 
   async create(dto: CreateClassDto): Promise<ClassEntity> {
-    const doc = new this.classModel({ ...dto });
+    // Convert string IDs to ObjectId
+    const data: any = { ...dto };
+    if (dto.teacherId) {
+      data.teacherId = new Types.ObjectId(dto.teacherId);
+    }
+    if (dto.branchId) {
+      data.branchId = new Types.ObjectId(dto.branchId);
+    }
+    if (dto.studentIds && dto.studentIds.length > 0) {
+      data.studentIds = dto.studentIds.map((id) => new Types.ObjectId(id));
+    }
+
+    const doc = new this.classModel(data);
     await doc.save();
     await doc.populate([
       { path: 'teacherId', select: 'name email' },
@@ -40,13 +52,19 @@ export class ClassesService {
         .populate('branchId', 'name')
         .populate('studentIds', 'name email role branchId')
         .exec();
-    if (user.role === UserRole.Teacher)
+    if (user.role === UserRole.Teacher) {
+      // Query với cả ObjectId và string để handle dữ liệu cũ
+      const userIdString = user._id.toString();
+      const userIdObjectId = new Types.ObjectId(user._id);
       return this.classModel
-        .find({ teacherId: user._id })
+        .find({
+          $or: [{ teacherId: userIdObjectId }, { teacherId: userIdString }],
+        })
         .populate('teacherId', 'name email')
         .populate('branchId', 'name')
         .populate('studentIds', 'name email role branchId')
         .exec();
+    }
     return this.classModel
       .find({ studentIds: { $in: [new Types.ObjectId(user._id)] } })
       .populate('teacherId', 'name email')
@@ -67,8 +85,20 @@ export class ClassesService {
   }
 
   async update(id: string, dto: UpdateClassDto): Promise<ClassEntity> {
+    // Convert string IDs to ObjectId
+    const data: any = { ...dto };
+    if (dto.teacherId) {
+      data.teacherId = new Types.ObjectId(dto.teacherId);
+    }
+    if (dto.branchId) {
+      data.branchId = new Types.ObjectId(dto.branchId);
+    }
+    if (dto.studentIds && dto.studentIds.length > 0) {
+      data.studentIds = dto.studentIds.map((sid) => new Types.ObjectId(sid));
+    }
+
     const updated = await this.classModel
-      .findByIdAndUpdate(id, dto, { new: true })
+      .findByIdAndUpdate(id, data, { new: true })
       .populate('teacherId', 'name email')
       .populate('branchId', 'name')
       .populate('studentIds', 'name email role branchId')
