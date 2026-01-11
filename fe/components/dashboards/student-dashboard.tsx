@@ -19,6 +19,7 @@ import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useAttendanceStore } from "@/lib/stores/attendance-store";
 
 // Helper functions for week navigation
 const getStartOfWeek = (date: Date): Date => {
@@ -154,6 +155,8 @@ type DaySchedule = {
   room: string;
   time: string;
   status: "confirmed" | "pending" | "unconfirmed";
+  sessionId?: string;
+  attendanceStatus?: "present" | "absent" | "late" | "excused" | null;
 };
 
 type RankingCategory = "score" | "diligence" | "attendance";
@@ -792,7 +795,6 @@ export default function StudentDashboard({
   } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
-  const [showIncidentReport, setShowIncidentReport] = useState(false);
 
   // Week navigation state
   const [selectedYear, setSelectedYear] = useState<number>(() =>
@@ -809,6 +811,7 @@ export default function StudentDashboard({
     fetchDashboardData,
   } = useStudentDashboardStore();
   const { user: authUser } = useAuthStore();
+  const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
 
   // Calculate the earliest date (account creation date)
   const accountCreatedAt = useMemo(() => {
@@ -866,6 +869,12 @@ export default function StudentDashboard({
     setSelectedWeekStart(currentWeekStart);
   };
 
+  // Helper function to get attendance status for a session
+  const getAttendanceForSession = (sessionId: string) => {
+    const record = attendanceRecords.find((r) => r.sessionId === sessionId);
+    return record?.status || null;
+  };
+
   // Generate schedule for selected week
   const weekSchedule = useMemo(() => {
     const schedule: DaySchedule[] = [];
@@ -904,6 +913,12 @@ export default function StudentDashboard({
         }
       }
 
+      // Get attendance status for the session
+      const sessionId = sessionForDay?._id;
+      const attendanceStatus = sessionId
+        ? getAttendanceForSession(sessionId)
+        : null;
+
       if (sessionForDay) {
         schedule.push({
           day: dayName,
@@ -919,6 +934,8 @@ export default function StudentDashboard({
             : sessionForDay.status === "scheduled"
             ? "pending"
             : "confirmed",
+          sessionId: sessionForDay._id,
+          attendanceStatus,
         });
       } else if (classForDay) {
         schedule.push({
@@ -956,15 +973,17 @@ export default function StudentDashboard({
     }
 
     return schedule;
-  }, [selectedWeekStart, dashboardData]);
+  }, [selectedWeekStart, dashboardData, attendanceRecords]);
 
   useEffect(() => {
     // Fetch dashboard data when component mounts
     const studentId = authUser?._id || user.id;
     if (studentId) {
       fetchDashboardData(studentId).catch(console.error);
+      // Fetch attendance records for this student
+      fetchAttendance({ studentId }).catch(console.error);
     }
-  }, [authUser, user.id, fetchDashboardData]);
+  }, [authUser, user.id, fetchDashboardData, fetchAttendance]);
 
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
@@ -1054,15 +1073,6 @@ export default function StudentDashboard({
             <NotificationCenter userRole={user.role} />
             <Button
               variant="ghost"
-              onClick={() => setShowIncidentReport(true)}
-              className="hidden md:flex items-center gap-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50"
-              title="Báo cáo sự cố"
-            >
-              <span>🐛</span>
-              <span className="hidden lg:inline">Sự cố</span>
-            </Button>
-            <Button
-              variant="ghost"
               onClick={() => setShowSettings(true)}
               className="hidden md:flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
             >
@@ -1143,6 +1153,12 @@ export default function StudentDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
+            </TabsTrigger>
+            <TabsTrigger
+              value="incidents"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🐛 Sự cố
             </TabsTrigger>
           </TabsList>
 
@@ -1432,14 +1448,34 @@ export default function StudentDashboard({
                             >
                               📄 Tài liệu
                             </Button>
-                            {isPast ? (
-                              <Button
-                                className="w-full text-xs rounded-xl bg-emerald-500 text-white"
-                                variant="solid"
-                                disabled
+                            {/* Attendance Status */}
+                            {isPast && slot.attendanceStatus ? (
+                              <div
+                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${
+                                  slot.attendanceStatus === "present"
+                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                    : slot.attendanceStatus === "absent"
+                                    ? "bg-red-100 text-red-700 border border-red-200"
+                                    : slot.attendanceStatus === "late"
+                                    ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                    : slot.attendanceStatus === "excused"
+                                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
                               >
-                                ✓ Đã xác nhận
-                              </Button>
+                                {slot.attendanceStatus === "present" &&
+                                  "✅ Đã điểm danh"}
+                                {slot.attendanceStatus === "absent" &&
+                                  "❌ Nghỉ học"}
+                                {slot.attendanceStatus === "late" &&
+                                  "⏰ Đi muộn"}
+                                {slot.attendanceStatus === "excused" &&
+                                  "📝 Nghỉ phép"}
+                              </div>
+                            ) : isPast && !slot.attendanceStatus ? (
+                              <div className="w-full text-xs rounded-xl py-2 px-3 font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                ⏳ Chưa điểm danh
+                              </div>
                             ) : (
                               <Button
                                 className={`w-full text-xs rounded-xl ${style.className}`}
@@ -1823,6 +1859,17 @@ export default function StudentDashboard({
               </div>
             </Card>
           </TabsContent>
+
+          <TabsContent value="incidents" className="mt-6">
+            <IncidentReportModal
+              isOpen={true}
+              onClose={() => {}}
+              userName={user.name}
+              userEmail={user.email}
+              userRole={user.role}
+              isEmbedded={true}
+            />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -1849,15 +1896,6 @@ export default function StudentDashboard({
         <SettingsModal
           user={{ name: user.name, email: user.email }}
           onClose={() => setShowSettings(false)}
-        />
-      )}
-      {showIncidentReport && (
-        <IncidentReportModal
-          isOpen={showIncidentReport}
-          onClose={() => setShowIncidentReport(false)}
-          userName={user.name}
-          userEmail={user.email}
-          userRole={user.role}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
+import { useParentDashboardStore } from "@/lib/stores/parent-dashboard-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 interface ParentDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -103,6 +105,7 @@ const weeklySchedule = [
     room: "Phòng 604",
     teacher: "Cô Trần Thị B",
     status: "confirmed",
+    attendanceStatus: "present" as const,
   },
   {
     day: "TUE",
@@ -112,6 +115,7 @@ const weeklySchedule = [
     room: "Phòng 417",
     teacher: "Thầy Lê Văn E",
     status: "confirmed",
+    attendanceStatus: "present" as const,
   },
   {
     day: "WED",
@@ -121,6 +125,7 @@ const weeklySchedule = [
     room: "",
     teacher: "",
     status: "empty",
+    attendanceStatus: null,
   },
   {
     day: "THU",
@@ -130,6 +135,7 @@ const weeklySchedule = [
     room: "Phòng 506",
     teacher: "Thầy Nguyễn Văn F",
     status: "pending",
+    attendanceStatus: "absent" as const,
   },
   {
     day: "FRI",
@@ -139,6 +145,7 @@ const weeklySchedule = [
     room: "Phòng 604",
     teacher: "Cô Trần Thị B",
     status: "confirmed",
+    attendanceStatus: null, // Chưa diễn ra
   },
   {
     day: "SAT",
@@ -148,6 +155,7 @@ const weeklySchedule = [
     room: "",
     teacher: "",
     status: "empty",
+    attendanceStatus: null,
   },
   {
     day: "SUN",
@@ -157,6 +165,7 @@ const weeklySchedule = [
     room: "",
     teacher: "",
     status: "empty",
+    attendanceStatus: null,
   },
 ];
 
@@ -309,7 +318,114 @@ export default function ParentDashboard({
     role: string;
   } | null>(null);
   const [showDetail, setShowDetail] = useState(false);
-  const [showIncidentReport, setShowIncidentReport] = useState(false);
+
+  // Fetch real data from API
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    fetchDashboardData,
+  } = useParentDashboardStore();
+  const { user: authUser } = useAuthStore();
+
+  // Fetch data on mount
+  useEffect(() => {
+    const parentId = authUser?._id || user.id;
+    const childEmail = (authUser as any)?.childEmail;
+    if (parentId) {
+      fetchDashboardData(parentId, childEmail).catch(console.error);
+    }
+  }, [authUser, user.id, fetchDashboardData]);
+
+  // Use real data or fallback to mock data
+  const childData = dashboardData?.child || child;
+  const classesData = dashboardData?.classes?.length
+    ? dashboardData.classes.map((c) => ({
+        subject: c.name,
+        total: 12,
+        attended: 10,
+        score: 8.0,
+        teacher: c.teacherName,
+      }))
+    : courses;
+
+  const attendanceStats = dashboardData?.attendanceStats || {
+    present: 28,
+    absent: 2,
+    late: 0,
+    total: 30,
+    rate: 93,
+  };
+
+  // Dynamic overview stats
+  const dynamicOverviewStats = dashboardData
+    ? [
+        {
+          label: "Khóa học",
+          value: dashboardData.classes.length,
+          note: "Đang theo học",
+          icon: "📚",
+          color: "from-blue-500 to-blue-600",
+        },
+        {
+          label: "Điểm TB",
+          value:
+            dashboardData.recentGrades.length > 0
+              ? (
+                  dashboardData.recentGrades.reduce(
+                    (acc, g) => acc + g.percentage,
+                    0
+                  ) /
+                  dashboardData.recentGrades.length /
+                  10
+                ).toFixed(1)
+              : "N/A",
+          note: "Kết quả học tập",
+          icon: "⭐",
+          color: "from-emerald-500 to-emerald-600",
+        },
+        {
+          label: "Buổi học",
+          value: attendanceStats.total,
+          note: `${attendanceStats.present} buổi tham dự`,
+          icon: "📅",
+          color: "from-amber-500 to-orange-500",
+        },
+        {
+          label: "Chuyên cần",
+          value: `${attendanceStats.rate}%`,
+          note: "Tỉ lệ tham gia",
+          icon: "🏆",
+          color: "from-purple-500 to-purple-600",
+        },
+      ]
+    : overviewStats;
+
+  // Weekly schedule with attendance
+  const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
+    ? dashboardData.upcomingSessions.slice(0, 7).map((s, idx) => {
+        const sessionDate = new Date(s.date);
+        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        return {
+          day: days[sessionDate.getDay()],
+          date: sessionDate.toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+          }),
+          code: s.className.substring(0, 7).toUpperCase(),
+          time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`,
+          room: "Phòng học",
+          teacher: "Giáo viên",
+          status: s.status === "completed" ? "confirmed" : "pending",
+          attendanceStatus: s.attendanceStatus,
+        };
+      })
+    : weeklySchedule;
 
   const paidBadge = child.paid ? (
     <Badge variant="success">Đã thanh toán</Badge>
@@ -334,20 +450,16 @@ export default function ParentDashboard({
           </div>
           <div className="flex items-center gap-2">
             <NotificationCenter userRole={user.role} />
-            <Button
-              variant="ghost"
-              onClick={() => setShowIncidentReport(true)}
-              className="text-gray-600 hover:text-orange-600 hover:bg-orange-50 border border-gray-200"
-              title="Báo cáo sự cố"
-            >
-              🐛 Sự cố
-            </Button>
-            <Button variant="ghost" className="border border-gray-200">
-              Cài đặt
-            </Button>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-              <p className="text-xs text-gray-600">{user.email}</p>
+            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-base shadow-md">
+                {user.name.charAt(0)}
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-900">
+                  {user.name}
+                </p>
+                <p className="text-xs text-gray-600">{user.email}</p>
+              </div>
             </div>
             <Button variant="outline" onClick={onLogout}>
               Đăng xuất
@@ -409,67 +521,88 @@ export default function ParentDashboard({
             >
               💬 Liên hệ
             </TabsTrigger>
+            <TabsTrigger
+              value="incidents"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🐛 Sự cố
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6 space-y-4">
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-              {overviewStats.map((item) => (
-                <Card
-                  key={item.label}
-                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-90`}
-                  />
-                  <div className="relative p-5 text-white">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-white/80 text-sm font-medium">
-                          {item.label}
-                        </p>
-                        <p className="text-3xl font-bold mt-2">{item.value}</p>
-                        <p className="text-white/70 text-xs mt-1">
-                          {item.note}
-                        </p>
+            {dashboardLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Đang tải dữ liệu...</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                  {dynamicOverviewStats.map((item) => (
+                    <Card
+                      key={item.label}
+                      className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                    >
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-90`}
+                      />
+                      <div className="relative p-5 text-white">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-white/80 text-sm font-medium">
+                              {item.label}
+                            </p>
+                            <p className="text-3xl font-bold mt-2">
+                              {item.value}
+                            </p>
+                            <p className="text-white/70 text-xs mt-1">
+                              {item.note}
+                            </p>
+                          </div>
+                          <span className="text-4xl opacity-80">
+                            {item.icon}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-4xl opacity-80">{item.icon}</span>
+                    </Card>
+                  ))}
+                </div>
+
+                <Card className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-lg">
+                        Thông tin con
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {childData.name} - {childData.grade}
+                      </p>
                     </div>
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setShowDetail(true)}
+                    >
+                      Xem chi tiết
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {classesData.map((course) => (
+                      <Card key={course.subject} className="p-3 bg-gray-50">
+                        <p className="font-semibold text-gray-900">
+                          {course.subject}
+                        </p>
+                        <p className="text-lg font-bold text-blue-600">
+                          {course.score}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {course.teacher}
+                        </p>
+                      </Card>
+                    ))}
                   </div>
                 </Card>
-              ))}
-            </div>
-
-            <Card className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900 text-lg">
-                    Thông tin con
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {child.name} - {child.grade}
-                  </p>
-                </div>
-                <Button
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => setShowDetail(true)}
-                >
-                  Xem chi tiết
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {courses.map((course) => (
-                  <Card key={course.subject} className="p-3 bg-gray-50">
-                    <p className="font-semibold text-gray-900">
-                      {course.subject}
-                    </p>
-                    <p className="text-lg font-bold text-blue-600">
-                      {course.score}
-                    </p>
-                    <p className="text-xs text-gray-500">{course.teacher}</p>
-                  </Card>
-                ))}
-              </div>
-            </Card>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
@@ -478,9 +611,9 @@ export default function ParentDashboard({
                 Lịch học tuần này
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                {weeklySchedule.map((item) => (
+                {scheduleWithAttendance.map((item, idx) => (
                   <div
-                    key={item.day}
+                    key={`${item.day}-${idx}`}
                     className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col"
                   >
                     <div className="bg-blue-600 text-white px-3 py-2 text-center">
@@ -514,18 +647,33 @@ export default function ParentDashboard({
                           <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm rounded-lg">
                             Xem tài liệu
                           </Button>
-                          <Button
-                            className={`w-full text-sm rounded-lg ${
-                              item.status === "confirmed"
-                                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                                : "bg-amber-400 hover:bg-amber-500 text-white"
-                            }`}
-                            variant="solid"
-                          >
-                            {item.status === "confirmed"
-                              ? "Đã xác nhận"
-                              : "Chưa xác nhận"}
-                          </Button>
+                          {/* Attendance Status */}
+                          {item.attendanceStatus ? (
+                            <div
+                              className={`w-full text-sm rounded-lg py-2 px-3 font-medium text-center ${
+                                item.attendanceStatus === "present"
+                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                  : item.attendanceStatus === "absent"
+                                  ? "bg-red-100 text-red-700 border border-red-200"
+                                  : item.attendanceStatus === "late"
+                                  ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                              }`}
+                            >
+                              {item.attendanceStatus === "present" &&
+                                "✅ Đã điểm danh"}
+                              {item.attendanceStatus === "absent" &&
+                                "❌ Nghỉ học"}
+                              {item.attendanceStatus === "late" && "⏰ Đi muộn"}
+                              {item.attendanceStatus === "excused" &&
+                                "📝 Nghỉ phép"}
+                            </div>
+                          ) : item.status === "confirmed" ||
+                            item.status === "pending" ? (
+                            <div className="w-full text-sm rounded-lg py-2 px-3 font-medium text-center bg-gray-100 text-gray-500 border border-gray-200">
+                              ⏳ Chưa điểm danh
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     )}
@@ -628,6 +776,17 @@ export default function ParentDashboard({
               ))}
             </Card>
           </TabsContent>
+
+          <TabsContent value="incidents" className="mt-6">
+            <IncidentReportModal
+              isOpen={true}
+              onClose={() => {}}
+              userName={user.name}
+              userEmail={user.email}
+              userRole={user.role}
+              isEmbedded={true}
+            />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -640,15 +799,6 @@ export default function ParentDashboard({
         />
       )}
       {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
-      {showIncidentReport && (
-        <IncidentReportModal
-          isOpen={showIncidentReport}
-          onClose={() => setShowIncidentReport(false)}
-          userName={user.name}
-          userEmail={user.email}
-          userRole={user.role}
-        />
-      )}
     </div>
   );
 }

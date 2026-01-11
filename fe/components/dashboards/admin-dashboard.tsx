@@ -382,6 +382,21 @@ function UserDetailModal({
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
+  const { fetchParentChildren } = useUsersStore();
+  const [children, setChildren] = useState<UserDetail[]>([]);
+  const [loadingChildren, setLoadingChildren] = useState(false);
+
+  // Fetch children if user is parent
+  useEffect(() => {
+    if (user.role === "parent" && user._id) {
+      setLoadingChildren(true);
+      fetchParentChildren(user._id)
+        .then((data) => setChildren(data))
+        .catch((err) => console.error("Error fetching children:", err))
+        .finally(() => setLoadingChildren(false));
+    }
+  }, [user._id, user.role, fetchParentChildren]);
+
   const getRoleLabel = (role: string) => {
     switch (role) {
       case "student":
@@ -559,6 +574,60 @@ function UserDetailModal({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Thông tin con (cho phụ huynh) */}
+          {user.role === "parent" && (
+            <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
+              <h4 className="font-semibold text-indigo-800 flex items-center gap-2">
+                <span>👧</span> Thông tin con
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-200 text-indigo-800">
+                  {loadingChildren ? "Đang tải..." : `${children.length} con`}
+                </span>
+              </h4>
+
+              {loadingChildren ? (
+                <div className="text-center py-4 text-gray-500">
+                  <span className="animate-spin inline-block mr-2">⏳</span>
+                  Đang tải thông tin...
+                </div>
+              ) : children.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  Chưa tìm thấy học sinh liên kết với phụ huynh này
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {children.map((child, index) => (
+                    <div
+                      key={child._id}
+                      className="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-100"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
+                          {child.name?.charAt(0) || "?"}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {index + 1}. {child.name}
+                          </p>
+                          <p className="text-xs text-gray-500">{child.email}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          {child.studentCode || "Chưa có mã"}
+                        </span>
+                        {child.status === "active" && (
+                          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            Đang học
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

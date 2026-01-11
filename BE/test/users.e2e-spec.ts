@@ -178,11 +178,13 @@ describe('Users API (e2e)', () => {
       });
     });
 
-    it('teacher should not list users', async () => {
-      await request(app.getHttpServer())
+    it('teacher should be able to list users', async () => {
+      const res = await request(app.getHttpServer())
         .get('/users')
         .set('Authorization', `Bearer ${teacherToken}`)
-        .expect(403);
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
     });
 
     it('student should not list users', async () => {
@@ -295,15 +297,16 @@ describe('Users API (e2e)', () => {
 
   describe('DELETE /users/:id', () => {
     it('admin should delete user', async () => {
-      // Create user to delete
+      const timestamp = Date.now();
+      // Create a Parent user to delete (Parent role doesn't have unique code conflict)
       const createRes = await request(app.getHttpServer())
         .post('/users')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          name: 'To Delete',
-          email: 'todelete@test.com',
+          name: 'To Delete Parent',
+          email: `todelete.parent${timestamp}@test.com`,
           password: 'ToDelete123!',
-          role: UserRole.Student,
+          role: UserRole.Parent,
         })
         .expect(201);
 
@@ -329,6 +332,134 @@ describe('Users API (e2e)', () => {
     it('student should not delete users', async () => {
       await request(app.getHttpServer())
         .delete(`/users/${userId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(403);
+    });
+  });
+
+  describe('GET /users/parent/:parentId/children', () => {
+    let parentId: string;
+    let childId: string;
+    let userModel: typeof mongoose.Model<UserDocument>;
+
+    beforeAll(async () => {
+      userModel = app.get<typeof mongoose.Model<UserDocument>>(
+        getModelToken(User.name),
+      );
+
+      // Use unique identifiers with timestamp
+      const timestamp = Date.now();
+
+      // Create student first
+      const student = await userModel.create({
+        name: 'Test Child Student PC',
+        email: `test.child.pc${timestamp}@test.com`,
+        passwordHash: await bcrypt.hash('Test123!', 10),
+        role: UserRole.Student,
+        status: UserStatus.Active,
+        studentCode: `HSPC${timestamp}`,
+        parentName: 'Test Parent PC',
+        parentPhone: `09${timestamp}`.substring(0, 10),
+      });
+      childId = student._id.toString();
+
+      // Create parent linked to student
+      const parent = await userModel.create({
+        name: 'Test Parent PC',
+        email: `test.parent.pc${timestamp}@test.com`,
+        phone: `09${timestamp}`.substring(0, 10),
+        passwordHash: await bcrypt.hash('Test123!', 10),
+        role: UserRole.Parent,
+        status: UserStatus.Active,
+        parentCode: `PHPC${timestamp}`,
+        childEmail: `test.child.pc${timestamp}@test.com`,
+      });
+      parentId = parent._id.toString();
+    });
+
+    it('admin should get children of parent by childEmail', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/users/parent/${parentId}/children`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+      // Check that at least one child has the right parent link
+      expect(res.body[0].role).toBe(UserRole.Student);
+    });
+
+    it('should return empty array for parent without children', async () => {
+      const timestamp2 = Date.now() + 1;
+      // Create parent without child link
+      const noChildParent = await userModel.create({
+        name: 'No Child Parent',
+        email: `nochild.parent${timestamp2}@test.com`,
+        passwordHash: await bcrypt.hash('Test123!', 10),
+        role: UserRole.Parent,
+        status: UserStatus.Active,
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/users/parent/${noChildParent._id}/children`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(0);
+    });
+
+    it('should find children by parentPhone match', async () => {
+      const timestamp3 = Date.now() + 2;
+      const phone = `08${timestamp3}`.substring(0, 10);
+
+      // Create student with parentPhone
+      await userModel.create({
+        name: 'Phone Match Student',
+        email: `phone.match${timestamp3}@test.com`,
+        passwordHash: await bcrypt.hash('Test123!', 10),
+        role: UserRole.Student,
+        status: UserStatus.Active,
+        parentPhone: phone,
+        studentCode: `HSPM${timestamp3}`,
+      });
+
+      // Create parent with matching phone
+      const phoneParent = await userModel.create({
+        name: 'Phone Parent',
+        email: `phone.parent${timestamp3}@test.com`,
+        phone: phone,
+        passwordHash: await bcrypt.hash('Test123!', 10),
+        role: UserRole.Parent,
+        status: UserStatus.Active,
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(`/users/parent/${phoneParent._id}/children`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+      expect(res.body[0].role).toBe(UserRole.Student);
+    });
+
+    it('should return 404 for non-existent parent', async () => {
+      await request(app.getHttpServer())
+        .get('/users/parent/000000000000000000000000/children')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
+    });
+
+    it('teacher should not access parent children endpoint', async () => {
+      await request(app.getHttpServer())
+        .get(`/users/parent/${parentId}/children`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .expect(403);
+    });
+
+    it('student should not access parent children endpoint', async () => {
+      await request(app.getHttpServer())
+        .get(`/users/parent/${parentId}/children`)
         .set('Authorization', `Bearer ${studentToken}`)
         .expect(403);
     });

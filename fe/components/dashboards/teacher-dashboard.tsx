@@ -606,7 +606,6 @@ export default function TeacherDashboard({
     classData: Class;
   } | null>(null);
   const [showEvaluation, setShowEvaluation] = useState(false);
-  const [showIncidentReport, setShowIncidentReport] = useState(false);
 
   // Stores
   const {
@@ -828,17 +827,16 @@ export default function TeacherDashboard({
           </div>
           <div className="flex items-center gap-3 flex-wrap justify-end">
             <NotificationCenter userRole={user.role} />
-            <Button
-              variant="ghost"
-              onClick={() => setShowIncidentReport(true)}
-              className="text-gray-600 hover:text-orange-600 hover:bg-orange-50"
-              title="Báo cáo sự cố"
-            >
-              🐛 Sự cố
-            </Button>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-              <p className="text-xs text-gray-600">{user.email}</p>
+            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-base shadow-md">
+                {user.name.charAt(0)}
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-900">
+                  {user.name}
+                </p>
+                <p className="text-xs text-gray-600">{user.email}</p>
+              </div>
             </div>
             <Button variant="outline" onClick={onLogout}>
               Đăng xuất
@@ -899,6 +897,12 @@ export default function TeacherDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
+            </TabsTrigger>
+            <TabsTrigger
+              value="incidents"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🐛 Sự cố
             </TabsTrigger>
           </TabsList>
 
@@ -1370,6 +1374,17 @@ export default function TeacherDashboard({
               )}
             </Card>
           </TabsContent>
+
+          <TabsContent value="incidents" className="mt-6">
+            <IncidentReportModal
+              isOpen={true}
+              onClose={() => {}}
+              userName={user.name}
+              userEmail={user.email}
+              userRole={user.role}
+              isEmbedded={true}
+            />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -1397,15 +1412,6 @@ export default function TeacherDashboard({
       )}
       {showEvaluation && (
         <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
-      )}
-      {showIncidentReport && (
-        <IncidentReportModal
-          isOpen={showIncidentReport}
-          onClose={() => setShowIncidentReport(false)}
-          userName={user.name}
-          userEmail={user.email}
-          userRole={user.role}
-        />
       )}
     </div>
   );

@@ -35,6 +35,8 @@ interface UsersActions {
   fetchTeacherStatsBySubject: () => Promise<
     Array<{ subject: string; count: number }>
   >;
+  // Method mới cho phụ huynh
+  fetchParentChildren: (parentId: string) => Promise<User[]>;
 }
 
 interface FetchUsersParams {
@@ -304,6 +306,17 @@ export const useUsersStore = create<UsersState & UsersActions>((set, get) => ({
       return response.data;
     } catch (error: any) {
       console.error("Error fetching teacher stats:", error);
+      return [];
+    }
+  },
+
+  // Lấy thông tin con của phụ huynh
+  fetchParentChildren: async (parentId: string) => {
+    try {
+      const response = await api.get(`/users/parent/${parentId}/children`);
+      return response.data.map((u: User) => ({ ...u, id: u._id }));
+    } catch (error: any) {
+      console.error("Error fetching parent children:", error);
       return [];
     }
   },

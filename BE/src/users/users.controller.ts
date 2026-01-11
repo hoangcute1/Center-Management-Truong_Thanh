@@ -73,6 +73,13 @@ export class UsersController {
     return this.usersService.findTeachersBySubject(subject);
   }
 
+  // Lấy thông tin con của phụ huynh
+  @Get('parent/:parentId/children')
+  @Roles(UserRole.Admin)
+  getParentChildren(@Param('parentId') parentId: string) {
+    return this.usersService.getParentChildren(parentId);
+  }
+
   @Get(':id')
   @Roles(UserRole.Admin)
   findOne(@Param('id') id: string) {

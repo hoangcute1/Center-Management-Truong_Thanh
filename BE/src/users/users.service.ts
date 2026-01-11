@@ -258,4 +258,91 @@ export class UsersService {
       .select('-passwordHash')
       .exec();
   }
+
+  // Lấy thông tin con của phụ huynh (dựa trên childEmail hoặc các tiêu chí khác)
+  async getParentChildren(parentId: string): Promise<User[]> {
+    const parent = await this.userModel.findById(parentId).exec();
+    if (!parent) {
+      throw new NotFoundException('Parent not found');
+    }
+
+    if (parent.role !== UserRole.Parent) {
+      return [];
+    }
+
+    const children: User[] = [];
+    const foundIds = new Set<string>();
+
+    // Cách 1: Tìm theo childEmail của phụ huynh
+    if (parent.childEmail) {
+      const child = await this.userModel
+        .findOne({
+          email: parent.childEmail.toLowerCase().trim(),
+          role: UserRole.Student,
+        })
+        .select('-passwordHash')
+        .exec();
+
+      if (child) {
+        children.push(child);
+        foundIds.add(child._id.toString());
+      }
+    }
+
+    // Cách 2: Tìm học sinh có parentPhone trùng với phone của phụ huynh
+    if (parent.phone) {
+      const byPhone = await this.userModel
+        .find({
+          role: UserRole.Student,
+          parentPhone: parent.phone,
+        })
+        .select('-passwordHash')
+        .exec();
+
+      for (const child of byPhone) {
+        if (!foundIds.has(child._id.toString())) {
+          children.push(child);
+          foundIds.add(child._id.toString());
+        }
+      }
+    }
+
+    // Cách 3: Tìm học sinh có parentName trùng với name của phụ huynh
+    if (parent.name) {
+      const byName = await this.userModel
+        .find({
+          role: UserRole.Student,
+          parentName: { $regex: new RegExp(parent.name, 'i') },
+        })
+        .select('-passwordHash')
+        .exec();
+
+      for (const child of byName) {
+        if (!foundIds.has(child._id.toString())) {
+          children.push(child);
+          foundIds.add(child._id.toString());
+        }
+      }
+    }
+
+    // Cách 4: Tìm theo parentCode - nếu mã phụ huynh trùng với số trong mã học sinh
+    if (parent.parentCode) {
+      const parentNumber = parent.parentCode.replace('PH', '');
+      const studentCode = `HS${parentNumber}`;
+      const byCode = await this.userModel
+        .findOne({
+          role: UserRole.Student,
+          studentCode: studentCode,
+        })
+        .select('-passwordHash')
+        .exec();
+
+      if (byCode && !foundIds.has(byCode._id.toString())) {
+        children.push(byCode);
+        foundIds.add(byCode._id.toString());
+      }
+    }
+
+    return children;
+  }
 }

@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AddUserModal from "@/components/pages/add-user-modal";
 import ImportUsersModal from "@/components/pages/import-users-modal";
+import ParentDetailModal from "@/components/pages/parent-detail-modal";
 import { useUsersStore, ImportResponse } from "@/lib/stores/users-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { getSubjectColor } from "@/lib/constants/subjects";
+import type { User } from "@/lib/stores/auth-store";
 
 type UserType = "student" | "parent" | "teacher";
 
@@ -44,6 +46,8 @@ export default function UserManagement() {
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<UserType>("student");
+  const [selectedParent, setSelectedParent] = useState<User | null>(null);
+  const [parentDetailOpen, setParentDetailOpen] = useState(false);
 
   // Fetch data on mount
   useEffect(() => {
@@ -164,6 +168,19 @@ export default function UserManagement() {
                   ? new Date(user.createdAt).toLocaleDateString("vi-VN")
                   : ""}
               </span>
+              {/* Nút Chi tiết cho phụ huynh */}
+              {userType === "parent" && (
+                <Button
+                  variant="outline"
+                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                  onClick={() => {
+                    setSelectedParent(user);
+                    setParentDetailOpen(true);
+                  }}
+                >
+                  Chi tiết
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => handleDeleteUser(user._id || user.id, userType)}
@@ -264,6 +281,18 @@ export default function UserManagement() {
         onImport={handleImportUsers}
         onDownloadTemplate={handleDownloadTemplate}
       />
+
+      {/* Modal chi tiết phụ huynh */}
+      {selectedParent && (
+        <ParentDetailModal
+          parent={selectedParent}
+          isOpen={parentDetailOpen}
+          onClose={() => {
+            setParentDetailOpen(false);
+            setSelectedParent(null);
+          }}
+        />
+      )}
     </div>
   );
 }
