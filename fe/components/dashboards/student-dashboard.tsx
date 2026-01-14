@@ -944,9 +944,68 @@ export default function StudentDashboard({
     setSelectedWeekStart(currentWeekStart);
   };
 
-  // Helper function to get attendance status for a session
+  // Helper function to get attendance status for a session or by date
   const getAttendanceForSession = (sessionId: string) => {
-    const record = attendanceRecords.find((r) => r.sessionId === sessionId);
+    const record = attendanceRecords.find((r) => {
+      // sessionId might be a string or populated object
+      const sid =
+        typeof r.sessionId === "string"
+          ? r.sessionId
+          : (r.sessionId as any)?._id;
+      return sid === sessionId;
+    });
+    return record?.status || null;
+  };
+
+  // Helper function to get attendance by date and class
+  const getAttendanceByDateAndClass = (date: Date, classId?: string) => {
+    // Format date to compare (YYYY-MM-DD)
+    const targetYear = date.getFullYear();
+    const targetMonth = date.getMonth();
+    const targetDay = date.getDate();
+
+    const record = attendanceRecords.find((r) => {
+      // Check if sessionId is populated with date info
+      const session = r.sessionId as any;
+      if (session?.startTime) {
+        const sessionDate = new Date(session.startTime);
+        const sessionYear = sessionDate.getFullYear();
+        const sessionMonth = sessionDate.getMonth();
+        const sessionDay = sessionDate.getDate();
+
+        if (
+          sessionYear === targetYear &&
+          sessionMonth === targetMonth &&
+          sessionDay === targetDay
+        ) {
+          // If classId provided, match it too
+          if (classId && session.classId) {
+            const sessionClassId =
+              typeof session.classId === "string"
+                ? session.classId
+                : session.classId._id;
+            return sessionClassId === classId;
+          }
+          return true;
+        }
+      }
+      // Also check createdAt if sessionId is not populated
+      if (r.createdAt) {
+        const recordDate = new Date(r.createdAt);
+        const recordYear = recordDate.getFullYear();
+        const recordMonth = recordDate.getMonth();
+        const recordDay = recordDate.getDate();
+
+        if (
+          recordYear === targetYear &&
+          recordMonth === targetMonth &&
+          recordDay === targetDay
+        ) {
+          return true;
+        }
+      }
+      return false;
+    });
     return record?.status || null;
   };
 
@@ -988,11 +1047,21 @@ export default function StudentDashboard({
         }
       }
 
-      // Get attendance status for the session
+      // Get attendance status - try by sessionId first, then by date
       const sessionId = sessionForDay?._id;
-      const attendanceStatus = sessionId
+      let attendanceStatus = sessionId
         ? getAttendanceForSession(sessionId)
         : null;
+
+      // If no attendance found by sessionId, try by date and class
+      if (!attendanceStatus && classForDay) {
+        attendanceStatus = getAttendanceByDateAndClass(
+          dayDate,
+          classForDay.class._id
+        );
+      } else if (!attendanceStatus) {
+        attendanceStatus = getAttendanceByDateAndClass(dayDate);
+      }
 
       if (sessionForDay) {
         schedule.push({
@@ -1022,6 +1091,7 @@ export default function StudentDashboard({
           room: classForDay.schedule.room || "Phòng học",
           time: `${classForDay.schedule.startTime}-${classForDay.schedule.endTime}`,
           status: isPast ? "confirmed" : "pending",
+          attendanceStatus,
         });
       } else {
         // Find matching static schedule data for demo
@@ -1049,6 +1119,23 @@ export default function StudentDashboard({
 
     return schedule;
   }, [selectedWeekStart, dashboardData, attendanceRecords]);
+
+  // Debug: log attendance records
+  useEffect(() => {
+    if (attendanceRecords.length > 0) {
+      console.log("Attendance Records loaded:", attendanceRecords);
+      attendanceRecords.forEach((r) => {
+        const session = r.sessionId as any;
+        console.log("Record:", {
+          status: r.status,
+          sessionId: r.sessionId,
+          sessionStartTime: session?.startTime,
+          sessionClassId: session?.classId,
+          createdAt: r.createdAt,
+        });
+      });
+    }
+  }, [attendanceRecords]);
 
   useEffect(() => {
     // Fetch dashboard data when component mounts
@@ -1545,7 +1632,7 @@ export default function StudentDashboard({
                               📄 Tài liệu
                             </Button>
                             {/* Attendance Status */}
-                            {isPast && slot.attendanceStatus ? (
+                            {slot.attendanceStatus ? (
                               <div
                                 className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${slot.attendanceStatus === "present"
                                   ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
@@ -1559,7 +1646,7 @@ export default function StudentDashboard({
                                   }`}
                               >
                                 {slot.attendanceStatus === "present" &&
-                                  "✅ Đã điểm danh"}
+                                  "✅ Có mặt"}
                                 {slot.attendanceStatus === "absent" &&
                                   "❌ Nghỉ học"}
                                 {slot.attendanceStatus === "late" &&
@@ -1567,7 +1654,7 @@ export default function StudentDashboard({
                                 {slot.attendanceStatus === "excused" &&
                                   "📝 Nghỉ phép"}
                               </div>
-                            ) : isPast && !slot.attendanceStatus ? (
+                            ) : (isPast || isToday) && slot.code ? (
                               <div className="w-full text-xs rounded-xl py-2 px-3 font-medium bg-gray-100 text-gray-500 border border-gray-200">
                                 ⏳ Chưa điểm danh
                               </div>

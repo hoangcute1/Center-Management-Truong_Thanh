@@ -54,6 +54,18 @@ export interface ParentDashboardData {
   classes: ChildClassInfo[];
   upcomingSessions: ChildSession[];
   recentGrades: ChildGrade[];
+  attendanceRecords: Array<{
+    _id: string;
+    status: "present" | "absent" | "late" | "excused";
+    sessionId:
+      | {
+          _id: string;
+          startTime: string;
+          classId: { _id: string; name: string } | string;
+        }
+      | string;
+    createdAt: string;
+  }>;
   attendanceStats: {
     present: number;
     absent: number;
@@ -129,6 +141,7 @@ export const useParentDashboardStore = create<
             classes: [],
             upcomingSessions: [],
             recentGrades: [],
+            attendanceRecords: [],
             attendanceStats: {
               present: 0,
               absent: 0,
@@ -192,9 +205,26 @@ export const useParentDashboardStore = create<
       }
 
       const upcomingSessions = sessionsRaw.map((s: any) => {
-        const attendanceRecord = attendanceRecords.find(
-          (r: any) => r.sessionId === s._id
+        // Try to find attendance by sessionId first
+        let attendanceRecord = attendanceRecords.find(
+          (r: any) => r.sessionId === s._id || r.sessionId?._id === s._id
         );
+
+        // If not found, try to find by date
+        if (!attendanceRecord) {
+          const sessionDate = new Date(s.date || s.startTime);
+          sessionDate.setHours(0, 0, 0, 0);
+          attendanceRecord = attendanceRecords.find((r: any) => {
+            const session = r.sessionId;
+            if (session?.startTime) {
+              const attDate = new Date(session.startTime);
+              attDate.setHours(0, 0, 0, 0);
+              return attDate.getTime() === sessionDate.getTime();
+            }
+            return false;
+          });
+        }
+
         return {
           _id: s._id,
           classId: s.classId?._id || s.classId,
@@ -264,6 +294,7 @@ export const useParentDashboardStore = create<
           })),
           upcomingSessions,
           recentGrades,
+          attendanceRecords,
           attendanceStats,
           tuitionStatus,
         },

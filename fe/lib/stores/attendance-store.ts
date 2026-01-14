@@ -6,10 +6,19 @@ export interface AttendanceRecord {
   id?: string;
   studentId: string;
   classId: string;
-  sessionId: string;
+  sessionId:
+    | string
+    | {
+        _id: string;
+        startTime: string;
+        endTime: string;
+        classId: string | { _id: string; name: string };
+        status: string;
+      };
   status: "present" | "absent" | "late" | "excused";
   checkInTime?: string;
   notes?: string;
+  note?: string;
   markedBy: string;
   createdAt: string;
   // Populated
