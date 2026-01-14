@@ -40,6 +40,7 @@ interface AttendanceState {
 interface AttendanceActions {
   fetchAttendance: (params?: FetchAttendanceParams) => Promise<void>;
   markAttendance: (data: MarkAttendanceData) => Promise<void>;
+  markTimetableAttendance: (data: MarkTimetableAttendanceData) => Promise<void>;
   updateAttendance: (id: string, data: UpdateAttendanceData) => Promise<void>;
   fetchStatistics: (params: FetchStatisticsParams) => Promise<void>;
   clearError: () => void;
@@ -59,6 +60,18 @@ interface MarkAttendanceData {
   sessionId: string;
   status: "present" | "absent" | "late" | "excused";
   notes?: string;
+}
+
+interface TimetableAttendanceRecord {
+  studentId: string;
+  status: "present" | "absent" | "late" | "excused";
+}
+
+interface MarkTimetableAttendanceData {
+  classId: string;
+  date: string;
+  records: TimetableAttendanceRecord[];
+  note?: string;
 }
 
 interface UpdateAttendanceData {
@@ -112,6 +125,29 @@ export const useAttendanceStore = create<AttendanceState & AttendanceActions>(
           records: [...state.records, newRecord],
           isLoading: false,
         }));
+      } catch (error: any) {
+        const message = error.response?.data?.message || "Lỗi khi điểm danh";
+        set({ isLoading: false, error: message });
+        throw new Error(message);
+      }
+    },
+
+    markTimetableAttendance: async (data: MarkTimetableAttendanceData) => {
+      set({ isLoading: true, error: null });
+      try {
+        const response = await api.post("/attendance/timetable", data);
+        const newRecords =
+          response.data.attendanceRecords?.map((r: any) => ({
+            ...r,
+            id: r._id,
+          })) || [];
+
+        set((state) => ({
+          records: [...state.records, ...newRecords],
+          isLoading: false,
+        }));
+
+        return response.data;
       } catch (error: any) {
         const message = error.response?.data?.message || "Lỗi khi điểm danh";
         set({ isLoading: false, error: message });

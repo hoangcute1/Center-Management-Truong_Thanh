@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
@@ -30,7 +31,14 @@ export class ClassesController {
   }
 
   @Get()
-  findAll(@CurrentUser() user: UserDocument) {
+  findAll(
+    @CurrentUser() user: UserDocument,
+    @Query('studentId') studentId?: string,
+  ) {
+    // If studentId is provided (for parent viewing child's classes), use it
+    if (studentId) {
+      return this.classesService.findByStudentId(studentId);
+    }
     return this.classesService.findAllForUser(user);
   }
 
@@ -54,10 +62,7 @@ export class ClassesController {
   // Thêm 1 học sinh vào lớp
   @Post(':id/students')
   @Roles(UserRole.Admin)
-  addStudent(
-    @Param('id') id: string,
-    @Body('studentId') studentId: string,
-  ) {
+  addStudent(@Param('id') id: string, @Body('studentId') studentId: string) {
     return this.classesService.addStudentToClass(id, studentId);
   }
 

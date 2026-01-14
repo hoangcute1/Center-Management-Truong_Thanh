@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,12 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useAuthStore } from "@/lib/stores";
+import { useAuthStore, useBranchesStore } from "@/lib/stores";
 import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
@@ -51,7 +52,19 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [showBranchModal, setShowBranchModal] = useState(false);
   const { login, isLoading, error } = useAuthStore();
+  const {
+    branches,
+    selectedBranch,
+    fetchBranches,
+    selectBranch,
+    isLoading: branchesLoading,
+  } = useBranchesStore();
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -70,6 +83,103 @@ export default function LoginScreen() {
       Alert.alert("Đăng nhập thất bại", err.message);
     }
   };
+
+  // Branch selection modal
+  const BranchModal = () => (
+    <Modal
+      visible={showBranchModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowBranchModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Chọn cơ sở</Text>
+            <TouchableOpacity onPress={() => setShowBranchModal(false)}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.branchList}>
+            <TouchableOpacity
+              style={[
+                styles.branchItem,
+                !selectedBranch && styles.branchItemSelected,
+              ]}
+              onPress={() => {
+                selectBranch(null);
+                setShowBranchModal(false);
+              }}
+            >
+              <View style={styles.branchItemContent}>
+                <Ionicons
+                  name="globe-outline"
+                  size={20}
+                  color={!selectedBranch ? "#3B82F6" : "#6B7280"}
+                />
+                <Text
+                  style={[
+                    styles.branchItemText,
+                    !selectedBranch && styles.branchItemTextSelected,
+                  ]}
+                >
+                  Tất cả cơ sở
+                </Text>
+              </View>
+              {!selectedBranch && (
+                <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+              )}
+            </TouchableOpacity>
+
+            {branches.map((branch) => (
+              <TouchableOpacity
+                key={branch._id}
+                style={[
+                  styles.branchItem,
+                  selectedBranch?._id === branch._id &&
+                    styles.branchItemSelected,
+                ]}
+                onPress={() => {
+                  selectBranch(branch);
+                  setShowBranchModal(false);
+                }}
+              >
+                <View style={styles.branchItemContent}>
+                  <Ionicons
+                    name="business-outline"
+                    size={20}
+                    color={
+                      selectedBranch?._id === branch._id ? "#3B82F6" : "#6B7280"
+                    }
+                  />
+                  <View>
+                    <Text
+                      style={[
+                        styles.branchItemText,
+                        selectedBranch?._id === branch._id &&
+                          styles.branchItemTextSelected,
+                      ]}
+                    >
+                      {branch.name}
+                    </Text>
+                    {branch.address && (
+                      <Text style={styles.branchItemAddress}>
+                        {branch.address}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                {selectedBranch?._id === branch._id && (
+                  <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -102,8 +212,24 @@ export default function LoginScreen() {
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>Đăng nhập</Text>
             <Text style={styles.formSubtitle}>
-              Vui lòng chọn vai trò và nhập thông tin
+              Chọn cơ sở và nhập thông tin đăng nhập
             </Text>
+
+            {/* Branch Selector */}
+            <Text style={styles.sectionLabel}>Cơ sở</Text>
+            <TouchableOpacity
+              style={styles.branchSelector}
+              onPress={() => setShowBranchModal(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.branchSelectorContent}>
+                <Ionicons name="business-outline" size={20} color="#6B7280" />
+                <Text style={styles.branchSelectorText}>
+                  {selectedBranch?.name || "Tất cả cơ sở"}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
 
             {/* Role Selection */}
             <Text style={styles.sectionLabel}>Chọn vai trò</Text>
@@ -114,12 +240,17 @@ export default function LoginScreen() {
                 return (
                   <TouchableOpacity
                     key={role}
-                    style={[styles.roleCard, isSelected && styles.roleCardSelected]}
+                    style={[
+                      styles.roleCard,
+                      isSelected && styles.roleCardSelected,
+                    ]}
                     onPress={() => setSelectedRole(role)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
-                      colors={isSelected ? config.colors : ["#F3F4F6", "#E5E7EB"]}
+                      colors={
+                        isSelected ? config.colors : ["#F3F4F6", "#E5E7EB"]
+                      }
                       style={styles.roleIconBg}
                     >
                       <Ionicons
@@ -227,7 +358,11 @@ export default function LoginScreen() {
             {/* Help Links */}
             <View style={styles.helpLinks}>
               <TouchableOpacity style={styles.helpLink}>
-                <Ionicons name="help-circle-outline" size={18} color="#6B7280" />
+                <Ionicons
+                  name="help-circle-outline"
+                  size={18}
+                  color="#6B7280"
+                />
                 <Text style={styles.helpLinkText}>Trợ giúp</Text>
               </TouchableOpacity>
               <View style={styles.helpDivider} />
@@ -245,6 +380,9 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Branch Modal */}
+      <BranchModal />
     </SafeAreaView>
   );
 }
@@ -261,20 +399,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headerGradient: {
-    paddingTop: 40,
-    paddingBottom: 60,
+    paddingTop: 48,
+    paddingBottom: 64,
     paddingHorizontal: 24,
     alignItems: "center",
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
   },
   logoContainer: {
     marginBottom: 16,
   },
   logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
@@ -285,47 +423,69 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "bold",
     color: "#FFFFFF",
-    marginBottom: 6,
+    marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
   },
   formCard: {
     backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    marginTop: -32,
-    borderRadius: 24,
+    marginHorizontal: 20,
+    marginTop: -36,
+    borderRadius: 28,
     padding: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 10,
   },
   formTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#1F2937",
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   formSubtitle: {
     fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionLabel: {
     fontSize: 14,
     fontWeight: "600",
     color: "#374151",
-    marginBottom: 12,
+    marginBottom: 10,
+  },
+  branchSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+  branchSelectorContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  branchSelectorText: {
+    fontSize: 15,
+    color: "#1F2937",
+    fontWeight: "500",
   },
   roleGrid: {
     flexDirection: "row",
@@ -334,10 +494,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   roleCard: {
-    width: (width - 80) / 2,
+    width: (width - 92) / 2,
     backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     margin: 6,
     alignItems: "center",
     borderWidth: 2,
@@ -348,15 +508,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF6FF",
   },
   roleIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   roleLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
     color: "#6B7280",
   },
@@ -367,7 +527,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#374151",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   inputContainer: {
     flexDirection: "row",
@@ -378,7 +538,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     marginBottom: 16,
     paddingHorizontal: 16,
-    height: 54,
+    height: 56,
   },
   inputIcon: {
     marginRight: 12,
@@ -393,7 +553,7 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: "flex-end",
-    marginBottom: 20,
+    marginBottom: 24,
     marginTop: -8,
   },
   forgotPasswordText: {
@@ -402,22 +562,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   loginButton: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: "hidden",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   loginGradient: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 18,
+    gap: 10,
   },
   loginButtonDisabled: {
     opacity: 0.7,
   },
   loginButtonText: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#FFFFFF",
   },
@@ -430,7 +590,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     gap: 6,
   },
   helpLinkText: {
@@ -444,7 +604,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: "center",
-    paddingVertical: 24,
+    paddingVertical: 28,
     paddingHorizontal: 16,
   },
   footerText: {
@@ -455,5 +615,71 @@ const styles = StyleSheet.create({
   footerVersion: {
     fontSize: 12,
     color: "#9CA3AF",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: "70%",
+    paddingBottom: Platform.OS === "ios" ? 40 : 24,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  branchList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  branchItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 14,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  branchItemSelected: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#3B82F6",
+  },
+  branchItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    flex: 1,
+  },
+  branchItemText: {
+    fontSize: 16,
+    color: "#1F2937",
+    fontWeight: "500",
+  },
+  branchItemTextSelected: {
+    color: "#3B82F6",
+    fontWeight: "600",
+  },
+  branchItemAddress: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 2,
   },
 });

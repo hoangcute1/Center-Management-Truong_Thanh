@@ -345,4 +345,25 @@ export class UsersService {
 
     return children;
   }
+
+  // Tìm child bằng email cho parent
+  async findChildByEmail(
+    email: string,
+    currentUser: UserDocument,
+  ): Promise<User | null> {
+    // Nếu là parent, chỉ cho phép tìm nếu email trùng với childEmail của họ
+    if (currentUser.role === UserRole.Parent) {
+      if (currentUser.childEmail?.toLowerCase() !== email.toLowerCase()) {
+        return null;
+      }
+    }
+
+    return this.userModel
+      .findOne({
+        email: email.toLowerCase().trim(),
+        role: UserRole.Student,
+      })
+      .select('-passwordHash')
+      .exec();
+  }
 }

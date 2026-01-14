@@ -18,6 +18,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { User } from './schemas/user.schema';
+import type { UserDocument } from './schemas/user.schema';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -75,9 +76,29 @@ export class UsersController {
 
   // Lấy thông tin con của phụ huynh
   @Get('parent/:parentId/children')
-  @Roles(UserRole.Admin)
-  getParentChildren(@Param('parentId') parentId: string) {
+  @Roles(UserRole.Admin, UserRole.Parent)
+  getParentChildren(
+    @Param('parentId') parentId: string,
+    @CurrentUser() currentUser: UserDocument,
+  ) {
+    // Parent chỉ có thể xem con của chính mình
+    if (
+      currentUser.role === UserRole.Parent &&
+      currentUser._id.toString() !== parentId
+    ) {
+      return { children: [] };
+    }
     return this.usersService.getParentChildren(parentId);
+  }
+
+  // Cho phép parent tìm child bằng email
+  @Get('child-by-email')
+  @Roles(UserRole.Admin, UserRole.Parent)
+  findChildByEmail(
+    @Query('email') email: string,
+    @CurrentUser() currentUser: UserDocument,
+  ) {
+    return this.usersService.findChildByEmail(email, currentUser);
   }
 
   @Get(':id')

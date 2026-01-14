@@ -1,9 +1,30 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
-const API_BASE_URL =
-  Constants.expoConfig?.extra?.apiUrl || "http://localhost:3000";
+// For Android emulator, localhost should be 10.0.2.2
+// For iOS simulator, localhost works
+// For real devices, need to use actual IP address
+const getBaseUrl = () => {
+  const configUrl = Constants.expoConfig?.extra?.apiUrl;
+
+  if (configUrl && !configUrl.includes("localhost")) {
+    return configUrl;
+  }
+
+  // Default development URLs
+  if (__DEV__) {
+    if (Platform.OS === "android") {
+      return "http://10.0.2.2:3000"; // Android emulator
+    }
+    return "http://localhost:3000"; // iOS simulator
+  }
+
+  return configUrl || "http://localhost:3000";
+};
+
+const API_BASE_URL = getBaseUrl();
 
 // Create axios instance with default config
 export const api = axios.create({
@@ -11,7 +32,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000,
+  timeout: 15000,
 });
 
 // Helper functions for SecureStore

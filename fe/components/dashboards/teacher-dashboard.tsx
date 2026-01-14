@@ -447,6 +447,249 @@ function AttendanceModal({
   );
 }
 
+// Helper function to check if current time is within class schedule time
+function isWithinClassTime(
+  scheduleDate: Date,
+  startTime: string,
+  endTime: string
+): boolean {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const schedDay = new Date(
+    scheduleDate.getFullYear(),
+    scheduleDate.getMonth(),
+    scheduleDate.getDate()
+  );
+
+  // Check if same day
+  if (today.getTime() !== schedDay.getTime()) {
+    return false;
+  }
+
+  // Parse times
+  const [startHour, startMin] = startTime.split(":").map(Number);
+  const [endHour, endMin] = endTime.split(":").map(Number);
+
+  const currentHour = now.getHours();
+  const currentMin = now.getMinutes();
+
+  const currentMinutes = currentHour * 60 + currentMin;
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+
+  // Allow 15 minutes before and after class time
+  return (
+    currentMinutes >= startMinutes - 15 && currentMinutes <= endMinutes + 15
+  );
+}
+
+function TimetableAttendanceModal({
+  schedule,
+  classData,
+  fullDate,
+  onClose,
+  onSave,
+}: {
+  schedule: {
+    classId: string;
+    className: string;
+    subject: string;
+    startTime: string;
+    endTime: string;
+    room?: string;
+  };
+  classData: Class;
+  fullDate: Date;
+  onClose: () => void;
+  onSave: (records: AttendanceRow[], note: string) => Promise<void>;
+}) {
+  const students = classData.students || [];
+  const [rows, setRows] = useState<AttendanceRow[]>(
+    students.map((s) => ({
+      studentId: s._id,
+      name: s.name,
+      email: s.email,
+      status: null,
+    }))
+  );
+  const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const canEdit = isWithinClassTime(
+    fullDate,
+    schedule.startTime,
+    schedule.endTime
+  );
+
+  const attended = rows.filter(
+    (r) => r.status === "present" || r.status === "late"
+  ).length;
+  const absent = rows.filter((r) => r.status === "absent").length;
+
+  const update = (studentId: string, value: AttendanceRow["status"]) => {
+    if (!canEdit) return;
+    setRows(
+      rows.map((r) => (r.studentId === studentId ? { ...r, status: value } : r))
+    );
+  };
+
+  const handleSave = async () => {
+    if (!canEdit) return;
+    setIsSaving(true);
+    try {
+      await onSave(rows, note);
+      onClose();
+    } catch (error) {
+      console.error("Error saving attendance:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Format date
+  const formattedDate = fullDate.toLocaleDateString("vi-VN", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 bg-white">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Điểm danh</h2>
+            <p className="text-sm text-gray-600">
+              {schedule.className} - {formattedDate}
+            </p>
+            <p className="text-sm text-gray-500">
+              {schedule.startTime} - {schedule.endTime}
+              {schedule.room && ` | Phòng: ${schedule.room}`}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ×
+          </button>
+        </div>
+
+        {!canEdit && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800">
+              ⚠️ Chỉ có thể điểm danh trong thời gian học ({schedule.startTime}{" "}
+              - {schedule.endTime}). Hiện tại ngoài giờ học nên không thể chỉnh
+              sửa.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <Card className="p-3 bg-blue-50 border-blue-100 text-center">
+            <p className="text-sm text-gray-600">Tổng học sinh</p>
+            <p className="text-2xl font-bold text-gray-900">{rows.length}</p>
+          </Card>
+          <Card className="p-3 bg-green-50 border-green-100 text-center">
+            <p className="text-sm text-gray-600">Có mặt</p>
+            <p className="text-2xl font-bold text-green-700">{attended}</p>
+          </Card>
+          <Card className="p-3 bg-red-50 border-red-100 text-center">
+            <p className="text-sm text-gray-600">Vắng mặt</p>
+            <p className="text-2xl font-bold text-red-600">{absent}</p>
+          </Card>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            Lớp học chưa có học sinh nào
+          </div>
+        ) : (
+          <div className="space-y-3 mb-4">
+            {rows.map((r) => (
+              <div
+                key={r.studentId}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
+                  !canEdit ? "opacity-60" : ""
+                }`}
+              >
+                <div className="space-y-1">
+                  <p className="font-medium text-gray-900">{r.name}</p>
+                  <p className="text-xs text-gray-500">{r.email}</p>
+                </div>
+                <div className="flex gap-2 text-sm">
+                  <Button
+                    variant={r.status === "present" ? "solid" : "outline"}
+                    className={
+                      r.status === "present"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : ""
+                    }
+                    onClick={() => update(r.studentId, "present")}
+                    disabled={!canEdit}
+                  >
+                    ✓ Có mặt
+                  </Button>
+                  <Button
+                    variant={r.status === "absent" ? "solid" : "outline"}
+                    className={
+                      r.status === "absent" ? "bg-red-500 hover:bg-red-600" : ""
+                    }
+                    onClick={() => update(r.studentId, "absent")}
+                    disabled={!canEdit}
+                  >
+                    ✕ Vắng
+                  </Button>
+                  <Button
+                    variant={r.status === "late" ? "solid" : "outline"}
+                    className={
+                      r.status === "late"
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : ""
+                    }
+                    onClick={() => update(r.studentId, "late")}
+                    disabled={!canEdit}
+                  >
+                    Đi muộn
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mb-4">
+          <p className="text-sm font-semibold text-gray-900 mb-2">
+            Ghi chú buổi học
+          </p>
+          <textarea
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            rows={3}
+            placeholder="Ghi chú về buổi học, nội dung dạy, bài tập giao, v.v..."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            disabled={!canEdit}
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <Button
+            className="flex-1 bg-green-600 hover:bg-green-700"
+            onClick={handleSave}
+            disabled={isSaving || rows.length === 0 || !canEdit}
+          >
+            {isSaving ? "Đang lưu..." : "Lưu điểm danh"}
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Đóng
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
@@ -605,6 +848,18 @@ export default function TeacherDashboard({
     session: Session;
     classData: Class;
   } | null>(null);
+  const [timetableAttendance, setTimetableAttendance] = useState<{
+    schedule: {
+      classId: string;
+      className: string;
+      subject: string;
+      startTime: string;
+      endTime: string;
+      room?: string;
+    };
+    classData: Class;
+    fullDate: Date;
+  } | null>(null);
   const [showEvaluation, setShowEvaluation] = useState(false);
 
   // Stores
@@ -618,14 +873,14 @@ export default function TeacherDashboard({
     fetchTeacherSchedule,
     isLoading: scheduleLoading,
   } = useScheduleStore();
-  const { markAttendance } = useAttendanceStore();
+  const { markAttendance, markTimetableAttendance } = useAttendanceStore();
 
   // Fetch data on mount
   useEffect(() => {
     // Fetch classes taught by this teacher
     fetchClasses({ teacherId: user.id });
 
-    // Fetch schedule for this week
+    // Fetch schedule for this week (sessions)
     const { startDate, endDate } = getWeekRange();
     fetchTeacherSchedule(user.id, startDate, endDate);
   }, [user.id, fetchClasses, fetchTeacherSchedule]);
@@ -637,8 +892,8 @@ export default function TeacherDashboard({
     }
   }, [classes, selectedClass]);
 
-  // Group sessions by day of week
-  const scheduleByDay = useMemo(() => {
+  // Build timetable from class schedules (thời khoá biểu)
+  const timetableByDay = useMemo(() => {
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday
 
@@ -648,14 +903,35 @@ export default function TeacherDashboard({
       date.setDate(weekStart.getDate() + i);
       const dayIndex = date.getDay();
 
-      const daySessions = sessions.filter((s) => {
-        const sessionDate = new Date(s.startTime);
-        return (
-          sessionDate.getDate() === date.getDate() &&
-          sessionDate.getMonth() === date.getMonth() &&
-          sessionDate.getFullYear() === date.getFullYear()
-        );
+      // Find all class schedules for this day
+      const daySchedules: Array<{
+        classId: string;
+        className: string;
+        subject: string;
+        startTime: string;
+        endTime: string;
+        room?: string;
+      }> = [];
+
+      classes.forEach((cls) => {
+        if (cls.schedule && cls.schedule.length > 0) {
+          cls.schedule.forEach((sch) => {
+            if (sch.dayOfWeek === dayIndex) {
+              daySchedules.push({
+                classId: cls._id,
+                className: cls.name,
+                subject: cls.subject || "Chưa xác định",
+                startTime: sch.startTime,
+                endTime: sch.endTime,
+                room: sch.room,
+              });
+            }
+          });
+        }
       });
+
+      // Sort by start time
+      daySchedules.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
       days.push({
         day: dayNames[dayIndex],
@@ -663,7 +939,7 @@ export default function TeacherDashboard({
           day: "2-digit",
           month: "2-digit",
         }),
-        sessions: daySessions,
+        schedules: daySchedules,
         fullDate: date,
       });
     }
@@ -671,7 +947,12 @@ export default function TeacherDashboard({
     // Reorder so Monday is first
     const mondayIndex = days.findIndex((d) => d.day === "THỨ HAI");
     return [...days.slice(mondayIndex), ...days.slice(0, mondayIndex)];
-  }, [sessions]);
+  }, [classes]);
+
+  // Count total weekly sessions from timetable
+  const totalWeeklySchedules = useMemo(() => {
+    return timetableByDay.reduce((sum, day) => sum + day.schedules.length, 0);
+  }, [timetableByDay]);
 
   // Overview statistics
   const overviewCards = useMemo(() => {
@@ -679,7 +960,6 @@ export default function TeacherDashboard({
       (sum, c) => sum + (c.studentIds?.length || 0),
       0
     );
-    const weekSessions = sessions.length;
 
     return [
       {
@@ -698,7 +978,7 @@ export default function TeacherDashboard({
       },
       {
         label: "Buổi dạy tuần",
-        value: weekSessions,
+        value: totalWeeklySchedules,
         note: "Tiết học",
         icon: "📅",
         color: "from-amber-500 to-orange-500",
@@ -711,22 +991,18 @@ export default function TeacherDashboard({
         color: "from-purple-500 to-purple-600",
       },
     ];
-  }, [classes, sessions]);
+  }, [classes, totalWeeklySchedules]);
 
   // Bar data for chart
   const barData = useMemo(() => {
-    return scheduleByDay.slice(0, 5).map((d) => ({
+    return timetableByDay.slice(0, 5).map((d) => ({
       day: d.day.replace("THỨ ", "T"),
-      students: d.sessions.reduce((sum, s) => {
-        const cls = classes.find((c) => {
-          const classId =
-            typeof s.classId === "object" ? s.classId._id : s.classId;
-          return c._id === classId;
-        });
+      students: d.schedules.reduce((sum, sch) => {
+        const cls = classes.find((c) => c._id === sch.classId);
         return sum + (cls?.studentIds?.length || 0);
       }, 0),
     }));
-  }, [scheduleByDay, classes]);
+  }, [timetableByDay, classes]);
 
   // Handle attendance save
   const handleSaveAttendance = async (
@@ -772,6 +1048,84 @@ export default function TeacherDashboard({
           category: "attendance",
         });
       }
+    }
+  };
+
+  // Handle timetable attendance save
+  const handleSaveTimetableAttendance = async (
+    records: AttendanceRow[],
+    note: string
+  ) => {
+    if (!timetableAttendance) return;
+
+    const { schedule, classData, fullDate } = timetableAttendance;
+
+    // Check time restriction
+    if (!isWithinClassTime(fullDate, schedule.startTime, schedule.endTime)) {
+      alert(
+        "❌ Đã hết giờ điểm danh!\n\nBạn chỉ có thể điểm danh trong khoảng thời gian buổi học (±15 phút)."
+      );
+      return;
+    }
+
+    try {
+      // Filter records that have status
+      const attendanceRecords = records
+        .filter((r) => r.status)
+        .map((r) => ({
+          studentId: r.studentId,
+          status: r.status!,
+        }));
+
+      if (attendanceRecords.length === 0) {
+        alert(
+          "⚠️ Vui lòng chọn trạng thái điểm danh cho ít nhất một học sinh."
+        );
+        return;
+      }
+
+      // Use new timetable attendance API
+      await markTimetableAttendance({
+        classId: classData._id,
+        date: fullDate.toISOString(),
+        records: attendanceRecords,
+        note: note || undefined,
+      });
+
+      // Send notifications to students
+      for (const record of records) {
+        if (record.status) {
+          const statusText =
+            record.status === "present"
+              ? "có mặt"
+              : record.status === "absent"
+              ? "vắng mặt"
+              : record.status === "late"
+              ? "đi muộn"
+              : "được phép nghỉ";
+
+          try {
+            await api.post("/notifications", {
+              userId: record.studentId,
+              title: "Điểm danh buổi học",
+              message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+                schedule.className
+              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              type: record.status === "absent" ? "warning" : "info",
+              category: "attendance",
+            });
+          } catch (notifError) {
+            console.error("Error sending notification:", notifError);
+          }
+        }
+      }
+
+      alert("✅ Điểm danh thành công!");
+      setTimetableAttendance(null);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.message || "Lỗi khi điểm danh";
+      alert(`❌ Lỗi: ${errorMessage}`);
     }
   };
 
@@ -1085,16 +1439,21 @@ export default function TeacherDashboard({
 
           <TabsContent value="schedule" className="mt-6">
             <Card className="p-5 space-y-4">
-              <p className="font-semibold text-gray-900 text-lg">
-                Lịch dạy tuần này
-              </p>
-              {scheduleLoading ? (
+              <div className="flex justify-between items-center">
+                <p className="font-semibold text-gray-900 text-lg">
+                  Thời khoá biểu tuần này
+                </p>
+                <p className="text-sm text-gray-500">
+                  Click vào tiết học để điểm danh
+                </p>
+              </div>
+              {classesLoading ? (
                 <div className="text-center py-8 text-gray-500">
                   Đang tải lịch dạy...
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                  {scheduleByDay.map((day) => (
+                  {timetableByDay.map((day) => (
                     <div
                       key={day.day}
                       className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col"
@@ -1108,76 +1467,63 @@ export default function TeacherDashboard({
                         </p>
                       </div>
 
-                      {day.sessions.length === 0 ? (
+                      {day.schedules.length === 0 ? (
                         <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
                           -
                         </div>
                       ) : (
                         <div className="flex-1 p-3 space-y-3">
-                          {day.sessions.map((s) => {
-                            const style = statusStyle(s.status);
-                            const classData = getSessionClass(s);
-                            const className =
-                              typeof s.classId === "object"
-                                ? s.classId.name
-                                : classData?.name || "Chưa xác định";
-                            const startTime = new Date(
-                              s.startTime
-                            ).toLocaleTimeString("vi-VN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            });
-                            const endTime = new Date(
-                              s.endTime
-                            ).toLocaleTimeString("vi-VN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            });
+                          {day.schedules.map((sch, idx) => {
+                            const classData = classes.find(
+                              (c) => c._id === sch.classId
+                            );
+                            const canAttend = isWithinClassTime(
+                              day.fullDate,
+                              sch.startTime,
+                              sch.endTime
+                            );
 
                             return (
                               <div
-                                key={s._id}
-                                className="rounded-lg border border-gray-200 bg-white p-3 space-y-2 text-center shadow-sm"
+                                key={`${sch.classId}-${idx}`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                  canAttend ? "ring-2 ring-green-400" : ""
+                                }`}
+                                onClick={() => {
+                                  if (classData) {
+                                    setTimetableAttendance({
+                                      schedule: sch,
+                                      classData,
+                                      fullDate: day.fullDate,
+                                    });
+                                  }
+                                }}
                               >
                                 <div className="text-sm font-semibold text-blue-700">
-                                  {className}
+                                  {sch.className}
                                 </div>
-                                {s.subject && (
-                                  <div className="text-xs text-gray-600">
-                                    {s.subject}
+                                <div className="text-xs text-gray-600">
+                                  {sch.subject}
+                                </div>
+                                {sch.room && (
+                                  <div className="text-xs text-gray-500">
+                                    📍 {sch.room}
                                   </div>
                                 )}
-                                {s.room && (
-                                  <div className="text-xs text-gray-600">
-                                    {s.room}
+                                <div className="text-xs text-gray-800 font-medium bg-white rounded-md py-1 px-2">
+                                  🕐 {sch.startTime} - {sch.endTime}
+                                </div>
+                                {classData && (
+                                  <div className="text-xs text-gray-500">
+                                    👥 {classData.studentIds?.length || 0} học
+                                    sinh
                                   </div>
                                 )}
-                                <div className="text-xs text-gray-800 font-medium">
-                                  {startTime} - {endTime}
-                                </div>
-                                <div className="space-y-2 pt-1">
-                                  <Button
-                                    className={`w-full text-sm rounded-lg ${style.className}`}
-                                    variant="solid"
-                                  >
-                                    {style.label}
-                                  </Button>
-                                  {classData &&
-                                    s.status === SessionStatus.Approved && (
-                                      <Button
-                                        variant="outline"
-                                        className="w-full text-xs"
-                                        onClick={() =>
-                                          setAttendanceSession({
-                                            session: s,
-                                            classData,
-                                          })
-                                        }
-                                      >
-                                        Điểm danh
-                                      </Button>
-                                    )}
-                                </div>
+                                {canAttend && (
+                                  <div className="text-xs text-green-600 font-medium">
+                                    ✅ Đang trong giờ học
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -1408,6 +1754,15 @@ export default function TeacherDashboard({
           classData={attendanceSession.classData}
           onClose={() => setAttendanceSession(null)}
           onSave={handleSaveAttendance}
+        />
+      )}
+      {timetableAttendance && (
+        <TimetableAttendanceModal
+          schedule={timetableAttendance.schedule}
+          classData={timetableAttendance.classData}
+          fullDate={timetableAttendance.fullDate}
+          onClose={() => setTimetableAttendance(null)}
+          onSave={handleSaveTimetableAttendance}
         />
       )}
       {showEvaluation && (

@@ -65,6 +65,12 @@ export class ClassesService {
         .populate('studentIds', 'name email role branchId')
         .exec();
     }
+    if (user.role === UserRole.Parent) {
+      // Parent should use findByStudentId with their child's ID
+      // Return empty array - parent must use studentId query param
+      return [];
+    }
+    // Student role
     return this.classModel
       .find({ studentIds: { $in: [new Types.ObjectId(user._id)] } })
       .populate('teacherId', 'name email')
@@ -253,5 +259,15 @@ export class ClassesService {
       .exec();
 
     return this.findOne(classId);
+  }
+
+  // Lấy danh sách lớp của một học sinh (dùng cho parent xem con)
+  async findByStudentId(studentId: string): Promise<ClassEntity[]> {
+    return this.classModel
+      .find({ studentIds: { $in: [new Types.ObjectId(studentId)] } })
+      .populate('teacherId', 'name email')
+      .populate('branchId', 'name')
+      .populate('studentIds', 'name email role branchId')
+      .exec();
   }
 }

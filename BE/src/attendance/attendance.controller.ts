@@ -11,6 +11,7 @@ import {
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
+import { TimetableAttendanceDto } from './dto/timetable-attendance.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -29,6 +30,16 @@ export class AttendanceController {
     return this.attendanceService.mark(user, dto);
   }
 
+  // New endpoint for timetable-based attendance
+  @Post('timetable')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  markFromTimetable(
+    @CurrentUser() user: UserDocument,
+    @Body() dto: TimetableAttendanceDto,
+  ) {
+    return this.attendanceService.markFromTimetable(user, dto);
+  }
+
   @Get()
   list(
     @Query('sessionId') sessionId?: string,
@@ -37,6 +48,11 @@ export class AttendanceController {
     if (sessionId) return this.attendanceService.listBySession(sessionId);
     if (studentId) return this.attendanceService.listByStudent(studentId);
     return [];
+  }
+
+  @Get('statistics')
+  getStatistics(@Query('studentId') studentId: string) {
+    return this.attendanceService.getStatistics(studentId);
   }
 
   @Patch(':id')

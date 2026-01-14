@@ -19,6 +19,17 @@ import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useParentDashboardStore } from "@/lib/stores/parent-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
+// Day names for schedule
+const dayNames = [
+  "CHỦ NHẬT",
+  "THỨ HAI",
+  "THỨ BA",
+  "THỨ TƯ",
+  "THỨ NĂM",
+  "THỨ SÁU",
+  "THỨ BẢY",
+];
+
 interface ParentDashboardProps {
   user: { id: string; name: string; email: string; role: string };
   onLogout: () => void;
@@ -400,6 +411,82 @@ export default function ParentDashboard({
       ]
     : overviewStats;
 
+  // Build timetable from classes (child's enrolled classes)
+  const timetableByDay = useMemo(() => {
+    if (!dashboardData?.classes?.length) return [];
+
+    // Group all schedule entries by dayOfWeek
+    const scheduleMap = new Map<
+      number,
+      Array<{
+        classInfo: (typeof dashboardData.classes)[0];
+        schedule: {
+          dayOfWeek: number;
+          startTime: string;
+          endTime: string;
+          room?: string;
+        };
+      }>
+    >();
+
+    dashboardData.classes.forEach((classItem) => {
+      const scheduleArray = (classItem as any).schedule || [];
+      scheduleArray.forEach(
+        (sched: {
+          dayOfWeek: number;
+          startTime: string;
+          endTime: string;
+          room?: string;
+        }) => {
+          const day = sched.dayOfWeek;
+          if (!scheduleMap.has(day)) {
+            scheduleMap.set(day, []);
+          }
+          scheduleMap.get(day)!.push({
+            classInfo: classItem,
+            schedule: sched,
+          });
+        }
+      );
+    });
+
+    // Convert to array sorted by dayOfWeek (0-6)
+    const result: Array<{
+      dayOfWeek: number;
+      dayName: string;
+      items: Array<{
+        classId: string;
+        className: string;
+        classCode: string;
+        teacherName: string;
+        startTime: string;
+        endTime: string;
+        room?: string;
+      }>;
+    }> = [];
+
+    for (let day = 0; day < 7; day++) {
+      const items = scheduleMap.get(day) || [];
+      result.push({
+        dayOfWeek: day,
+        dayName: dayNames[day],
+        items: items.map((item) => ({
+          classId: item.classInfo._id,
+          className: item.classInfo.name,
+          classCode:
+            item.classInfo.code ||
+            item.classInfo.name.substring(0, 7).toUpperCase(),
+          teacherName: item.classInfo.teacherName,
+          startTime: item.schedule.startTime,
+          endTime: item.schedule.endTime,
+          room: item.schedule.room,
+        })),
+      });
+    }
+
+    return result;
+  }, [dashboardData?.classes]);
+
   // Weekly schedule with attendance
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
     ? dashboardData.upcomingSessions.slice(0, 7).map((s, idx) => {
@@ -608,49 +695,104 @@ export default function ParentDashboard({
           <TabsContent value="schedule" className="mt-6">
             <Card className="p-5 space-y-4">
               <p className="font-semibold text-gray-900 text-lg">
-                Lịch học tuần này
+                Thời khóa biểu của con
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                {scheduleWithAttendance.map((item, idx) => (
-                  <div
-                    key={`${item.day}-${idx}`}
-                    className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col"
-                  >
-                    <div className="bg-blue-600 text-white px-3 py-2 text-center">
-                      <p className="text-xs font-semibold leading-tight">
-                        {item.day}
-                      </p>
-                      <p className="text-[11px] opacity-80 leading-tight">
-                        {item.date}
-                      </p>
-                    </div>
-
-                    {item.status === "empty" ? (
-                      <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
-                        -
+              {timetableByDay.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                  {timetableByDay.map((dayData) => (
+                    <div
+                      key={dayData.dayOfWeek}
+                      className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[200px]"
+                    >
+                      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-2 text-center">
+                        <p className="text-xs font-semibold leading-tight">
+                          {dayData.dayName}
+                        </p>
                       </div>
-                    ) : (
-                      <div className="flex-1 p-3 space-y-2 text-center">
-                        <div className="text-sm font-semibold text-blue-700">
-                          {item.code}
+
+                      {dayData.items.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
+                          Không có lịch
                         </div>
-                        <div className="text-xs text-gray-600">
-                          tại {item.room}
+                      ) : (
+                        <div className="flex-1 p-2 space-y-2">
+                          {dayData.items.map((item, idx) => (
+                            <div
+                              key={`${item.classId}-${idx}`}
+                              className="rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-2 space-y-1 hover:shadow-md transition-shadow"
+                            >
+                              <div className="text-xs font-bold text-blue-700 truncate">
+                                {item.classCode}
+                              </div>
+                              <div className="text-[10px] text-gray-600 truncate">
+                                {item.className}
+                              </div>
+                              <div className="text-[10px] font-medium text-gray-800">
+                                {item.startTime} - {item.endTime}
+                              </div>
+                              {item.room && (
+                                <div className="text-[10px] text-gray-500">
+                                  {item.room}
+                                </div>
+                              )}
+                              <div className="text-[10px] text-indigo-600 truncate">
+                                {item.teacherName}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-xs text-gray-800 font-medium">
-                          {item.time}
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-4xl mb-4">📅</p>
+                  <p className="font-medium">Chưa có lịch học</p>
+                  <p className="text-sm mt-2">
+                    Con chưa được xếp lịch học vào lớp nào
+                  </p>
+                </div>
+              )}
+            </Card>
+
+            {/* Session-based schedule with attendance info */}
+            {scheduleWithAttendance.length > 0 && (
+              <Card className="p-5 space-y-4 mt-4">
+                <p className="font-semibold text-gray-900 text-lg">
+                  Các buổi học sắp tới
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                  {scheduleWithAttendance.slice(0, 7).map((item, idx) => (
+                    <div
+                      key={`${item.day}-${idx}`}
+                      className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col"
+                    >
+                      <div className="bg-emerald-600 text-white px-3 py-2 text-center">
+                        <p className="text-xs font-semibold leading-tight">
+                          {item.day}
+                        </p>
+                        <p className="text-[11px] opacity-80 leading-tight">
+                          {item.date}
+                        </p>
+                      </div>
+
+                      {item.status === "empty" ? (
+                        <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
+                          -
                         </div>
-                        <div className="text-xs text-gray-600">
-                          {item.teacher}
-                        </div>
-                        <div className="space-y-2 pt-1">
-                          <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm rounded-lg">
-                            Xem tài liệu
-                          </Button>
+                      ) : (
+                        <div className="flex-1 p-3 space-y-2 text-center">
+                          <div className="text-sm font-semibold text-emerald-700">
+                            {item.code}
+                          </div>
+                          <div className="text-xs text-gray-800 font-medium">
+                            {item.time}
+                          </div>
                           {/* Attendance Status */}
                           {item.attendanceStatus ? (
                             <div
-                              className={`w-full text-sm rounded-lg py-2 px-3 font-medium text-center ${
+                              className={`w-full text-xs rounded-lg py-1.5 px-2 font-medium text-center ${
                                 item.attendanceStatus === "present"
                                   ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
                                   : item.attendanceStatus === "absent"
@@ -661,26 +803,23 @@ export default function ParentDashboard({
                               }`}
                             >
                               {item.attendanceStatus === "present" &&
-                                "✅ Đã điểm danh"}
-                              {item.attendanceStatus === "absent" &&
-                                "❌ Nghỉ học"}
-                              {item.attendanceStatus === "late" && "⏰ Đi muộn"}
-                              {item.attendanceStatus === "excused" &&
-                                "📝 Nghỉ phép"}
+                                "✅ Có mặt"}
+                              {item.attendanceStatus === "absent" && "❌ Vắng"}
+                              {item.attendanceStatus === "late" && "⏰ Muộn"}
+                              {item.attendanceStatus === "excused" && "📝 Phép"}
                             </div>
-                          ) : item.status === "confirmed" ||
-                            item.status === "pending" ? (
-                            <div className="w-full text-sm rounded-lg py-2 px-3 font-medium text-center bg-gray-100 text-gray-500 border border-gray-200">
+                          ) : (
+                            <div className="w-full text-xs rounded-lg py-1.5 px-2 font-medium text-center bg-gray-100 text-gray-500 border border-gray-200">
                               ⏳ Chưa điểm danh
                             </div>
-                          ) : null}
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="progress" className="mt-6">

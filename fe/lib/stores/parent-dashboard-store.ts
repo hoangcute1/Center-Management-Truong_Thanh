@@ -98,13 +98,13 @@ export const useParentDashboardStore = create<
       let childInfo: ChildInfo | null = null;
 
       if (childEmail) {
-        // If childEmail is provided, find the child
+        // If childEmail is provided, find the child using new endpoint
         try {
-          const childRes = await api.get("/users", {
-            params: { email: childEmail, role: "student" },
+          const childRes = await api.get("/users/child-by-email", {
+            params: { email: childEmail },
           });
-          if (childRes.data?.users?.length > 0) {
-            const child = childRes.data.users[0];
+          if (childRes.data) {
+            const child = childRes.data;
             childId = child._id;
             childInfo = {
               _id: child._id,
@@ -257,8 +257,8 @@ export const useParentDashboardStore = create<
             name: c.name,
             description: c.description,
             subject: c.subject,
-            teacherName: c.teacher?.name || "N/A",
-            teacherId: c.teacher?._id || c.teacherId,
+            teacherName: c.teacherId?.name || c.teacher?.name || "N/A",
+            teacherId: c.teacherId?._id || c.teacher?._id || c.teacherId,
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
           })),
