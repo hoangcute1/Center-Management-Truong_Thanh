@@ -36,10 +36,11 @@ async function bootstrap() {
   server.get('/', (_req, res) => res.redirect('/api/docs'));
 
   const port = Number(process.env.PORT) || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0'); // Listen on all network interfaces
   const logger = new Logger('Bootstrap');
   logger.log(`Swagger UI: http://localhost:${port}/api/docs`);
   logger.log(`OpenAPI JSON: http://localhost:${port}/api-json`);
   logger.log(`Root redirect: http://localhost:${port}/`);
+  logger.log(`Network access: http://192.168.101.87:${port}/`);
 }
 bootstrap();

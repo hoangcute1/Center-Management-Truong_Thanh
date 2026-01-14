@@ -15,9 +15,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { useAuthStore, useBranchesStore } from "@/lib/stores";
 import { Ionicons } from "@expo/vector-icons";
+import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
 
@@ -53,7 +55,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [showBranchModal, setShowBranchModal] = useState(false);
-  const { login, isLoading, error } = useAuthStore();
+  const { login, logout, isLoading, error, clearError } = useAuthStore();
   const {
     branches,
     selectedBranch,
@@ -61,26 +63,139 @@ export default function LoginScreen() {
     selectBranch,
     isLoading: branchesLoading,
   } = useBranchesStore();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(
+    null
+  );
 
   useEffect(() => {
-    fetchBranches();
-  }, []);
+    fetchBranches().catch(() => {
+      // lỗi đã được hiển thị thông qua store
+    });
+  }, [fetchBranches]);
+
+  useEffect(() => {
+    if (error) {
+      setFormError(error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
 
   const handleLogin = async () => {
-    if (!email.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập email");
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail) {
+      const message = "Vui lòng nhập email";
+      setFormError(message);
+      Alert.alert("Thiếu thông tin", message);
       return;
     }
-    if (!password.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập mật khẩu");
+
+    if (!trimmedPassword) {
+      const message = "Vui lòng nhập mật khẩu";
+      setFormError(message);
+      Alert.alert("Thiếu thông tin", message);
+      return;
+    }
+
+    if (!selectedRole) {
+      const message = "Vui lòng chọn vai trò đăng nhập";
+      setFormError(message);
+      Alert.alert("Thiếu thông tin", message);
+      return;
+    }
+
+    if (!selectedBranch && selectedRole !== "admin") {
+      const message = "Vui lòng chọn cơ sở của bạn";
+      setFormError(message);
+      Alert.alert("Thiếu thông tin", message);
       return;
     }
 
     try {
-      await login(email.trim(), password);
+      setFormError(null);
+      clearError();
+      console.log("[LOGIN] Starting login process...");
+      console.log("[LOGIN] Email:", trimmedEmail);
+      console.log("[LOGIN] Role:", selectedRole);
+      console.log("[LOGIN] Branch:", selectedBranch?._id);
+
+      // Optional server-side validation similar to web
+      if (selectedBranch) {
+        try {
+          console.log("[LOGIN] Validating with server...");
+          const validation = await api.post("/auth/validate-login", {
+            email: trimmedEmail,
+            role: selectedRole,
+            branchId: selectedBranch._id,
+          });
+          console.log("[LOGIN] Validation response:", validation.data);
+
+          if (validation.data && validation.data.valid === false) {
+            const validationMessage =
+              validation.data.errors?.join("\n") ||
+              "Thông tin đăng nhập chưa khớp với cơ sở đã chọn";
+            setFormError(validationMessage);
+            Alert.alert("Không thể đăng nhập", validationMessage);
+            return;
+          }
+        } catch (validationError: any) {
+          // Bỏ qua lỗi validation để tiếp tục đăng nhập, sẽ được xử lý phía dưới
+          console.log(
+            "[LOGIN] Validation error (ignored):",
+            validationError?.message
+          );
+        }
+      }
+
+      console.log("[LOGIN] Calling login function...");
+      const userData = await login(trimmedEmail, trimmedPassword);
+      console.log("[LOGIN] Login successful, userData:", userData);
+      console.log("[LOGIN] User role:", userData.role);
+
+      if (selectedRole && userData.role !== selectedRole) {
+        const mismatchMessage = `Tài khoản này thuộc vai trò "${
+          ROLE_CONFIG[userData.role as Role]?.label || userData.role
+        }". Vui lòng chọn lại.`;
+        setFormError(mismatchMessage);
+        Alert.alert("Sai vai trò", mismatchMessage);
+        await logout();
+        return;
+      }
+
+      if (userData.branchId) {
+        const matchedBranch =
+          branches.find((branch) => branch._id === userData.branchId) || null;
+        if (matchedBranch) {
+          selectBranch(matchedBranch);
+        }
+
+        if (
+          selectedBranch &&
+          userData.branchId !== selectedBranch._id &&
+          userData.role !== "admin"
+        ) {
+          Alert.alert(
+            "Đã điều chỉnh cơ sở",
+            "Cơ sở đã được cập nhật theo thông tin tài khoản của bạn."
+          );
+        }
+      }
+
+      setFormError(null);
+      console.log("[LOGIN] Redirecting to tabs...");
       router.replace("/(tabs)");
     } catch (err: any) {
-      Alert.alert("Đăng nhập thất bại", err.message);
+      const message =
+        err?.message || "Đăng nhập thất bại. Vui lòng thử lại sau.";
+      setFormError(message);
+      Alert.alert("Đăng nhập thất bại", message);
     }
   };
 
@@ -101,80 +216,116 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.branchList}>
-            <TouchableOpacity
-              style={[
-                styles.branchItem,
-                !selectedBranch && styles.branchItemSelected,
-              ]}
-              onPress={() => {
-                selectBranch(null);
-                setShowBranchModal(false);
-              }}
-            >
-              <View style={styles.branchItemContent}>
-                <Ionicons
-                  name="globe-outline"
-                  size={20}
-                  color={!selectedBranch ? "#3B82F6" : "#6B7280"}
-                />
-                <Text
-                  style={[
-                    styles.branchItemText,
-                    !selectedBranch && styles.branchItemTextSelected,
-                  ]}
-                >
-                  Tất cả cơ sở
+          <ScrollView
+            style={styles.branchList}
+            contentContainerStyle={styles.branchListContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {branchesLoading ? (
+              <View style={styles.branchPlaceholder}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text style={styles.branchPlaceholderText}>
+                  Đang tải danh sách cơ sở...
                 </Text>
               </View>
-              {!selectedBranch && (
-                <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
-              )}
-            </TouchableOpacity>
-
-            {branches.map((branch) => (
-              <TouchableOpacity
-                key={branch._id}
-                style={[
-                  styles.branchItem,
-                  selectedBranch?._id === branch._id &&
-                    styles.branchItemSelected,
-                ]}
-                onPress={() => {
-                  selectBranch(branch);
-                  setShowBranchModal(false);
-                }}
-              >
-                <View style={styles.branchItemContent}>
-                  <Ionicons
-                    name="business-outline"
-                    size={20}
-                    color={
-                      selectedBranch?._id === branch._id ? "#3B82F6" : "#6B7280"
-                    }
-                  />
-                  <View>
+            ) : branches.length === 0 ? (
+              <View style={styles.branchPlaceholder}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={22}
+                  color="#6B7280"
+                />
+                <Text style={styles.branchPlaceholderText}>
+                  Hiện chưa có cơ sở nào khả dụng
+                </Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.branchItem,
+                    !selectedBranch && styles.branchItemSelected,
+                  ]}
+                  onPress={() => {
+                    selectBranch(null);
+                    setShowBranchModal(false);
+                  }}
+                >
+                  <View style={styles.branchItemContent}>
+                    <Ionicons
+                      name="globe-outline"
+                      size={20}
+                      color={!selectedBranch ? "#3B82F6" : "#6B7280"}
+                    />
                     <Text
                       style={[
                         styles.branchItemText,
-                        selectedBranch?._id === branch._id &&
-                          styles.branchItemTextSelected,
+                        !selectedBranch && styles.branchItemTextSelected,
                       ]}
                     >
-                      {branch.name}
+                      Tất cả cơ sở
                     </Text>
-                    {branch.address && (
-                      <Text style={styles.branchItemAddress}>
-                        {branch.address}
-                      </Text>
-                    )}
                   </View>
-                </View>
-                {selectedBranch?._id === branch._id && (
-                  <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
-                )}
-              </TouchableOpacity>
-            ))}
+                  {!selectedBranch && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#3B82F6"
+                    />
+                  )}
+                </TouchableOpacity>
+
+                {branches.map((branch) => (
+                  <TouchableOpacity
+                    key={branch._id}
+                    style={[
+                      styles.branchItem,
+                      selectedBranch?._id === branch._id &&
+                        styles.branchItemSelected,
+                    ]}
+                    onPress={() => {
+                      selectBranch(branch);
+                      setShowBranchModal(false);
+                    }}
+                  >
+                    <View style={styles.branchItemContent}>
+                      <Ionicons
+                        name="business-outline"
+                        size={20}
+                        color={
+                          selectedBranch?._id === branch._id
+                            ? "#3B82F6"
+                            : "#6B7280"
+                        }
+                      />
+                      <View>
+                        <Text
+                          style={[
+                            styles.branchItemText,
+                            selectedBranch?._id === branch._id &&
+                              styles.branchItemTextSelected,
+                          ]}
+                        >
+                          {branch.name}
+                        </Text>
+                        {branch.address && (
+                          <Text style={styles.branchItemAddress}>
+                            {branch.address}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    {selectedBranch?._id === branch._id && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={20}
+                        color="#3B82F6"
+                      />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -183,6 +334,21 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <View style={styles.backgroundDecor} pointerEvents="none">
+        <LinearGradient
+          colors={["rgba(96, 165, 250, 0.45)", "rgba(37, 99, 235, 0.25)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.backgroundCircleOne}
+        />
+        <LinearGradient
+          colors={["rgba(16, 185, 129, 0.25)", "rgba(59, 130, 246, 0.2)"]}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.backgroundCircleTwo}
+        />
+      </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
@@ -210,6 +376,27 @@ export default function LoginScreen() {
 
           {/* Form Card */}
           <View style={styles.formCard}>
+            {formError ? (
+              <View style={styles.errorBanner}>
+                <Ionicons
+                  name="alert-circle"
+                  size={22}
+                  color="#DC2626"
+                  style={styles.errorBannerIcon}
+                />
+                <Text style={styles.errorBannerText}>{formError}</Text>
+                {!isLoading && (
+                  <TouchableOpacity
+                    onPress={() => setFormError(null)}
+                    style={styles.errorBannerClose}
+                    accessibilityLabel="Đóng thông báo lỗi"
+                  >
+                    <Ionicons name="close" size={20} color="#DC2626" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null}
+
             <Text style={styles.formTitle}>Đăng nhập</Text>
             <Text style={styles.formSubtitle}>
               Chọn cơ sở và nhập thông tin đăng nhập
@@ -228,7 +415,11 @@ export default function LoginScreen() {
                   {selectedBranch?.name || "Tất cả cơ sở"}
                 </Text>
               </View>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              {branchesLoading ? (
+                <ActivityIndicator size="small" color="#3B82F6" />
+              ) : (
+                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              )}
             </TouchableOpacity>
 
             {/* Role Selection */}
@@ -274,7 +465,12 @@ export default function LoginScreen() {
 
             {/* Email Input */}
             <Text style={styles.inputLabel}>Email</Text>
-            <View style={styles.inputContainer}>
+            <View
+              style={[
+                styles.inputContainer,
+                focusedField === "email" && styles.inputContainerFocused,
+              ]}
+            >
               <Ionicons
                 name="mail-outline"
                 size={20}
@@ -290,12 +486,19 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                onFocus={() => setFocusedField("email")}
+                onBlur={() => setFocusedField(null)}
               />
             </View>
 
             {/* Password Input */}
             <Text style={styles.inputLabel}>Mật khẩu</Text>
-            <View style={styles.inputContainer}>
+            <View
+              style={[
+                styles.inputContainer,
+                focusedField === "password" && styles.inputContainerFocused,
+              ]}
+            >
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
@@ -310,6 +513,8 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                onFocus={() => setFocusedField("password")}
+                onBlur={() => setFocusedField(null)}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -371,6 +576,62 @@ export default function LoginScreen() {
                 <Text style={styles.helpLinkText}>Liên hệ admin</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Demo Login Section */}
+            {__DEV__ && (
+              <View style={styles.demoSection}>
+                <Text style={styles.demoTitle}>🚀 Demo Login (Dev Mode)</Text>
+                <View style={styles.demoButtons}>
+                  <TouchableOpacity
+                    style={[styles.demoButton, { backgroundColor: "#EF4444" }]}
+                    onPress={() => {
+                      setEmail("admin@truongthanh.edu.vn");
+                      setPassword("123456");
+                      setSelectedRole("admin");
+                    }}
+                  >
+                    <Ionicons name="settings" size={14} color="#FFF" />
+                    <Text style={styles.demoButtonText}>Admin</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.demoButton, { backgroundColor: "#10B981" }]}
+                    onPress={() => {
+                      setEmail("teacher.binh@truongthanh.edu.vn");
+                      setPassword("123456");
+                      setSelectedRole("teacher");
+                      if (branches.length > 0) selectBranch(branches[0]);
+                    }}
+                  >
+                    <Ionicons name="person" size={14} color="#FFF" />
+                    <Text style={styles.demoButtonText}>GV</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.demoButton, { backgroundColor: "#3B82F6" }]}
+                    onPress={() => {
+                      setEmail("student.an@truongthanh.edu.vn");
+                      setPassword("123456");
+                      setSelectedRole("student");
+                      if (branches.length > 0) selectBranch(branches[0]);
+                    }}
+                  >
+                    <Ionicons name="school" size={14} color="#FFF" />
+                    <Text style={styles.demoButtonText}>HS</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.demoButton, { backgroundColor: "#F59E0B" }]}
+                    onPress={() => {
+                      setEmail("parent.hung@truongthanh.edu.vn");
+                      setPassword("123456");
+                      setSelectedRole("parent");
+                      if (branches.length > 0) selectBranch(branches[0]);
+                    }}
+                  >
+                    <Ionicons name="people" size={14} color="#FFF" />
+                    <Text style={styles.demoButtonText}>PH</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Footer */}
@@ -392,11 +653,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F3F4F6",
   },
+  backgroundDecor: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backgroundCircleOne: {
+    position: "absolute",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    top: -80,
+    right: -60,
+  },
+  backgroundCircleTwo: {
+    position: "absolute",
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    bottom: -120,
+    left: -80,
+  },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 48,
   },
   headerGradient: {
     paddingTop: 48,
@@ -445,6 +726,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 20,
     elevation: 10,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FEE2E2",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    padding: 12,
+    marginBottom: 18,
+    gap: 10,
+  },
+  errorBannerIcon: {
+    marginTop: 2,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#991B1B",
+    fontWeight: "500",
+  },
+  errorBannerClose: {
+    padding: 4,
   },
   formTitle: {
     fontSize: 24,
@@ -539,6 +844,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 16,
     height: 56,
+  },
+  inputContainerFocused: {
+    borderColor: "#3B82F6",
+    backgroundColor: "#EEF2FF",
+    shadowColor: "#3B82F6",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: Platform.OS === "ios" ? 0.1 : 0,
+    shadowRadius: 10,
+    elevation: Platform.OS === "android" ? 3 : 0,
   },
   inputIcon: {
     marginRight: 12,
@@ -646,6 +960,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
+  branchListContent: {
+    paddingBottom: 24,
+  },
   branchItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -681,5 +998,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6B7280",
     marginTop: 2,
+  },
+  branchPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+    gap: 10,
+  },
+  branchPlaceholderText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  // Demo login styles
+  demoSection: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+  },
+  demoTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#92400E",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  demoButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    gap: 8,
+  },
+  demoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  demoButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

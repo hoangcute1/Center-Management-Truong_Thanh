@@ -34,7 +34,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://localhost:3000"
+      "apiUrl": "http://localhost:3000",
+      "localIP": "192.168.101.87"
     }
   }
 }

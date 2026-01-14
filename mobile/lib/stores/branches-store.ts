@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { persist, createJSONStorage } from "zustand/middleware";
 import api from "@/lib/api";
 import { translateErrorMessage } from "./auth-store";
 
@@ -8,8 +10,43 @@ export interface Branch {
   address?: string;
   phone?: string;
   email?: string;
+  status: "active" | "inactive";
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+const normalizeBranch = (branch: any): Branch => {
+  if (!branch || !branch._id || !branch.name) {
+    console.warn("Invalid branch data:", branch);
+    return {
+      _id: branch?._id || "",
+      name: branch?.name || "Unknown",
+      status: "inactive",
+      isActive: false,
+    };
+  }
+
+  const status: "active" | "inactive" =
+    branch.status === "inactive" ? "inactive" : "active";
+
+  const isActive =
+    typeof branch.isActive === "boolean"
+      ? branch.isActive
+      : status === "active";
+
+  return {
+    _id: branch._id,
+    name: branch.name,
+    address: branch.address,
+    phone: branch.phone,
+    email: branch.email,
+    status,
+    isActive,
+    createdAt: branch.createdAt,
+    updatedAt: branch.updatedAt,
+  };
+};
 
 interface BranchesState {
   branches: Branch[];
@@ -22,32 +59,72 @@ interface BranchesState {
   clearError: () => void;
 }
 
-export const useBranchesStore = create<BranchesState>((set) => ({
-  branches: [],
-  selectedBranch: null,
-  isLoading: false,
-  error: null,
+export const useBranchesStore = create<BranchesState>()(
+  persist(
+    (set, get) => ({
+      branches: [],
+      selectedBranch: null,
+      isLoading: false,
+      error: null,
 
-  fetchBranches: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await api.get("/branches");
-      const branches = Array.isArray(response.data)
-        ? response.data
-        : response.data.branches || [];
-      set({ branches, isLoading: false });
-    } catch (error: any) {
-      const errorMessage = translateErrorMessage(
-        error,
-        "Không thể tải danh sách cơ sở"
-      );
-      set({ error: errorMessage, isLoading: false });
+      fetchBranches: async () => {
+        const currentSelected = get().selectedBranch;
+        set({ isLoading: true, error: null });
+        try {
+          console.log("Fetching branches from API...");
+          const response = await api.get("/branches");
+          console.log("Branches API response:", response.data);
+
+          const rawBranches = Array.isArray(response.data)
+            ? response.data
+            : response.data.branches || [];
+
+          console.log("Raw branches count:", rawBranches.length);
+          const normalizedBranches: Branch[] = rawBranches.map(normalizeBranch);
+          console.log("Normalized branches count:", normalizedBranches.length);
+
+          let nextSelected: Branch | null = null;
+          if (normalizedBranches.length > 0) {
+            const matchedBranch = currentSelected
+              ? normalizedBranches.find(
+                  (branch) => branch._id === currentSelected._id
+                )
+              : null;
+            nextSelected = matchedBranch ?? normalizedBranches[0];
+          }
+
+          set({
+            branches: normalizedBranches,
+            selectedBranch: nextSelected,
+            isLoading: false,
+          });
+        } catch (error: any) {
+          console.error("Error fetching branches:", error);
+          console.error("Error details:", {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+          });
+          const errorMessage = translateErrorMessage(
+            error,
+            "Không thể tải danh sách cơ sở"
+          );
+          set({ error: errorMessage, isLoading: false, branches: [] });
+        }
+      },
+
+      selectBranch: (branch: Branch | null) => {
+        set({ selectedBranch: branch ? normalizeBranch(branch) : null });
+      },
+
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: "branches-store",
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        selectedBranch: state.selectedBranch,
+      }),
     }
-  },
-
-  selectBranch: (branch: Branch | null) => {
-    set({ selectedBranch: branch });
-  },
-
-  clearError: () => set({ error: null }),
-}));
+  )
+);
