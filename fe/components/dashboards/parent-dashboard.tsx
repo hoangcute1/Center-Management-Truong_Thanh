@@ -347,6 +347,16 @@ export default function ParentDashboard({
     }
   }, [authUser, user.id, fetchDashboardData]);
 
+  // Debug: log attendance records for parent
+  useEffect(() => {
+    if (dashboardData?.attendanceRecords?.length) {
+      console.log(
+        "Parent - Attendance Records:",
+        dashboardData.attendanceRecords
+      );
+    }
+  }, [dashboardData?.attendanceRecords]);
+
   // Use real data or fallback to mock data
   const childData = dashboardData?.child || child;
   const classesData = dashboardData?.classes?.length
@@ -486,6 +496,178 @@ export default function ParentDashboard({
 
     return result;
   }, [dashboardData?.classes]);
+
+  // Build current week schedule with attendance status
+  const currentWeekSchedule = useMemo(() => {
+    if (!dashboardData?.classes?.length) return [];
+
+    const dayNames = [
+      "Chủ nhật",
+      "Thứ hai",
+      "Thứ ba",
+      "Thứ tư",
+      "Thứ năm",
+      "Thứ sáu",
+      "Thứ bảy",
+    ];
+
+    // Get current week's dates (Monday to Sunday)
+    const today = new Date();
+    const currentDay = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
+    monday.setHours(0, 0, 0, 0);
+
+    const result: Array<{
+      date: Date;
+      dayName: string;
+      dateStr: string;
+      items: Array<{
+        classId: string;
+        className: string;
+        classCode: string;
+        teacherName: string;
+        startTime: string;
+        endTime: string;
+        room?: string;
+        attendanceStatus: "present" | "absent" | "late" | "excused" | null;
+      }>;
+    }> = [];
+
+    // Build 7 days starting from Monday
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(monday);
+      currentDate.setDate(monday.getDate() + i);
+      const dayOfWeek = currentDate.getDay();
+
+      const items: (typeof result)[0]["items"] = [];
+
+      // Find classes scheduled for this day
+      dashboardData.classes.forEach((classItem) => {
+        const scheduleArray = (classItem as any).schedule || [];
+        scheduleArray.forEach(
+          (sched: {
+            dayOfWeek: number;
+            startTime: string;
+            endTime: string;
+            room?: string;
+          }) => {
+            if (sched.dayOfWeek === dayOfWeek) {
+              // Find attendance for this class on this date
+              const targetYear = currentDate.getFullYear();
+              const targetMonth = currentDate.getMonth();
+              const targetDay = currentDate.getDate();
+
+              // First, check in attendanceRecords (from API)
+              let attendanceStatus:
+                | "present"
+                | "absent"
+                | "late"
+                | "excused"
+                | null = null;
+
+              let attendanceRecord = dashboardData.attendanceRecords?.find(
+                (r) => {
+                  const session = r.sessionId as any;
+                  if (session?.startTime) {
+                    const sessionDate = new Date(session.startTime);
+                    const sessionYear = sessionDate.getFullYear();
+                    const sessionMonth = sessionDate.getMonth();
+                    const sessionDay = sessionDate.getDate();
+
+                    if (
+                      sessionYear === targetYear &&
+                      sessionMonth === targetMonth &&
+                      sessionDay === targetDay
+                    ) {
+                      // Check classId match - handle nested object
+                      let sessionClassId = session.classId;
+                      if (
+                        typeof sessionClassId === "object" &&
+                        sessionClassId
+                      ) {
+                        sessionClassId = sessionClassId._id;
+                      }
+                      // Also handle if classItem._id is in session.classId as nested
+                      return sessionClassId === classItem._id;
+                    }
+                  }
+                  return false;
+                }
+              );
+
+              // If not found by classId match, try just by date
+              if (!attendanceRecord) {
+                attendanceRecord = dashboardData.attendanceRecords?.find(
+                  (r) => {
+                    const session = r.sessionId as any;
+                    if (session?.startTime) {
+                      const sessionDate = new Date(session.startTime);
+                      return (
+                        sessionDate.getFullYear() === targetYear &&
+                        sessionDate.getMonth() === targetMonth &&
+                        sessionDate.getDate() === targetDay
+                      );
+                    }
+                    return false;
+                  }
+                );
+              }
+
+              if (attendanceRecord) {
+                attendanceStatus = attendanceRecord.status;
+              } else {
+                // Fallback: check in upcomingSessions
+                const sessionRecord = dashboardData.upcomingSessions?.find(
+                  (s) => {
+                    const sessionDate = new Date(s.date);
+                    return (
+                      sessionDate.getFullYear() === targetYear &&
+                      sessionDate.getMonth() === targetMonth &&
+                      sessionDate.getDate() === targetDay &&
+                      s.classId === classItem._id
+                    );
+                  }
+                );
+                if (sessionRecord) {
+                  attendanceStatus = sessionRecord.attendanceStatus || null;
+                }
+              }
+
+              items.push({
+                classId: classItem._id,
+                className: classItem.name,
+                classCode:
+                  (classItem as any).code ||
+                  classItem.name.substring(0, 7).toUpperCase(),
+                teacherName: classItem.teacherName,
+                startTime: sched.startTime,
+                endTime: sched.endTime,
+                room: sched.room,
+                attendanceStatus,
+              });
+            }
+          }
+        );
+      });
+
+      result.push({
+        date: currentDate,
+        dayName: dayNames[dayOfWeek],
+        dateStr: currentDate.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        items,
+      });
+    }
+
+    return result;
+  }, [
+    dashboardData?.classes,
+    dashboardData?.upcomingSessions,
+    dashboardData?.attendanceRecords,
+  ]);
 
   // Weekly schedule with attendance
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
@@ -695,55 +877,106 @@ export default function ParentDashboard({
           <TabsContent value="schedule" className="mt-6">
             <Card className="p-5 space-y-4">
               <p className="font-semibold text-gray-900 text-lg">
-                Thời khóa biểu của con
+                Thời khóa biểu của con (Tuần này)
               </p>
-              {timetableByDay.length > 0 ? (
+              {currentWeekSchedule.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                  {timetableByDay.map((dayData) => (
-                    <div
-                      key={dayData.dayOfWeek}
-                      className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[200px]"
-                    >
-                      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-2 text-center">
-                        <p className="text-xs font-semibold leading-tight">
-                          {dayData.dayName}
-                        </p>
-                      </div>
+                  {currentWeekSchedule.map((dayData) => {
+                    const isToday =
+                      dayData.date.toDateString() === new Date().toDateString();
+                    return (
+                      <div
+                        key={dayData.dateStr}
+                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-[220px] ${
+                          isToday
+                            ? "border-emerald-400 ring-2 ring-emerald-200"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <div
+                          className={`text-white px-3 py-2 text-center ${
+                            isToday
+                              ? "bg-gradient-to-r from-emerald-600 to-green-600"
+                              : "bg-gradient-to-r from-blue-600 to-indigo-600"
+                          }`}
+                        >
+                          <p className="text-xs font-semibold leading-tight">
+                            {dayData.dayName}
+                          </p>
+                          <p className="text-[11px] opacity-80 leading-tight">
+                            {dayData.dateStr}
+                          </p>
+                        </div>
 
-                      {dayData.items.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
-                          Không có lịch
-                        </div>
-                      ) : (
-                        <div className="flex-1 p-2 space-y-2">
-                          {dayData.items.map((item, idx) => (
-                            <div
-                              key={`${item.classId}-${idx}`}
-                              className="rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-2 space-y-1 hover:shadow-md transition-shadow"
-                            >
-                              <div className="text-xs font-bold text-blue-700 truncate">
-                                {item.classCode}
-                              </div>
-                              <div className="text-[10px] text-gray-600 truncate">
-                                {item.className}
-                              </div>
-                              <div className="text-[10px] font-medium text-gray-800">
-                                {item.startTime} - {item.endTime}
-                              </div>
-                              {item.room && (
-                                <div className="text-[10px] text-gray-500">
-                                  {item.room}
+                        {dayData.items.length === 0 ? (
+                          <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
+                            Không có lịch
+                          </div>
+                        ) : (
+                          <div className="flex-1 p-2 space-y-2">
+                            {dayData.items.map((item, idx) => (
+                              <div
+                                key={`${item.classId}-${idx}`}
+                                className="rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-2 space-y-1 hover:shadow-md transition-shadow"
+                              >
+                                <div className="text-xs font-bold text-blue-700 truncate">
+                                  {item.classCode}
                                 </div>
-                              )}
-                              <div className="text-[10px] text-indigo-600 truncate">
-                                {item.teacherName}
+                                <div className="text-[10px] text-gray-600 truncate">
+                                  {item.className}
+                                </div>
+                                <div className="text-[10px] font-medium text-gray-800">
+                                  {item.startTime} - {item.endTime}
+                                </div>
+                                {item.room && (
+                                  <div className="text-[10px] text-gray-500">
+                                    {item.room}
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-indigo-600 truncate">
+                                  {item.teacherName}
+                                </div>
+                                {/* Attendance Status */}
+                                {item.attendanceStatus ? (
+                                  <div
+                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
+                                      item.attendanceStatus === "present"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : item.attendanceStatus === "absent"
+                                        ? "bg-red-100 text-red-700"
+                                        : item.attendanceStatus === "late"
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-blue-100 text-blue-700"
+                                    }`}
+                                  >
+                                    {item.attendanceStatus === "present" &&
+                                      "✅ Có mặt"}
+                                    {item.attendanceStatus === "absent" &&
+                                      "❌ Vắng"}
+                                    {item.attendanceStatus === "late" &&
+                                      "⏰ Muộn"}
+                                    {item.attendanceStatus === "excused" &&
+                                      "📝 Phép"}
+                                  </div>
+                                ) : (
+                                  (() => {
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0);
+                                    const isPastOrToday = dayData.date <= today;
+                                    return isPastOrToday ? (
+                                      <div className="w-full text-[10px] rounded-md py-1 px-1 font-medium text-center bg-gray-100 text-gray-500">
+                                        ⏳ Chưa điểm danh
+                                      </div>
+                                    ) : null;
+                                  })()
+                                )}
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500">
@@ -755,71 +988,6 @@ export default function ParentDashboard({
                 </div>
               )}
             </Card>
-
-            {/* Session-based schedule with attendance info */}
-            {scheduleWithAttendance.length > 0 && (
-              <Card className="p-5 space-y-4 mt-4">
-                <p className="font-semibold text-gray-900 text-lg">
-                  Các buổi học sắp tới
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                  {scheduleWithAttendance.slice(0, 7).map((item, idx) => (
-                    <div
-                      key={`${item.day}-${idx}`}
-                      className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col"
-                    >
-                      <div className="bg-emerald-600 text-white px-3 py-2 text-center">
-                        <p className="text-xs font-semibold leading-tight">
-                          {item.day}
-                        </p>
-                        <p className="text-[11px] opacity-80 leading-tight">
-                          {item.date}
-                        </p>
-                      </div>
-
-                      {item.status === "empty" ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
-                          -
-                        </div>
-                      ) : (
-                        <div className="flex-1 p-3 space-y-2 text-center">
-                          <div className="text-sm font-semibold text-emerald-700">
-                            {item.code}
-                          </div>
-                          <div className="text-xs text-gray-800 font-medium">
-                            {item.time}
-                          </div>
-                          {/* Attendance Status */}
-                          {item.attendanceStatus ? (
-                            <div
-                              className={`w-full text-xs rounded-lg py-1.5 px-2 font-medium text-center ${
-                                item.attendanceStatus === "present"
-                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                  : item.attendanceStatus === "absent"
-                                  ? "bg-red-100 text-red-700 border border-red-200"
-                                  : item.attendanceStatus === "late"
-                                  ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                  : "bg-blue-100 text-blue-700 border border-blue-200"
-                              }`}
-                            >
-                              {item.attendanceStatus === "present" &&
-                                "✅ Có mặt"}
-                              {item.attendanceStatus === "absent" && "❌ Vắng"}
-                              {item.attendanceStatus === "late" && "⏰ Muộn"}
-                              {item.attendanceStatus === "excused" && "📝 Phép"}
-                            </div>
-                          ) : (
-                            <div className="w-full text-xs rounded-lg py-1.5 px-2 font-medium text-center bg-gray-100 text-gray-500 border border-gray-200">
-                              ⏳ Chưa điểm danh
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
           </TabsContent>
 
           <TabsContent value="progress" className="mt-6">

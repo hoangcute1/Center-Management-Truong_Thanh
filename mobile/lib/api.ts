@@ -5,17 +5,32 @@ import { Platform } from "react-native";
 
 // For Android emulator, localhost should be 10.0.2.2
 // For iOS simulator, localhost works
-// For real devices, need to use actual IP address
+// For real devices, need to use actual IP address of your computer
 const getBaseUrl = () => {
   const configUrl = Constants.expoConfig?.extra?.apiUrl;
 
-  if (configUrl && !configUrl.includes("localhost")) {
+  // If a non-localhost URL is configured, use it
+  if (
+    configUrl &&
+    !configUrl.includes("localhost") &&
+    !configUrl.includes("10.0.2.2")
+  ) {
     return configUrl;
   }
 
   // Default development URLs
   if (__DEV__) {
+    // Check if running on real device (not emulator/simulator)
+    // For real devices, you need to use your computer's local IP
+    // You can set this in app.json extra.apiUrl or change the IP below
+    const realDeviceIP = Constants.expoConfig?.extra?.localIP;
+    if (realDeviceIP) {
+      return `http://${realDeviceIP}:3000`;
+    }
+
     if (Platform.OS === "android") {
+      // Check if running on Android emulator or real device
+      // For emulator use 10.0.2.2, for real device use computer's IP
       return "http://10.0.2.2:3000"; // Android emulator
     }
     return "http://localhost:3000"; // iOS simulator

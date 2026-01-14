@@ -514,6 +514,45 @@ function TimetableAttendanceModal({
   );
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
+
+  // Fetch existing attendance records on mount
+  useEffect(() => {
+    const fetchExistingAttendance = async () => {
+      try {
+        const response = await api.get("/attendance/by-class-date", {
+          params: {
+            classId: schedule.classId,
+            date: fullDate.toISOString(),
+          },
+        });
+        const existingRecords = response.data || [];
+
+        if (existingRecords.length > 0) {
+          // Update rows with existing attendance status
+          setRows((prevRows) =>
+            prevRows.map((row) => {
+              const existingRecord = existingRecords.find(
+                (r: any) =>
+                  r.studentId === row.studentId ||
+                  r.studentId?._id === row.studentId
+              );
+              if (existingRecord) {
+                return { ...row, status: existingRecord.status };
+              }
+              return row;
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching existing attendance:", error);
+      } finally {
+        setIsLoadingExisting(false);
+      }
+    };
+
+    fetchExistingAttendance();
+  }, [schedule.classId, fullDate]);
 
   const canEdit = isWithinClassTime(
     fullDate,
@@ -575,6 +614,13 @@ function TimetableAttendanceModal({
             ×
           </button>
         </div>
+
+        {isLoadingExisting && (
+          <div className="mb-4 p-4 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+            <span className="text-gray-600">Đang tải dữ liệu điểm danh...</span>
+          </div>
+        )}
 
         {!canEdit && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1108,11 +1154,10 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
                 schedule.className
               } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
-              category: "attendance",
             });
           } catch (notifError) {
             console.error("Error sending notification:", notifError);

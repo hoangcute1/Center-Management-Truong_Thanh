@@ -50,6 +50,15 @@ export class AttendanceController {
     return [];
   }
 
+  @Get('by-class-date')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  getByClassAndDate(
+    @Query('classId') classId: string,
+    @Query('date') date: string,
+  ) {
+    return this.attendanceService.getByClassAndDate(classId, date);
+  }
+
   @Get('statistics')
   getStatistics(@Query('studentId') studentId: string) {
     return this.attendanceService.getStatistics(studentId);
