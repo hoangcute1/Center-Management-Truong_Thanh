@@ -145,7 +145,13 @@ const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const DAY_NAMES_VN = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 interface StudentDashboardProps {
-  user: { id: string; name: string; email: string; role: string };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    role: string
+  };
   onLogout: () => void;
 }
 
@@ -688,7 +694,11 @@ function SettingsModal({
   user,
   onClose,
 }: {
-  user: { name: string; email: string };
+  user: {
+    name: string;
+    email: string;
+    phone: string
+  };
   onClose: () => void;
 }) {
   // State để hiển thị preview ảnh
@@ -760,7 +770,7 @@ function SettingsModal({
               className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
               title="Đổi ảnh đại diện"
             >
-              <Camera size={18} />
+              <Camera size={17} />
             </button>
           </div>
 
@@ -788,7 +798,7 @@ function SettingsModal({
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={user.phone}
+                defaultValue={user.phone || "?"}
                 readOnly
               />
             </div>
@@ -2071,7 +2081,12 @@ export default function StudentDashboard({
       )}
       {showSettings && (
         <SettingsModal
-          user={{ name: user.name, email: user.email }}
+          user={{
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            role: user.role
+          }}
           onClose={() => setShowSettings(false)}
         />
       )}
