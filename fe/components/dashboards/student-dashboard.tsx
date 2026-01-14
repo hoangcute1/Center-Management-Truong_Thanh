@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -11,6 +11,9 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { ChevronDown, Camera } from "lucide-react";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -688,90 +691,133 @@ function SettingsModal({
   user: { name: string; email: string };
   onClose: () => void;
 }) {
+  // State để hiển thị preview ảnh
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Xử lý khi chọn file ảnh
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+    }
+  };
+
+  // Hàm kích hoạt input file
+  const handleEditAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3">
-      <Card className="w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto bg-white">
-        <div className="flex justify-between items-start mb-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-2">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              Cài đặt tài khoản
-            </h2>
-            <p className="text-sm text-gray-600">
-              Chỉnh sửa thông tin cá nhân của bạn
-            </p>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-lg"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            ×
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
 
-        <div className="space-y-4 text-sm">
-          <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Họ và tên</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-              defaultValue={user.name}
-            />
+        {/* Avatar */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center">
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleEditAvatar}
+              className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+              title="Đổi ảnh đại diện"
+            >
+              <Camera size={18} />
+            </button>
           </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Form Inputs */}
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Họ và tên</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={user.name}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Số điện thoại</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={user.phone}
+                readOnly
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Email</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               defaultValue={user.email}
+              readOnly
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Số điện thoại</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-              defaultValue="0901234567"
-            />
-          </div>
+
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Địa chỉ</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               defaultValue="123 Đường ABC, Quận 1, TPHCM"
+              readOnly
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <label className="text-gray-700 font-medium">
-                Mật khẩu hiện tại
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                type="password"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Mật khẩu mới</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                type="password"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-gray-700 font-medium">
-                Xác nhận mật khẩu mới
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                type="password"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
-              Lưu thay đổi
-            </Button>
-            <Button className="flex-1" variant="outline" onClick={onClose}>
-              Hủy
+          <div className="flex gap-3 pt-2">
+            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200">
+              <span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+              </span>
+              Chỉnh Sửa
             </Button>
           </div>
         </div>
@@ -794,7 +840,36 @@ export default function StudentDashboard({
     score: number;
   } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  const handleLogout = () => {
+    toast.info("Đang đăng xuất...", {
+      position: "top-right",
+      autoClose: 1000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: false,
+      draggable: true,
+      theme: "light",
+    });
+    setTimeout(() => {
+      onLogout();
+    }, 1500);
+  };
+
+  //Dropdown Profile
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
+  //Xử lý click ra ngoài để đóng menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Week navigation state
   const [selectedYear, setSelectedYear] = useState<number>(() =>
@@ -932,8 +1007,8 @@ export default function StudentDashboard({
           status: isPast
             ? "confirmed"
             : sessionForDay.status === "scheduled"
-            ? "pending"
-            : "confirmed",
+              ? "pending"
+              : "confirmed",
           sessionId: sessionForDay._id,
           attendanceStatus,
         });
@@ -988,46 +1063,46 @@ export default function StudentDashboard({
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
     ? [
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Buổi học tới",
-          value: dashboardData.upcomingSessions.length,
-          note: "Sắp diễn ra",
-          icon: "📅",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + g.percentage,
-                    0
-                  ) / dashboardData.recentGrades.length
-                ).toFixed(1)
-              : "N/A",
-          note:
-            dashboardData.recentGrades.length > 0
-              ? "Đạt kết quả"
-              : "Chưa có điểm",
-          icon: "⭐",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${dashboardData.attendanceStats.rate || 0}%`,
-          note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
-          icon: "✅",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
+      {
+        label: "Khóa học",
+        value: dashboardData.classes.length,
+        note: "Đang theo học",
+        icon: "📚",
+        color: "from-blue-500 to-blue-600",
+      },
+      {
+        label: "Buổi học tới",
+        value: dashboardData.upcomingSessions.length,
+        note: "Sắp diễn ra",
+        icon: "📅",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        label: "Điểm TB",
+        value:
+          dashboardData.recentGrades.length > 0
+            ? (
+              dashboardData.recentGrades.reduce(
+                (acc, g) => acc + g.percentage,
+                0
+              ) / dashboardData.recentGrades.length
+            ).toFixed(1)
+            : "N/A",
+        note:
+          dashboardData.recentGrades.length > 0
+            ? "Đạt kết quả"
+            : "Chưa có điểm",
+        icon: "⭐",
+        color: "from-amber-500 to-orange-500",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${dashboardData.attendanceStats.rate || 0}%`,
+        note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
+        icon: "✅",
+        color: "from-purple-500 to-purple-600",
+      },
+    ]
     : overviewCards;
 
   const tabIcons: Record<RankingCategory, string> = {
@@ -1055,6 +1130,7 @@ export default function StudentDashboard({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <ToastContainer />
       {/* Header với thiết kế hiện đại */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -1071,34 +1147,60 @@ export default function StudentDashboard({
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationCenter userRole={user.role} />
-            <Button
-              variant="ghost"
-              onClick={() => setShowSettings(true)}
-              className="hidden md:flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            >
-              <span>⚙️</span>
-              <span className="hidden lg:inline">Cài đặt</span>
-            </Button>
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                {user.name.charAt(0)}
-              </div>
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-gray-900">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-500">{user.email}</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={onLogout}
-                className="text-sm border-gray-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            {/* Use Dropdown in Profile */}
+            <div className="relative ml-3" ref={dropdownRef}>
+              {/* Avatar */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative group focus:outline-none"
               >
-                Đăng xuất
-              </Button>
+                {/* Avatar chính */}
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-blue-500">
+                  {user.name.charAt(0)}
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
+                  <ChevronDown size={10} strokeWidth={3} />
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  {/* Thông tin user tóm tắt */}
+                  <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                    </span>
+                    Hồ sơ
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                    </span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
@@ -1270,25 +1372,22 @@ export default function StudentDashboard({
                 {badges.map((b) => (
                   <div
                     key={b.title}
-                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
-                      b.earned
-                        ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
-                        : "border-gray-100 bg-gray-50"
-                    }`}
+                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${b.earned
+                      ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
+                      : "border-gray-100 bg-gray-50"
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className={`text-3xl ${
-                          b.earned ? "" : "grayscale opacity-50"
-                        }`}
+                        className={`text-3xl ${b.earned ? "" : "grayscale opacity-50"
+                          }`}
                       >
                         {b.icon}
                       </span>
                       <div>
                         <p
-                          className={`font-bold ${
-                            b.earned ? "text-emerald-700" : "text-gray-500"
-                          }`}
+                          className={`font-bold ${b.earned ? "text-emerald-700" : "text-gray-500"
+                            }`}
                         >
                           {b.title}
                         </p>
@@ -1386,22 +1485,20 @@ export default function StudentDashboard({
                   return (
                     <div
                       key={slot.day}
-                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
-                        isToday
-                          ? "border-blue-400 ring-2 ring-blue-100"
-                          : isPast
+                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${isToday
+                        ? "border-blue-400 ring-2 ring-blue-100"
+                        : isPast
                           ? "border-gray-200 opacity-80"
                           : "border-gray-100"
-                      }`}
+                        }`}
                     >
                       <div
-                        className={`px-3 py-3 text-center ${
-                          isToday
-                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
-                            : isPast
+                        className={`px-3 py-3 text-center ${isToday
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                          : isPast
                             ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
                             : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
-                        }`}
+                          }`}
                       >
                         <p className="text-xs font-bold leading-tight">
                           {slot.day}
@@ -1424,11 +1521,10 @@ export default function StudentDashboard({
                       {slot.code ? (
                         <div className="flex-1 p-3 space-y-2 text-center">
                           <div
-                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
-                              isPast
-                                ? "bg-gray-100 text-gray-600"
-                                : "bg-blue-100 text-blue-700"
-                            }`}
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${isPast
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-blue-100 text-blue-700"
+                              }`}
                           >
                             {slot.code}
                           </div>
@@ -1451,17 +1547,16 @@ export default function StudentDashboard({
                             {/* Attendance Status */}
                             {isPast && slot.attendanceStatus ? (
                               <div
-                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${
-                                  slot.attendanceStatus === "present"
-                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                    : slot.attendanceStatus === "absent"
+                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${slot.attendanceStatus === "present"
+                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                  : slot.attendanceStatus === "absent"
                                     ? "bg-red-100 text-red-700 border border-red-200"
                                     : slot.attendanceStatus === "late"
-                                    ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                    : slot.attendanceStatus === "excused"
-                                    ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
+                                      ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                      : slot.attendanceStatus === "excused"
+                                        ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                        : "bg-gray-100 text-gray-600"
+                                  }`}
                               >
                                 {slot.attendanceStatus === "present" &&
                                   "✅ Đã điểm danh"}
@@ -1643,11 +1738,10 @@ export default function StudentDashboard({
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-gray-900">{g.subject}</p>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            g.status === "Tốt"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
+                          className={`text-xs px-2 py-0.5 rounded-full ${g.status === "Tốt"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                            }`}
                         >
                           {g.status}
                         </span>
@@ -1655,13 +1749,12 @@ export default function StudentDashboard({
                       <p className="text-xs text-gray-500 mt-0.5">{g.detail}</p>
                       <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            g.score >= 80
-                              ? "bg-gradient-to-r from-emerald-400 to-green-500"
-                              : g.score >= 70
+                          className={`h-full rounded-full transition-all duration-500 ${g.score >= 80
+                            ? "bg-gradient-to-r from-emerald-400 to-green-500"
+                            : g.score >= 70
                               ? "bg-gradient-to-r from-blue-400 to-blue-500"
                               : "bg-gradient-to-r from-amber-400 to-orange-500"
-                          }`}
+                            }`}
                           style={{ width: `${g.score}%` }}
                         />
                       </div>
@@ -1701,11 +1794,10 @@ export default function StudentDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                      rankingView === key
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-gray-700 hover:bg-white"
-                    }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${rankingView === key
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-700 hover:bg-white"
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -1790,22 +1882,20 @@ export default function StudentDashboard({
                           {c.avatar}
                         </div>
                         <span
-                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
-                            c.status === "online"
-                              ? "bg-emerald-500"
-                              : "bg-gray-300"
-                          }`}
+                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${c.status === "online"
+                            ? "bg-emerald-500"
+                            : "bg-gray-300"
+                            }`}
                         />
                       </div>
                       <div>
                         <p className="font-bold text-gray-900">{c.name}</p>
                         <p className="text-sm text-gray-500">{c.subject}</p>
                         <p
-                          className={`text-xs mt-0.5 ${
-                            c.status === "online"
-                              ? "text-emerald-600"
-                              : "text-gray-400"
-                          }`}
+                          className={`text-xs mt-0.5 ${c.status === "online"
+                            ? "text-emerald-600"
+                            : "text-gray-400"
+                            }`}
                         >
                           {c.status === "online"
                             ? "● Đang hoạt động"
@@ -1863,7 +1953,7 @@ export default function StudentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}

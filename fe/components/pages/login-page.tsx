@@ -10,7 +10,7 @@ import {
   validateLogin,
 } from "@/lib/stores/auth-store";
 import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/components/ui/toast"
 
 interface LoginPageProps {
   onLogin?: (user: {
@@ -177,8 +177,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       // Verify role matches if selected
       if (loginRole && userData.role !== loginRole) {
         setError(
-          `Vai trò không đúng. Tài khoản này có vai trò "${
-            ROLE_CONFIG[userData.role as Role]?.label || userData.role
+          `Vai trò không đúng. Tài khoản này có vai trò "${ROLE_CONFIG[userData.role as Role]?.label || userData.role
           }".`
         );
         toast.error("Vai trò không đúng!");
