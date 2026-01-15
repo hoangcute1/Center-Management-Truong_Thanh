@@ -367,6 +367,10 @@ interface UserDetail {
   parentName?: string;
   parentPhone?: string;
   childEmail?: string;
+  // Thông tin học bổng (cho học sinh)
+  hasScholarship?: boolean;
+  scholarshipType?: "teacher_child" | "poor_family" | "orphan";
+  scholarshipPercent?: number;
 }
 
 function UserDetailModal({
@@ -541,6 +545,46 @@ function UserDetailModal({
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Thông tin học bổng (cho học sinh) */}
+          {user.role === "student" && (
+            <div className={`rounded-xl p-4 space-y-3 ${user.hasScholarship ? 'bg-amber-50' : 'bg-gray-50'}`}>
+              <h4 className={`font-semibold flex items-center gap-2 ${user.hasScholarship ? 'text-amber-800' : 'text-gray-600'}`}>
+                <span>🎓</span> Học bổng
+              </h4>
+              {user.hasScholarship ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500">Loại học bổng</p>
+                    <p className="font-medium text-gray-900">
+                      {user.scholarshipType === 'teacher_child' ? '👨‍🏫 Con giáo viên' :
+                       user.scholarshipType === 'poor_family' ? '🏠 Hộ nghèo' :
+                       user.scholarshipType === 'orphan' ? '💙 Con mồ côi' : 'Không xác định'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Phần trăm giảm</p>
+                    <p className="font-medium text-amber-600 text-lg">
+                      🏷️ {user.scholarshipPercent || 0}%
+                    </p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <div className="bg-amber-100 rounded-lg p-2">
+                      <p className="text-sm text-amber-800">
+                        💡 Học sinh được giảm <strong>{user.scholarshipPercent || 0}%</strong> học phí do thuộc diện <strong>
+                        {user.scholarshipType === 'teacher_child' ? 'Con giáo viên' :
+                         user.scholarshipType === 'poor_family' ? 'Hộ nghèo' :
+                         user.scholarshipType === 'orphan' ? 'Con mồ côi' : ''}
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">Học sinh không có học bổng</p>
+              )}
             </div>
           )}
 
@@ -734,6 +778,461 @@ function UserDetailModal({
   );
 }
 
+// Modal chỉnh sửa tài khoản
+function EditUserModal({
+  user,
+  branches,
+  onClose,
+  onSave,
+  isLoading,
+  error,
+}: {
+  user: UserDetail;
+  branches: BranchOption[];
+  onClose: () => void;
+  onSave: (data: any) => Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
+}) {
+  const [formData, setFormData] = useState({
+    name: user.name || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    branchId: user.branchId || "",
+    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split("T")[0] : "",
+    gender: user.gender || "",
+    status: user.status || "active",
+    // Student fields
+    parentName: user.parentName || "",
+    parentPhone: user.parentPhone || "",
+    hasScholarship: user.hasScholarship || false,
+    scholarshipType: user.scholarshipType || "",
+    scholarshipPercent: user.scholarshipPercent || 0,
+    // Teacher fields
+    subjects: user.subjects || [],
+    qualification: user.qualification || "",
+    teacherNote: user.teacherNote || "",
+    // Parent fields
+    childEmail: user.childEmail || "",
+  });
+
+  const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+
+  const isStudent = user.role === "student";
+  const isTeacher = user.role === "teacher";
+  const isParent = user.role === "parent";
+
+  const toggleSubject = (subject: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      subjects: prev.subjects.includes(subject)
+        ? prev.subjects.filter((s) => s !== subject)
+        : [...prev.subjects, subject],
+    }));
+  };
+
+  const toggleCategory = (subjects: string[]) => {
+    const allSelected = subjects.every((s) => formData.subjects.includes(s));
+    if (allSelected) {
+      setFormData((prev) => ({
+        ...prev,
+        subjects: prev.subjects.filter((s) => !subjects.includes(s)),
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        subjects: [...new Set([...prev.subjects, ...subjects])],
+      }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    const updateData: any = {
+      name: formData.name.trim(),
+      phone: formData.phone.trim() || undefined,
+      branchId: formData.branchId || undefined,
+      status: formData.status,
+    };
+
+    // Không update email vì email là unique identifier
+    
+    if (!isParent) {
+      if (formData.dateOfBirth) {
+        updateData.dateOfBirth = new Date(formData.dateOfBirth);
+      }
+      if (formData.gender) {
+        updateData.gender = formData.gender;
+      }
+    }
+
+    if (isStudent) {
+      updateData.parentName = formData.parentName.trim() || undefined;
+      updateData.parentPhone = formData.parentPhone.trim() || undefined;
+      updateData.hasScholarship = formData.hasScholarship;
+      if (formData.hasScholarship) {
+        updateData.scholarshipType = formData.scholarshipType || undefined;
+        updateData.scholarshipPercent = formData.scholarshipPercent;
+      } else {
+        updateData.scholarshipType = undefined;
+        updateData.scholarshipPercent = 0;
+      }
+    }
+
+    if (isTeacher) {
+      updateData.subjects = formData.subjects;
+      updateData.qualification = formData.qualification.trim() || undefined;
+      updateData.teacherNote = formData.teacherNote.trim() || undefined;
+    }
+
+    if (isParent) {
+      updateData.childEmail = formData.childEmail.trim().toLowerCase() || undefined;
+    }
+
+    await onSave(updateData);
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "student": return { label: "Học sinh", icon: "👨‍🎓" };
+      case "parent": return { label: "Phụ huynh", icon: "👨‍👩‍👧" };
+      case "teacher": return { label: "Giáo viên", icon: "👨‍🏫" };
+      default: return { label: role, icon: "👤" };
+    }
+  };
+
+  const roleInfo = getRoleLabel(user.role);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-lg p-6 bg-white shadow-2xl border-0 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+            ✏️
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Chỉnh sửa {roleInfo.label.toLowerCase()}</h3>
+            <p className="text-sm text-gray-500">{roleInfo.icon} {user.name}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Cơ sở */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Cơ sở</label>
+            <select
+              value={formData.branchId}
+              onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">-- Chọn cơ sở --</option>
+              {branches.map((branch) => (
+                <option key={branch._id} value={branch._id}>{branch.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Họ tên */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Họ tên <span className="text-red-500">*</span></label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="rounded-xl border-gray-200"
+            />
+          </div>
+
+          {/* Email (readonly) */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Email</label>
+            <Input
+              value={formData.email}
+              disabled
+              className="rounded-xl border-gray-200 bg-gray-100 cursor-not-allowed"
+            />
+            <p className="text-xs text-gray-400">Email không thể thay đổi</p>
+          </div>
+
+          {/* Số điện thoại */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Số điện thoại</label>
+            <Input
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="rounded-xl border-gray-200"
+            />
+          </div>
+
+          {/* Ngày sinh + Giới tính (không cho phụ huynh) */}
+          {!isParent && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">Ngày sinh</label>
+                <Input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  className="rounded-xl border-gray-200"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700">Giới tính</label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Chọn --</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Trạng thái */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Trạng thái</label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="active">Hoạt động</option>
+              <option value="pending">Chờ duyệt</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
+
+          {/* === STUDENT SPECIFIC === */}
+          {isStudent && (
+            <>
+              {/* Thông tin phụ huynh */}
+              <div className="border rounded-xl p-3 space-y-3 bg-emerald-50">
+                <h4 className="text-sm font-semibold text-emerald-800">👨‍👩‍👧 Thông tin phụ huynh</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Tên phụ huynh</label>
+                    <Input
+                      value={formData.parentName}
+                      onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                      className="rounded-lg border-gray-200 text-sm"
+                      placeholder="Nhập tên"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">SĐT phụ huynh</label>
+                    <Input
+                      value={formData.parentPhone}
+                      onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
+                      className="rounded-lg border-gray-200 text-sm"
+                      placeholder="Nhập SĐT"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Học bổng */}
+              <div className="border rounded-xl p-3 space-y-3 bg-amber-50">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-amber-800">🎓 Học bổng</h4>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasScholarship}
+                      onChange={(e) => setFormData({ ...formData, hasScholarship: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+                {formData.hasScholarship && (
+                  <div className="space-y-3 pt-2 border-t border-amber-200">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-600">Loại học bổng <span className="text-red-500">*</span></label>
+                      <select
+                        value={formData.scholarshipType}
+                        onChange={(e) => setFormData({ ...formData, scholarshipType: e.target.value as any })}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      >
+                        <option value="">-- Chọn loại --</option>
+                        <option value="teacher_child">Con giáo viên</option>
+                        <option value="poor_family">Hộ nghèo</option>
+                        <option value="orphan">Con mồ côi</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-600">Phần trăm (%)</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={formData.scholarshipPercent}
+                          onChange={(e) => setFormData({ ...formData, scholarshipPercent: parseInt(e.target.value) })}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={formData.scholarshipPercent}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                            setFormData({ ...formData, scholarshipPercent: val });
+                          }}
+                          className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-center"
+                        />
+                        <span className="text-sm font-semibold text-amber-600">%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* === TEACHER SPECIFIC === */}
+          {isTeacher && (
+            <>
+              {/* Môn dạy */}
+              <div className="border rounded-xl p-3 space-y-3 bg-purple-50">
+                <h4 className="text-sm font-semibold text-purple-800">📚 Môn dạy</h4>
+                <div
+                  onClick={() => setShowSubjectPicker(!showSubjectPicker)}
+                  className="w-full min-h-[42px] rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer bg-white hover:border-purple-400"
+                >
+                  {formData.subjects.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {formData.subjects.map((subject) => (
+                        <span key={subject} className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                          #{subject}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); toggleSubject(subject); }} className="hover:text-purple-900">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">Nhấn để chọn môn dạy...</span>
+                  )}
+                </div>
+                {showSubjectPicker && (
+                  <div className="border border-gray-200 rounded-xl p-3 bg-white max-h-[200px] overflow-y-auto">
+                    {SUBJECT_OPTIONS.map((cat) => (
+                      <div key={cat.category} className="mb-2 last:mb-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory(cat.subjects)}
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
+                              cat.subjects.every((s) => formData.subjects.includes(s))
+                                ? "bg-purple-600 text-white"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                          >
+                            {cat.category}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1 ml-1">
+                          {cat.subjects.map((subject) => (
+                            <button
+                              key={subject}
+                              type="button"
+                              onClick={() => toggleSubject(subject)}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
+                                formData.subjects.includes(subject)
+                                  ? "bg-purple-500 text-white"
+                                  : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
+                              }`}
+                            >
+                              #{subject}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Trình độ & Ghi chú */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">Trình độ</label>
+                  <select
+                    value={formData.qualification}
+                    onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Chọn --</option>
+                    <option value="Cử nhân">Cử nhân</option>
+                    <option value="Thạc sĩ">Thạc sĩ</option>
+                    <option value="Tiến sĩ">Tiến sĩ</option>
+                    <option value="Giáo sư">Giáo sư</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Ghi chú</label>
+                  <textarea
+                    value={formData.teacherNote}
+                    onChange={(e) => setFormData({ ...formData, teacherNote: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none"
+                    placeholder="Ghi chú về giáo viên..."
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* === PARENT SPECIFIC === */}
+          {isParent && (
+            <div className="border rounded-xl p-3 space-y-3 bg-indigo-50">
+              <h4 className="text-sm font-semibold text-indigo-800">👧 Email con (học sinh)</h4>
+              <Input
+                type="email"
+                value={formData.childEmail}
+                onChange={(e) => setFormData({ ...formData, childEmail: e.target.value })}
+                className="rounded-lg border-gray-200"
+                placeholder="email.hocsinh@example.com"
+              />
+              <p className="text-xs text-gray-500">Nhập email của học sinh để liên kết tài khoản</p>
+            </div>
+          )}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-6">
+          <Button
+            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg"
+            onClick={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? "Đang lưu..." : "💾 Lưu thay đổi"}
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 rounded-xl"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Hủy
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // Danh sách môn dạy theo khối
 const SUBJECT_OPTIONS = [
   { category: "Toán", subjects: ["Toán 10", "Toán 11", "Toán 12"] },
@@ -771,6 +1270,10 @@ function AddModal({
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
   const [selectedGender, setSelectedGender] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
+  // State học bổng (dành cho học sinh)
+  const [hasScholarship, setHasScholarship] = useState(false);
+  const [scholarshipType, setScholarshipType] = useState("");
+  const [scholarshipPercent, setScholarshipPercent] = useState(0);
 
   // Check if this is teacher/student/parent form
   const isTeacherForm = title.includes("giáo viên");
@@ -803,6 +1306,9 @@ function AddModal({
       selectedSubjects,
       selectedGender,
       dateOfBirth,
+      hasScholarship,
+      scholarshipType,
+      scholarshipPercent,
     });
     const submitData = { ...formData, branchId: selectedBranch };
     if (isTeacherForm && selectedSubjects.length > 0) {
@@ -815,6 +1321,14 @@ function AddModal({
     // Thêm ngày sinh (không áp dụng cho phụ huynh)
     if (!isParentForm && dateOfBirth) {
       submitData["Ngày sinh"] = dateOfBirth;
+    }
+    // Thêm thông tin học bổng (chỉ cho học sinh)
+    if (isStudentForm) {
+      submitData["hasScholarship"] = hasScholarship ? "true" : "false";
+      if (hasScholarship && scholarshipType) {
+        submitData["scholarshipType"] = scholarshipType;
+        submitData["scholarshipPercent"] = scholarshipPercent.toString();
+      }
     }
     onSubmit(submitData);
   };
@@ -894,6 +1408,85 @@ function AddModal({
                 <option value="female">Nữ</option>
                 <option value="other">Khác</option>
               </select>
+            </div>
+          )}
+
+          {/* Học bổng (chỉ áp dụng cho học sinh) */}
+          {isStudentForm && (
+            <div className="border rounded-xl p-3 space-y-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">
+                  🎓 Học bổng
+                </label>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasScholarship}
+                    onChange={(e) => {
+                      setHasScholarship(e.target.checked);
+                      if (!e.target.checked) {
+                        setScholarshipType("");
+                        setScholarshipPercent(0);
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              {hasScholarship && (
+                <div className="space-y-3 pt-2 border-t border-gray-200">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">
+                      Loại học bổng <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={scholarshipType}
+                      onChange={(e) => setScholarshipType(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">-- Chọn loại học bổng --</option>
+                      <option value="teacher_child">Con giáo viên</option>
+                      <option value="poor_family">Hộ nghèo</option>
+                      <option value="orphan">Con mồ côi</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">
+                      Phần trăm học bổng (%)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={scholarshipPercent}
+                        onChange={(e) => setScholarshipPercent(parseInt(e.target.value))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={scholarshipPercent}
+                        onChange={(e) => {
+                          const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                          setScholarshipPercent(val);
+                        }}
+                        className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-center"
+                      />
+                      <span className="text-sm font-semibold text-blue-600">%</span>
+                    </div>
+                    <p className="text-xs text-gray-500 italic">
+                      Học sinh được giảm {scholarshipPercent}% học phí
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1152,6 +1745,9 @@ export default function AdminDashboard({
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
   const [selectedUserDetail, setSelectedUserDetail] =
     useState<UserDetail | null>(null);
+  const [editingUser, setEditingUser] = useState<UserDetail | null>(null);
+  const [editUserLoading, setEditUserLoading] = useState(false);
+  const [editUserError, setEditUserError] = useState<string | null>(null);
   const [classStudentsModal, setClassStudentsModal] = useState<any>(null);
   const [classSearchQuery, setClassSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
@@ -1352,6 +1948,13 @@ export default function AdminDashboard({
         const parentPhone = data["SĐT phụ huynh"];
         if (parentName) apiData.parentName = parentName.trim();
         if (parentPhone) apiData.parentPhone = parentPhone.trim();
+
+        // Thêm thông tin học bổng
+        apiData.hasScholarship = data["hasScholarship"] === "true";
+        if (apiData.hasScholarship && data["scholarshipType"]) {
+          apiData.scholarshipType = data["scholarshipType"];
+          apiData.scholarshipPercent = parseInt(data["scholarshipPercent"]) || 0;
+        }
       }
 
       // Add teacher specific fields
@@ -2736,8 +3339,8 @@ export default function AdminDashboard({
           branchName={getBranchName(selectedUserDetail.branchId)}
           onClose={() => setSelectedUserDetail(null)}
           onEdit={() => {
-            // TODO: Implement edit functionality
-            alert("Chức năng chỉnh sửa đang được phát triển");
+            setEditingUser(selectedUserDetail);
+            setSelectedUserDetail(null);
           }}
           onDelete={async () => {
             if (
@@ -2756,6 +3359,34 @@ export default function AdminDashboard({
               }
             }
           }}
+        />
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          branches={branches}
+          onClose={() => {
+            setEditingUser(null);
+            setEditUserError(null);
+          }}
+          onSave={async (data) => {
+            setEditUserLoading(true);
+            setEditUserError(null);
+            try {
+              const { updateUser } = useUsersStore.getState();
+              await updateUser(editingUser._id, data);
+              setEditingUser(null);
+              await fetchUsers();
+            } catch (err: any) {
+              setEditUserError(err.message || "Lỗi khi cập nhật tài khoản");
+            } finally {
+              setEditUserLoading(false);
+            }
+          }}
+          isLoading={editUserLoading}
+          error={editUserError}
         />
       )}
 

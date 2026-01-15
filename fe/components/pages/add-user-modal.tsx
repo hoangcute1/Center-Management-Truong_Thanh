@@ -23,7 +23,22 @@ type BaseForm = {
   branchId: string;
 };
 
-type StudentForm = BaseForm & { studentId: string; parentName: string };
+// Loại học bổng
+export type ScholarshipType = "teacher_child" | "poor_family" | "orphan";
+
+export const SCHOLARSHIP_TYPES: { value: ScholarshipType; label: string }[] = [
+  { value: "teacher_child", label: "Con giáo viên" },
+  { value: "poor_family", label: "Hộ nghèo" },
+  { value: "orphan", label: "Con mồ côi" },
+];
+
+type StudentForm = BaseForm & {
+  studentId: string;
+  parentName: string;
+  hasScholarship: boolean;
+  scholarshipType: ScholarshipType | "";
+  scholarshipPercent: number;
+};
 type ParentForm = BaseForm & { childrenCount: string };
 type TeacherForm = BaseForm & {
   subjects: string[]; // Đổi từ subject thành subjects (array)
@@ -49,7 +64,14 @@ const BASE_FORM: BaseForm = {
 
 const getDefaultForm = (userType: UserType): FormDataState => {
   if (userType === "student")
-    return { ...BASE_FORM, studentId: "", parentName: "" };
+    return {
+      ...BASE_FORM,
+      studentId: "",
+      parentName: "",
+      hasScholarship: false,
+      scholarshipType: "",
+      scholarshipPercent: 0,
+    };
   if (userType === "parent") return { ...BASE_FORM, childrenCount: "1" };
   return {
     ...BASE_FORM,
@@ -148,6 +170,15 @@ export default function AddUserModal({
         apiData.experienceYears = formData.experience
           ? parseInt(formData.experience)
           : undefined;
+      }
+
+      // Thêm thông tin học bổng nếu là student
+      if (userType === "student" && "hasScholarship" in formData) {
+        apiData.hasScholarship = formData.hasScholarship;
+        if (formData.hasScholarship && formData.scholarshipType) {
+          apiData.scholarshipType = formData.scholarshipType;
+          apiData.scholarshipPercent = formData.scholarshipPercent;
+        }
       }
 
       console.log("=== CALLING API ==="); // Debug
@@ -256,26 +287,152 @@ export default function AddUserModal({
           </div>
 
           {userType === "student" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Mã học sinh
-                </label>
-                <Input
-                  name="studentId"
-                  value={"studentId" in formData ? formData.studentId : ""}
-                  onChange={handleChange}
-                />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Mã học sinh
+                  </label>
+                  <Input
+                    name="studentId"
+                    value={"studentId" in formData ? formData.studentId : ""}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Tên phụ huynh
+                  </label>
+                  <Input
+                    name="parentName"
+                    value={"parentName" in formData ? formData.parentName : ""}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Tên phụ huynh
-                </label>
-                <Input
-                  name="parentName"
-                  value={"parentName" in formData ? formData.parentName : ""}
-                  onChange={handleChange}
-                />
+
+              {/* Phần học bổng */}
+              <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hasScholarship"
+                    checked={
+                      "hasScholarship" in formData
+                        ? formData.hasScholarship
+                        : false
+                    }
+                    onChange={(e) => {
+                      if ("hasScholarship" in formData) {
+                        setFormData({
+                          ...formData,
+                          hasScholarship: e.target.checked,
+                          scholarshipType: e.target.checked
+                            ? formData.scholarshipType
+                            : "",
+                          scholarshipPercent: e.target.checked
+                            ? formData.scholarshipPercent
+                            : 0,
+                        } as StudentForm);
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor="hasScholarship"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Có học bổng
+                  </label>
+                </div>
+
+                {"hasScholarship" in formData && formData.hasScholarship && (
+                  <div className="space-y-3 pl-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Loại học bổng <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="scholarshipType"
+                        value={
+                          "scholarshipType" in formData
+                            ? formData.scholarshipType
+                            : ""
+                        }
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="">-- Chọn loại học bổng --</option>
+                        {SCHOLARSHIP_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Phần trăm học bổng (%)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          name="scholarshipPercent"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={
+                            "scholarshipPercent" in formData
+                              ? formData.scholarshipPercent
+                              : 0
+                          }
+                          onChange={(e) => {
+                            if ("scholarshipPercent" in formData) {
+                              setFormData({
+                                ...formData,
+                                scholarshipPercent: parseInt(e.target.value),
+                              } as StudentForm);
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        <span className="text-sm font-semibold text-blue-600 min-w-[3rem] text-right">
+                          {"scholarshipPercent" in formData
+                            ? formData.scholarshipPercent
+                            : 0}
+                          %
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        name="scholarshipPercentInput"
+                        min="0"
+                        max="100"
+                        value={
+                          "scholarshipPercent" in formData
+                            ? formData.scholarshipPercent
+                            : 0
+                        }
+                        onChange={(e) => {
+                          if ("scholarshipPercent" in formData) {
+                            const value = Math.min(
+                              100,
+                              Math.max(0, parseInt(e.target.value) || 0)
+                            );
+                            setFormData({
+                              ...formData,
+                              scholarshipPercent: value,
+                            } as StudentForm);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        placeholder="Hoặc nhập trực tiếp (0-100)"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
