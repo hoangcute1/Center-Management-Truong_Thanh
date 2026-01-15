@@ -11,6 +11,13 @@ export enum Gender {
   Other = 'other',
 }
 
+// Loại học bổng
+export enum ScholarshipType {
+  TeacherChild = 'teacher_child', // Con giáo viên
+  PoorFamily = 'poor_family', // Hộ nghèo
+  Orphan = 'orphan', // Con mồ côi
+}
+
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true })
@@ -97,6 +104,22 @@ export class User {
   // Trình độ học vấn
   @Prop()
   qualification?: string;
+
+  // ===== Thông tin học bổng (dành cho học sinh) =====
+  // Có học bổng hay không
+  @Prop({ default: false })
+  hasScholarship: boolean;
+
+  // Loại học bổng
+  @Prop({
+    type: String,
+    enum: ScholarshipType,
+  })
+  scholarshipType?: ScholarshipType;
+
+  // Phần trăm học bổng (0-100)
+  @Prop({ min: 0, max: 100 })
+  scholarshipPercent?: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
