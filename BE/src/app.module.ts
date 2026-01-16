@@ -19,6 +19,8 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { BranchesModule } from './branches/branches.module';
 import { ImportsModule } from './imports/imports.module';
 import { IncidentsModule } from './incidents/incidents.module';
+import { PaymentRequestsModule } from './payment-requests/payment-requests.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { IncidentsModule } from './incidents/incidents.module';
     BranchesModule,
     ImportsModule,
     IncidentsModule,
+    PaymentRequestsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
