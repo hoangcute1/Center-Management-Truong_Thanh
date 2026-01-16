@@ -16,6 +16,7 @@ import { useClassesStore, Class } from "@/lib/stores/classes-store";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useUsersStore } from "@/lib/stores/users-store";
 import SessionFormModal from "./session-form-modal";
+import ClassDetailModal from "./class-detail-modal";
 
 interface ScheduleManagerProps {
   userRole?: string;
@@ -103,6 +104,7 @@ export default function ScheduleManager({
   const [selectedTeacherFilter, setSelectedTeacherFilter] =
     useState<string>("");
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
+  const [selectedClassDetail, setSelectedClassDetail] = useState<Class | null>(null);
 
   // Stores
   const {
@@ -395,14 +397,23 @@ export default function ScheduleManager({
   ) => {
     const colorClass = CLASS_COLORS[event.colorIndex];
 
+    // Handler to show class detail
+    const handleClickClass = () => {
+      const classInfo = classes.find((c) => c._id === event.classId);
+      if (classInfo) {
+        setSelectedClassDetail(classInfo);
+      }
+    };
+
     if (compact) {
       return (
         <div
           key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
-          className={`p-1.5 rounded text-xs border-l-2 ${colorClass}`}
+          className={`p-1.5 rounded text-xs border-l-2 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
           title={`${event.className} - ${event.teacherName}\n${
             event.startTime
-          } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}`}
+          } - ${event.endTime}${event.room ? `\nPhòng: ${event.room}` : ""}\n\nNhấn để xem chi tiết`}
+          onClick={handleClickClass}
         >
           <div className="font-medium truncate">{event.className}</div>
           <div className="text-[10px] opacity-70">
@@ -415,7 +426,8 @@ export default function ScheduleManager({
     return (
       <Card
         key={`${event.classId}-${event.dayOfWeek}-${event.startTime}`}
-        className={`p-3 transition-shadow border-l-4 ${colorClass}`}
+        className={`p-3 transition-shadow border-l-4 cursor-pointer hover:shadow-md ${colorClass}`}
+        onClick={handleClickClass}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -833,7 +845,16 @@ export default function ScheduleManager({
           session={editingSession}
           classes={classes}
           teachers={users.filter((u) => u.role === "teacher")}
+          branches={branches}
           onClose={handleCloseModal}
+        />
+      )}
+
+      {/* Class Detail Modal */}
+      {selectedClassDetail && (
+        <ClassDetailModal
+          classData={selectedClassDetail}
+          onClose={() => setSelectedClassDetail(null)}
         />
       )}
     </div>

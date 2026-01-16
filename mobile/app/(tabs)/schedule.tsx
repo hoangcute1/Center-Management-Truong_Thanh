@@ -392,29 +392,29 @@ export default function ScheduleScreen() {
                 </View>
                 <View style={styles.scheduleInfo}>
                   <View style={styles.scheduleHeader}>
-                    <Text style={styles.className}>{item.className}</Text>
+                    <Text style={styles.className} numberOfLines={1} ellipsizeMode="tail">{item.className}</Text>
                     <View
                       style={[
                         styles.statusBadge,
                         { backgroundColor: "#DBEAFE" },
                       ]}
                     >
-                      <Ionicons name="book" size={12} color="#3B82F6" />
+                      <Ionicons name="book" size={10} color="#3B82F6" />
                       <Text style={[styles.statusText, { color: "#3B82F6" }]}>
-                        Lịch cố định
+                        Cố định
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.subject}>{item.subject}</Text>
+                  <Text style={styles.subject} numberOfLines={1} ellipsizeMode="tail">{item.subject}</Text>
                   {item.room && (
                     <View style={styles.scheduleDetails}>
                       <View style={styles.detailItem}>
                         <Ionicons
                           name="location-outline"
-                          size={14}
+                          size={12}
                           color="#6B7280"
                         />
-                        <Text style={styles.detailText}>{item.room}</Text>
+                        <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">{item.room}</Text>
                       </View>
                     </View>
                   )}
@@ -457,7 +457,7 @@ export default function ScheduleScreen() {
                 </View>
                 <View style={styles.scheduleInfo}>
                   <View style={styles.scheduleHeader}>
-                    <Text style={styles.className}>{className}</Text>
+                    <Text style={styles.className} numberOfLines={1} ellipsizeMode="tail">{className}</Text>
                     <View
                       style={[
                         styles.statusBadge,
@@ -466,7 +466,7 @@ export default function ScheduleScreen() {
                     >
                       <Ionicons
                         name={statusConfig.icon as any}
-                        size={12}
+                        size={10}
                         color={statusConfig.colors[0]}
                       />
                       <Text
@@ -479,26 +479,26 @@ export default function ScheduleScreen() {
                       </Text>
                     </View>
                   </View>
-                  {subject && <Text style={styles.subject}>{subject}</Text>}
+                  {subject && <Text style={styles.subject} numberOfLines={1} ellipsizeMode="tail">{subject}</Text>}
                   <View style={styles.scheduleDetails}>
                     {user?.role !== "teacher" && (
                       <View style={styles.detailItem}>
                         <Ionicons
                           name="person-outline"
-                          size={14}
+                          size={12}
                           color="#6B7280"
                         />
-                        <Text style={styles.detailText}>Giáo viên</Text>
+                        <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">Giáo viên</Text>
                       </View>
                     )}
                     {session.note && (
                       <View style={styles.detailItem}>
                         <Ionicons
                           name="location-outline"
-                          size={14}
+                          size={12}
                           color="#6B7280"
                         />
-                        <Text style={styles.detailText}>{session.note}</Text>
+                        <Text style={styles.detailText} numberOfLines={1} ellipsizeMode="tail">{session.note}</Text>
                       </View>
                     )}
                   </View>
@@ -519,8 +519,8 @@ const styles = StyleSheet.create({
   },
   calendarContainer: {
     backgroundColor: "#FFFFFF",
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     shadowColor: "#000",
@@ -533,38 +533,40 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
-    paddingHorizontal: 4,
+    marginBottom: 14,
+    paddingHorizontal: 8,
   },
   weekNavButton: {
-    padding: 8,
+    padding: 6,
     backgroundColor: "#F3F4F6",
-    borderRadius: 10,
+    borderRadius: 8,
   },
   weekTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "#1F2937",
   },
   weekRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
   },
   dateCell: {
     alignItems: "center",
     paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     borderRadius: 14,
     minWidth: (width - 48) / 7,
+    maxWidth: (width - 24) / 7,
   },
   selectedDateCell: {
     backgroundColor: "#EFF6FF",
   },
   dayText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
     color: "#9CA3AF",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   selectedDayText: {
     color: "#3B82F6",
@@ -574,9 +576,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   dateCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",
@@ -588,7 +590,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#DBEAFE",
   },
   dateText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#374151",
   },
@@ -602,12 +604,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: "#FFFFFF",
-    marginTop: 12,
+    marginTop: 10,
     marginHorizontal: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -616,25 +618,27 @@ const styles = StyleSheet.create({
   },
   selectedDateInfo: {
     flex: 1,
+    minWidth: 0,
   },
   selectedDateTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: "#1F2937",
   },
   selectedDateSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#6B7280",
     marginTop: 2,
   },
   sessionCount: {
     backgroundColor: "#EFF6FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    flexShrink: 0,
   },
   sessionCountText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#3B82F6",
   },
@@ -642,8 +646,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scheduleContent: {
-    padding: 16,
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 40,
   },
   emptyContainer: {
     alignItems: "center",
@@ -673,18 +678,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
+    marginHorizontal: 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+    overflow: "hidden",
   },
   timeColumn: {
     alignItems: "center",
-    marginRight: 16,
-    width: 56,
+    marginRight: 12,
+    width: 50,
+    flexShrink: 0,
   },
   timeIndicator: {
     width: 4,
@@ -705,49 +713,56 @@ const styles = StyleSheet.create({
   },
   scheduleInfo: {
     flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
   },
   scheduleHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 4,
+    flexWrap: "nowrap",
   },
   className: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "#1F2937",
     flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
+    flexShrink: 0,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
   },
   subject: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   scheduleDetails: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 8,
   },
   detailItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
+    maxWidth: "100%",
   },
   detailText: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#6B7280",
+    flexShrink: 1,
   },
 });

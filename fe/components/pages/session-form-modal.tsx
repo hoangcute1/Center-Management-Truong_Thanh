@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,26 +11,83 @@ import {
   CreateSessionData,
   UpdateSessionData,
 } from "@/lib/stores/schedule-store";
-import { Class } from "@/lib/stores/classes-store";
+import { Class, useClassesStore } from "@/lib/stores/classes-store";
 import { User } from "@/lib/stores/auth-store";
+import { Branch, useBranchesStore } from "@/lib/stores/branches-store";
+import { useUsersStore } from "@/lib/stores/users-store";
+import { SUBJECT_LIST } from "@/lib/constants/subjects";
 
 interface SessionFormModalProps {
   session: Session | null;
   classes: Class[];
   teachers?: User[];
+  branches?: Branch[];
   onClose: () => void;
 }
 
 export default function SessionFormModal({
   session,
-  classes,
-  teachers = [],
+  classes: initialClasses,
+  teachers: initialTeachers = [],
+  branches: initialBranches = [],
   onClose,
 }: SessionFormModalProps) {
   const { createSession, updateSession, checkConflict, isLoading } =
     useScheduleStore();
+  
+  // Use stores directly for fresh data
+  const { branches: storeBranches, fetchBranches } = useBranchesStore();
+  const { users: storeUsers, fetchUsers } = useUsersStore();
+  const { classes: storeClasses, fetchClasses } = useClassesStore();
+  
+  // Local state for data
+  const [localBranches, setLocalBranches] = useState<Branch[]>(initialBranches);
+  const [localTeachers, setLocalTeachers] = useState<User[]>(initialTeachers);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  
+  // Fetch fresh data when modal opens
+  useEffect(() => {
+    const loadFreshData = async () => {
+      setIsLoadingData(true);
+      try {
+        // Fetch branches, teachers and classes
+        await Promise.all([
+          fetchBranches(),
+          fetchUsers({ role: "teacher" }),
+          fetchClasses(),
+        ]);
+      } catch (error) {
+        console.error("Error loading fresh data:", error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    
+    loadFreshData();
+  }, [fetchBranches, fetchUsers, fetchClasses]);
+  
+  // Update local state when store data changes
+  useEffect(() => {
+    if (storeBranches.length > 0) {
+      setLocalBranches(storeBranches);
+    }
+  }, [storeBranches]);
+  
+  useEffect(() => {
+    const teachers = storeUsers.filter((u) => u.role === "teacher");
+    if (teachers.length > 0) {
+      setLocalTeachers(teachers);
+    }
+  }, [storeUsers]);
+  
+  // Use local data with fallback to initial props
+  const branches = localBranches.length > 0 ? localBranches : initialBranches;
+  const teachers = localTeachers.length > 0 ? localTeachers : initialTeachers;
+  const classes = storeClasses.length > 0 ? storeClasses : initialClasses;
 
   const [formData, setFormData] = useState({
+    branchId: "", // Cơ sở được chọn
+    classId: "", // Lớp được chọn
     teacherId: "",
     subject: "", // Môn học được chọn
     title: "",
@@ -45,13 +102,25 @@ export default function SessionFormModal({
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Get subjects that the selected teacher is authorized to teach
-  const teacherSubjects = formData.teacherId
-    ? teachers.find((t) => t._id === formData.teacherId)?.subjects || []
-    : [];
-
-  // Get selected teacher info
-  const selectedTeacher = teachers.find((t) => t._id === formData.teacherId);
+  // Filter classes by selected branch and subject
+  const filteredClasses = useMemo(() => {
+    let result = classes;
+    
+    // Filter by branch if selected
+    if (formData.branchId) {
+      result = result.filter((c) => {
+        const classBranchId = typeof c.branchId === 'string' ? c.branchId : c.branchId?._id || c.branch?._id;
+        return classBranchId === formData.branchId;
+      });
+    }
+    
+    // Filter by subject if selected
+    if (formData.subject) {
+      result = result.filter((c) => c.subject === formData.subject);
+    }
+    
+    return result;
+  }, [classes, formData.branchId, formData.subject]);
 
   // Initialize form data when editing
   useEffect(() => {
@@ -62,6 +131,7 @@ export default function SessionFormModal({
       // Get teacherId directly from session or from classId
       let teacherId = "";
       let subject = "";
+      let branchId = "";
 
       // First try to get from session directly (new format)
       if (session.teacherId) {
@@ -91,10 +161,18 @@ export default function SessionFormModal({
           if (!subject) {
             subject = (classInfo as any).subject || classInfo.name || "";
           }
+          // Try to get branchId from class
+          if ((classInfo as any).branchId) {
+            branchId = typeof (classInfo as any).branchId === "string" 
+              ? (classInfo as any).branchId 
+              : (classInfo as any).branchId._id;
+          }
         }
       }
 
       setFormData({
+        branchId: branchId,
+        classId: "",
         teacherId: teacherId,
         subject: subject,
         title: session.title || "",
@@ -159,11 +237,14 @@ export default function SessionFormModal({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.teacherId) {
-      newErrors.teacherId = "Vui lòng chọn giáo viên";
+    if (!formData.branchId) {
+      newErrors.branchId = "Vui lòng chọn cơ sở";
     }
     if (!formData.subject) {
       newErrors.subject = "Vui lòng chọn môn học";
+    }
+    if (!formData.classId) {
+      newErrors.classId = "Vui lòng chọn lớp";
     }
     if (!formData.title.trim()) {
       newErrors.title = "Vui lòng nhập tiêu đề buổi học";
@@ -212,7 +293,7 @@ export default function SessionFormModal({
           teacherId?: string;
           subject?: string;
         } = {
-          classId: "", // Will be handled by backend based on subject
+          classId: formData.classId || undefined, // Use selected class if available
           teacherId: formData.teacherId,
           subject: formData.subject,
           startTime: startDateTime.toISOString(),
@@ -230,8 +311,8 @@ export default function SessionFormModal({
     }
   };
 
-  // Handle input change
-  const handleChange = (
+  // Handle input change with data refresh
+  const handleChange = async (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
@@ -242,13 +323,40 @@ export default function SessionFormModal({
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    // Reset subject when teacher changes
-    if (name === "teacherId") {
+    // Reset dependent fields when branch changes
+    if (name === "branchId") {
       setFormData((prev) => ({
         ...prev,
-        teacherId: value,
+        branchId: value,
         subject: "",
+        classId: "",
+        teacherId: "",
       }));
+    }
+    // Reset class and teacher when subject changes
+    if (name === "subject") {
+      setFormData((prev) => ({
+        ...prev,
+        subject: value,
+        classId: "",
+        teacherId: "",
+      }));
+    }
+    // Auto-fill teacher from class if class is selected
+    if (name === "classId" && value) {
+      const selectedClass = classes.find((c) => c._id === value);
+      if (selectedClass) {
+        const classTeacherId = typeof selectedClass.teacherId === "string" 
+          ? selectedClass.teacherId 
+          : selectedClass.teacherId?._id || selectedClass.teacher?._id;
+        if (classTeacherId) {
+          setFormData((prev) => ({
+            ...prev,
+            classId: value,
+            teacherId: classTeacherId,
+          }));
+        }
+      }
     }
   };
 
@@ -260,7 +368,7 @@ export default function SessionFormModal({
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">
             📅
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-lg font-bold text-gray-900">
               {session ? "Chỉnh sửa buổi học" : "Thêm buổi học bất thường"}
             </h3>
@@ -270,7 +378,24 @@ export default function SessionFormModal({
                 : "Tạo buổi học bù hoặc kiểm tra"}
             </p>
           </div>
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            title="Đóng"
+          >
+            <span className="text-lg">✕</span>
+          </button>
         </div>
+
+        {/* Loading indicator */}
+        {isLoadingData && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm flex items-center gap-2">
+            <span className="animate-spin">⏳</span>
+            Đang tải dữ liệu mới nhất...
+          </div>
+        )}
 
         {/* Conflict Warning */}
         {conflictWarning && (
@@ -281,56 +406,38 @@ export default function SessionFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Teacher Selection */}
+          {/* Branch Selection - First Step */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Giáo viên <span className="text-red-500">*</span>
+              Cơ sở <span className="text-red-500">*</span>
+              <span className="text-xs text-gray-400 ml-2">
+                ({branches.length} cơ sở)
+              </span>
             </label>
             <select
-              name="teacherId"
-              value={formData.teacherId}
+              name="branchId"
+              value={formData.branchId}
               onChange={handleChange}
-              disabled={!!session}
+              disabled={!!session || isLoadingData}
               className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.teacherId ? "border-red-300" : "border-gray-200"
-              } ${session ? "bg-gray-100" : ""}`}
+                errors.branchId ? "border-red-300" : "border-gray-200"
+              } ${session || isLoadingData ? "bg-gray-100" : ""}`}
             >
-              <option value="">-- Chọn giáo viên --</option>
-              {teachers.map((t) => (
-                <option key={t._id} value={t._id}>
-                  👨‍🏫 {t.name}{" "}
-                  {t.subjects && t.subjects.length > 0
-                    ? `(${t.subjects.join(", ")})`
-                    : ""}
+              <option value="">
+                {isLoadingData ? "⏳ Đang tải..." : "-- Chọn cơ sở --"}
+              </option>
+              {branches.map((b) => (
+                <option key={b._id} value={b._id}>
+                  🏫 {b.name}
                 </option>
               ))}
             </select>
-            {errors.teacherId && (
-              <p className="text-red-500 text-xs mt-1">{errors.teacherId}</p>
-            )}
-            {/* Hiển thị thông tin giáo viên */}
-            {selectedTeacher && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <span className="font-medium">👨‍🏫 {selectedTeacher.name}</span>
-                  {selectedTeacher.phone && (
-                    <span className="text-blue-600 ml-2">
-                      • 📞 {selectedTeacher.phone}
-                    </span>
-                  )}
-                </p>
-                {selectedTeacher.subjects &&
-                  selectedTeacher.subjects.length > 0 && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      <span className="font-medium">Môn dạy:</span>{" "}
-                      {selectedTeacher.subjects.join(", ")}
-                    </p>
-                  )}
-              </div>
+            {errors.branchId && (
+              <p className="text-red-500 text-xs mt-1">{errors.branchId}</p>
             )}
           </div>
 
-          {/* Subject Selection - based on teacher's authorized subjects */}
+          {/* Subject Selection - Second Step */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Môn học <span className="text-red-500">*</span>
@@ -339,17 +446,17 @@ export default function SessionFormModal({
               name="subject"
               value={formData.subject}
               onChange={handleChange}
-              disabled={!!session || !formData.teacherId}
+              disabled={!!session || !formData.branchId || isLoadingData}
               className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.subject ? "border-red-300" : "border-gray-200"
-              } ${session || !formData.teacherId ? "bg-gray-100" : ""}`}
+              } ${session || !formData.branchId || isLoadingData ? "bg-gray-100" : ""}`}
             >
               <option value="">
-                {!formData.teacherId
-                  ? "-- Chọn giáo viên trước --"
+                {!formData.branchId
+                  ? "-- Chọn cơ sở trước --"
                   : "-- Chọn môn học --"}
               </option>
-              {teacherSubjects.map((subject) => (
+              {SUBJECT_LIST.map((subject) => (
                 <option key={subject} value={subject}>
                   📖 {subject}
                 </option>
@@ -358,9 +465,47 @@ export default function SessionFormModal({
             {errors.subject && (
               <p className="text-red-500 text-xs mt-1">{errors.subject}</p>
             )}
-            {formData.teacherId && teacherSubjects.length === 0 && (
+          </div>
+
+          {/* Class Selection - Third Step (Optional) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lớp học
+              <span className="text-xs text-gray-400 ml-2">
+                ({filteredClasses.length} lớp phù hợp - không bắt buộc)
+              </span>
+            </label>
+            <select
+              name="classId"
+              value={formData.classId}
+              onChange={handleChange}
+              disabled={!!session || !formData.subject || isLoadingData}
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.classId ? "border-red-300" : "border-gray-200"
+              } ${session || !formData.subject || isLoadingData ? "bg-gray-100" : ""}`}
+            >
+              <option value="">
+                {!formData.subject
+                  ? "-- Chọn môn học trước --"
+                  : "-- Chọn lớp --"}
+              </option>
+              {filteredClasses.map((c) => {
+                const teacherName = c.teacher?.name || 
+                  (typeof c.teacherId === 'object' ? c.teacherId?.name : '') || 
+                  'Chưa có GV';
+                return (
+                  <option key={c._id} value={c._id}>
+                    📚 {c.name} - GV: {teacherName}
+                  </option>
+                );
+              })}
+            </select>
+            {errors.classId && (
+              <p className="text-red-500 text-xs mt-1">{errors.classId}</p>
+            )}
+            {formData.subject && filteredClasses.length === 0 && !isLoadingData && (
               <p className="text-amber-600 text-xs mt-1">
-                ⚠️ Giáo viên này chưa được cấp quyền dạy môn nào
+                ⚠️ Không có lớp nào dạy môn {formData.subject} tại cơ sở này.
               </p>
             )}
           </div>
