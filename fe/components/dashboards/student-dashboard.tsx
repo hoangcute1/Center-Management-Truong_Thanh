@@ -23,6 +23,8 @@ import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
+import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+import { AlertTriangle } from "lucide-react";
 
 // Helper functions for week navigation
 const getStartOfWeek = (date: Date): Date => {
@@ -897,6 +899,16 @@ export default function StudentDashboard({
   } = useStudentDashboardStore();
   const { user: authUser } = useAuthStore();
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
+  const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
+
+  useEffect(() => {
+    if (user || authUser) {
+      fetchMyRequests();
+    }
+  }, [user, authUser, fetchMyRequests]);
+
+  const pendingPayments = myRequests.filter(r => r.status === 'pending' || r.status === 'overdue');
+  const totalPendingAmount = pendingPayments.reduce((sum, r) => sum + r.finalAmount, 0);
 
   // Calculate the earliest date (account creation date)
   const accountCreatedAt = useMemo(() => {
@@ -1301,6 +1313,28 @@ export default function StudentDashboard({
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+        {pendingPayments.length > 0 && (
+          <div 
+            onClick={() => window.location.href = '/payment'}
+            className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
+          >
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
+                <div>
+                  <p className="text-sm font-bold text-red-700">Thông báo học phí</p>
+                  <p className="text-sm text-red-600">
+                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán. 
+                    Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700">
+                Thanh toán ngay
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Lời chào thân thiện */}
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
@@ -1352,6 +1386,12 @@ export default function StudentDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
+            </TabsTrigger>
+            <TabsTrigger
+              value="payment"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              💳 Thanh toán
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
@@ -2043,6 +2083,66 @@ export default function StudentDashboard({
                     </p>
                   </button>
                 </div>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payment" className="mt-6">
+            <Card className="p-6 border-0 shadow-lg rounded-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200">
+                    💳
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Thanh toán học phí
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Quản lý các yêu cầu đóng tiền của bạn
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => window.location.href = '/payment'}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                >
+                  Xem tất cả →
+                </Button>
+              </div>
+
+              {/* Quick Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl text-white">
+                  <p className="text-sm opacity-90">Chờ thanh toán</p>
+                  <p className="text-2xl font-bold">--</p>
+                </div>
+                <div className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl text-white">
+                  <p className="text-sm opacity-90">Đã thanh toán</p>
+                  <p className="text-2xl font-bold">--</p>
+                </div>
+                <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white">
+                  <p className="text-sm opacity-90">Học bổng</p>
+                  <p className="text-2xl font-bold">0%</p>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="text-center py-8 bg-gray-50 rounded-xl">
+                <div className="text-5xl mb-4">💰</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Quản lý thanh toán học phí
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Xem và thanh toán các yêu cầu đóng tiền từ trung tâm
+                </p>
+                <Button
+                  onClick={() => window.location.href = '/payment'}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                  size="lg"
+                >
+                  Vào trang thanh toán
+                </Button>
               </div>
             </Card>
           </TabsContent>

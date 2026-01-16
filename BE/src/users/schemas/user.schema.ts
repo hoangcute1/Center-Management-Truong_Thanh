@@ -97,6 +97,16 @@ export class User {
   // Trình độ học vấn
   @Prop()
   qualification?: string;
+
+  // ===== Scholarship Info =====
+  @Prop({ default: false })
+  hasScholarship: boolean;
+
+  @Prop({ default: 0 })
+  scholarshipPercent: number;
+
+  @Prop()
+  scholarshipType?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
