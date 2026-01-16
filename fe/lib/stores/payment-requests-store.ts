@@ -97,7 +97,7 @@ export const usePaymentRequestsStore = create<PaymentRequestsState>(
     fetchMyRequests: async () => {
       set({ isLoading: true, error: null });
       try {
-        const response = await api.get("/payment-requests/my");
+        const response = await api.get("/payment-requests/my/all");
         set({ myRequests: response.data, isLoading: false });
       } catch (error: any) {
         const message = error.response?.data?.message || "Lỗi tải yêu cầu";

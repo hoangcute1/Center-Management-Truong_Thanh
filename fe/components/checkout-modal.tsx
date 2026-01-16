@@ -54,8 +54,7 @@ export default function CheckoutModal({
 
   const { createOrder, isLoading: orderLoading } = useOrdersStore();
   const {
-    createVnpayPayment,
-    createCashPayment,
+    createPayment,
     isLoading: paymentLoading,
   } = usePaymentsStore();
 
@@ -130,12 +129,22 @@ export default function CheckoutModal({
       setError(null);
       setStep("processing");
 
-      if (paymentMethod === "vnpay") {
-        const { paymentUrl } = await createVnpayPayment(currentOrder._id);
+      const method = paymentMethod === "vnpay" ? "vnpay_test" : "cash";
+      
+      const response = await createPayment({
+        requestIds: currentOrder.requestIds || [], // Ensure Order has requestIds
+        method,
+        studentId: currentOrder.studentId
+      });
+
+      if (method === "vnpay_test") {
         // Redirect to VNPay
-        window.location.href = paymentUrl;
+        if (response.paymentUrl) {
+           window.location.href = response.paymentUrl;
+        } else {
+           throw new Error("Không nhận được link thanh toán VNPay");
+        }
       } else {
-        await createCashPayment(currentOrder._id);
         alert(
           "Đã tạo yêu cầu thanh toán tiền mặt.\nVui lòng đến quầy thu ngân để thanh toán."
         );
