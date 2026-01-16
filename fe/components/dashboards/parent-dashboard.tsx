@@ -18,7 +18,7 @@ import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useParentDashboardStore } from "@/lib/stores/parent-dashboard-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Day names for schedule
@@ -344,8 +344,12 @@ export default function ParentDashboard({
     fetchChildrenRequests();
   }, [fetchChildrenRequests]);
 
-  const pendingPayments = childrenRequests.flatMap((c) => c.requests).filter((r) => r.status === 'pending' || r.status === 'overdue');
+  const allRequests = childrenRequests.flatMap((c) => c.requests);
+  const pendingPayments = allRequests.filter((r) => r.status === 'pending' || r.status === 'overdue');
+  const paidPayments = allRequests.filter((r) => r.status === 'paid');
+
   const totalPendingAmount = pendingPayments.reduce((sum, r) => sum + r.finalAmount, 0);
+  const totalPaidAmount = paidPayments.reduce((sum, r) => sum + r.finalAmount, 0);
   const { user: authUser } = useAuthStore();
 
   // Fetch data on mount
@@ -900,6 +904,44 @@ export default function ParentDashboard({
                         </p>
                       </Card>
                     ))}
+                  </div>
+                </Card>
+
+                {/* Financial Summary Card */}
+                <Card className="rounded-2xl shadow-sm border border-gray-100 p-6 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                       💰 Thông tin học phí
+                    </h2>
+                    <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
+                      Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-600">Cần thanh toán</p>
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                          {pendingPayments.length} khoản
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-red-600 truncate">
+                        {totalPendingAmount.toLocaleString('vi-VN')} đ
+                      </p>
+                    </div>
+                    
+                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-600">Đã thanh toán</p>
+                        <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                          {paidPayments.length} khoản
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-600 truncate">
+                        {totalPaidAmount.toLocaleString('vi-VN')} đ
+                      </p>
+                    </div>
                   </div>
                 </Card>
               </>

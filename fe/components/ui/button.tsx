@@ -1,7 +1,7 @@
 import * as React from "react";
 import clsx from "clsx";
 
-type Variant = "solid" | "outline" | "ghost";
+type Variant = "solid" | "outline" | "ghost" | "destructive";
 type Size = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -21,6 +21,7 @@ export function Button({
     solid: "bg-blue-600 text-white hover:bg-blue-700",
     outline: "border border-gray-300 text-gray-900 hover:bg-gray-50",
     ghost: "text-gray-700 hover:bg-gray-100",
+    destructive: "bg-red-600 text-white hover:bg-red-700",
   };
   const sizes: Record<Size, string> = {
     sm: "px-3 py-1.5 text-xs",
