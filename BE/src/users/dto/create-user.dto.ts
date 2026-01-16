@@ -5,10 +5,14 @@ import {
   IsString,
   MinLength,
   IsArray,
+  IsBoolean,
+  IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
 import { UserRole } from '../../common/enums/role.enum';
 import { UserStatus } from '../../common/enums/user-status.enum';
-import { Gender } from '../schemas/user.schema';
+import { Gender, ScholarshipType } from '../schemas/user.schema';
 
 export class CreateUserDto {
   @IsString()
@@ -80,4 +84,19 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   qualification?: string;
+
+  // ===== Thông tin học bổng (dành cho học sinh) =====
+  @IsOptional()
+  @IsBoolean()
+  hasScholarship?: boolean;
+
+  @IsOptional()
+  @IsEnum(ScholarshipType)
+  scholarshipType?: ScholarshipType;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  scholarshipPercent?: number;
 }

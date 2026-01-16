@@ -77,6 +77,13 @@ export class ImportsService {
       emailhocsinh: 'childEmail',
       coso: 'branch',
       chinhanh: 'branch',
+      // Thêm mapping cho học bổng
+      hocbong: 'hasScholarship',
+      cohocbong: 'hasScholarship',
+      loaihocbong: 'scholarshipType',
+      phantramhocbong: 'scholarshipPercent',
+      phantram: 'scholarshipPercent',
+      giamhocphi: 'scholarshipPercent',
     };
 
     const result: Record<string, any> = {};
@@ -191,6 +198,31 @@ export class ImportsService {
             createData.parentName = String(row.parentName).trim();
           if (row.parentPhone)
             createData.parentPhone = String(row.parentPhone).trim();
+
+          // Xử lý học bổng
+          if (row.hasScholarship) {
+            const scholarshipStr = String(row.hasScholarship).toLowerCase().trim();
+            createData.hasScholarship = ['có', 'co', 'yes', 'true', '1', 'x'].includes(scholarshipStr);
+          }
+          
+          if (createData.hasScholarship && row.scholarshipType) {
+            const typeStr = String(row.scholarshipType).toLowerCase().trim();
+            // Map loại học bổng
+            if (typeStr.includes('giao vien') || typeStr.includes('giáo viên') || typeStr === 'teacher_child') {
+              createData.scholarshipType = 'teacher_child';
+            } else if (typeStr.includes('ngheo') || typeStr.includes('nghèo') || typeStr === 'poor_family') {
+              createData.scholarshipType = 'poor_family';
+            } else if (typeStr.includes('mo coi') || typeStr.includes('mồ côi') || typeStr === 'orphan') {
+              createData.scholarshipType = 'orphan';
+            }
+          }
+          
+          if (createData.hasScholarship && row.scholarshipPercent) {
+            const percent = parseInt(String(row.scholarshipPercent).replace('%', ''));
+            if (!isNaN(percent) && percent >= 0 && percent <= 100) {
+              createData.scholarshipPercent = percent;
+            }
+          }
         }
 
         // Thêm email con cho phụ huynh
@@ -271,6 +303,9 @@ export class ImportsService {
           'Giới tính',
           'Tên phụ huynh',
           'SĐT phụ huynh',
+          'Học bổng',
+          'Loại học bổng',
+          'Phần trăm (%)',
           'Cơ sở',
         ];
         sampleData = [
@@ -282,6 +317,9 @@ export class ImportsService {
             'Giới tính': 'Nam',
             'Tên phụ huynh': 'Nguyễn Văn Cha',
             'SĐT phụ huynh': '0912345678',
+            'Học bổng': 'Có',
+            'Loại học bổng': 'Con giáo viên',
+            'Phần trăm (%)': '50',
             'Cơ sở': branches[0]?.name || 'Cơ sở 1',
           },
           {
@@ -292,6 +330,22 @@ export class ImportsService {
             'Giới tính': 'Nữ',
             'Tên phụ huynh': 'Trần Văn Mẹ',
             'SĐT phụ huynh': '0987654321',
+            'Học bổng': 'Không',
+            'Loại học bổng': '',
+            'Phần trăm (%)': '',
+            'Cơ sở': branches[0]?.name || 'Cơ sở 1',
+          },
+          {
+            'Họ tên': 'Lê Văn C',
+            Email: 'levanc@email.com',
+            'Số điện thoại': '0369852147',
+            'Ngày sinh': '2010-08-10',
+            'Giới tính': 'Nam',
+            'Tên phụ huynh': '',
+            'SĐT phụ huynh': '',
+            'Học bổng': 'Có',
+            'Loại học bổng': 'Hộ nghèo',
+            'Phần trăm (%)': '100',
             'Cơ sở': branches[0]?.name || 'Cơ sở 1',
           },
         ];
@@ -305,6 +359,9 @@ export class ImportsService {
             'Giới tính': '[Nam/Nữ]',
             'Tên phụ huynh': '',
             'SĐT phụ huynh': '',
+            'Học bổng': '[Có/Không]',
+            'Loại học bổng': '[Con giáo viên/Hộ nghèo/Con mồ côi]',
+            'Phần trăm (%)': '[0-100]',
             'Cơ sở': '',
           });
         }

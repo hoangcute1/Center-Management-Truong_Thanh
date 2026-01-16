@@ -48,6 +48,9 @@ interface FetchUsersParams {
   subject?: string; // Lọc giáo viên theo môn
 }
 
+// Loại học bổng
+export type ScholarshipType = "teacher_child" | "poor_family" | "orphan";
+
 interface CreateUserData {
   name: string;
   email: string;
@@ -60,6 +63,10 @@ interface CreateUserData {
   teacherNote?: string;
   qualification?: string;
   experienceYears?: number;
+  // Thông tin học bổng (dành cho học sinh)
+  hasScholarship?: boolean;
+  scholarshipType?: ScholarshipType;
+  scholarshipPercent?: number;
 }
 
 interface UpdateUserData {
@@ -77,6 +84,10 @@ interface UpdateUserData {
   teacherNote?: string;
   qualification?: string;
   experienceYears?: number;
+  // Thông tin học bổng (dành cho học sinh)
+  hasScholarship?: boolean;
+  scholarshipType?: ScholarshipType;
+  scholarshipPercent?: number;
 }
 
 interface ImportResult {

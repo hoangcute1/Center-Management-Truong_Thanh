@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "@/lib/stores";
+import AddStudentModal from "@/components/AddStudentModal";
 
 const { width } = Dimensions.get("window");
 
@@ -33,6 +35,7 @@ const getRoleConfig = (role: string) => {
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const roleConfig = getRoleConfig(user?.role || "");
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
@@ -66,6 +69,22 @@ export default function ProfileScreen() {
         },
       ],
     },
+    // Admin section - only show for admin users
+    ...(user?.role === "admin"
+      ? [
+          {
+            title: "Quản trị",
+            items: [
+              {
+                icon: "person-add-outline" as const,
+                label: "Thêm học sinh",
+                color: "#3B82F6",
+                onPress: () => setShowAddStudentModal(true),
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Cài đặt",
       items: [
@@ -211,6 +230,15 @@ export default function ProfileScreen() {
           <Text style={styles.versionNumber}>Phiên bản 1.0.0</Text>
         </View>
       </ScrollView>
+
+      {/* Add Student Modal */}
+      <AddStudentModal
+        visible={showAddStudentModal}
+        onClose={() => setShowAddStudentModal(false)}
+        onSuccess={() => {
+          Alert.alert("Thành công", "Đã thêm học sinh mới!");
+        }}
+      />
     </SafeAreaView>
   );
 }
