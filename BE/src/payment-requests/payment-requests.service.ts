@@ -252,14 +252,8 @@ export class PaymentRequestsService {
     const requests = await this.studentRequestModel
       .find({
         studentId: child._id,
-        status: {
-          $in: [
-            StudentPaymentRequestStatus.PENDING,
-            StudentPaymentRequestStatus.OVERDUE,
-          ],
-        },
       })
-      .sort({ dueDate: 1 });
+      .sort({ createdAt: -1 });
 
     return [
       {
