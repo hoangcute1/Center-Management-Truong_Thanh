@@ -2156,15 +2156,15 @@ export default function StudentDashboard({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl text-white">
                   <p className="text-sm opacity-90">Chờ thanh toán</p>
-                  <p className="text-2xl font-bold">--</p>
+                  <p className="text-2xl font-bold">{totalPendingAmount.toLocaleString('vi-VN')} đ</p>
                 </div>
                 <div className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl text-white">
                   <p className="text-sm opacity-90">Đã thanh toán</p>
-                  <p className="text-2xl font-bold">--</p>
+                  <p className="text-2xl font-bold">{totalPaidAmount.toLocaleString('vi-VN')} đ</p>
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white">
                   <p className="text-sm opacity-90">Học bổng</p>
-                  <p className="text-2xl font-bold">0%</p>
+                  <p className="text-2xl font-bold">{(authUser as any)?.scholarshipPercent || 0}%</p>
                 </div>
               </div>
 
