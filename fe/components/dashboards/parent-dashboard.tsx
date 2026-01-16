@@ -1,5 +1,7 @@
 "use client";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { ChevronDown, Camera } from "lucide-react";
+import { LiquidGlass } from "@liquidglass/react";
 import {
   LineChart,
   Line,
@@ -200,6 +202,151 @@ const contacts = [
   { name: "Thầy Lê Văn E", subject: "Dạy môn Anh văn" },
 ];
 
+function SettingsModal({
+  user,
+  onClose,
+}: {
+  user: {
+    name: string;
+    email: string;
+  };
+  onClose: () => void;
+}) {
+  // State để hiển thị preview ảnh
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Xử lý khi chọn file ảnh
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+    }
+  };
+
+  // Hàm kích hoạt input file
+  const handleEditAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl p-6 min-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin hồ sơ</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center">
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleEditAvatar}
+              className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+              title="Đổi ảnh đại diện"
+            >
+              <Camera size={17} />
+            </button>
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Form Inputs */}
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Họ và tên</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={user.name}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Số điện thoại</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue="-"
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              defaultValue={user.email}
+              readOnly
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Địa chỉ</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              defaultValue="-"
+              readOnly
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200">
+              <span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+              </span>
+              Chỉnh Sửa
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function DetailModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
@@ -329,6 +476,22 @@ export default function ParentDashboard({
     role: string;
   } | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Dropdown Profile
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch real data from API
   const {
@@ -361,12 +524,12 @@ export default function ParentDashboard({
   const childData = dashboardData?.child || child;
   const classesData = dashboardData?.classes?.length
     ? dashboardData.classes.map((c) => ({
-        subject: c.name,
-        total: 12,
-        attended: 10,
-        score: 8.0,
-        teacher: c.teacherName,
-      }))
+      subject: c.name,
+      total: 12,
+      attended: 10,
+      score: 8.0,
+      teacher: c.teacherName,
+    }))
     : courses;
 
   const attendanceStats = dashboardData?.attendanceStats || {
@@ -380,45 +543,45 @@ export default function ParentDashboard({
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + g.percentage,
-                    0
-                  ) /
-                  dashboardData.recentGrades.length /
-                  10
-                ).toFixed(1)
-              : "N/A",
-          note: "Kết quả học tập",
-          icon: "⭐",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Buổi học",
-          value: attendanceStats.total,
-          note: `${attendanceStats.present} buổi tham dự`,
-          icon: "📅",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${attendanceStats.rate}%`,
-          note: "Tỉ lệ tham gia",
-          icon: "🏆",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
+      {
+        label: "Khóa học",
+        value: dashboardData.classes.length,
+        note: "Đang theo học",
+        icon: "📚",
+        color: "from-blue-500 to-blue-600",
+      },
+      {
+        label: "Điểm TB",
+        value:
+          dashboardData.recentGrades.length > 0
+            ? (
+              dashboardData.recentGrades.reduce(
+                (acc, g) => acc + g.percentage,
+                0
+              ) /
+              dashboardData.recentGrades.length /
+              10
+            ).toFixed(1)
+            : "N/A",
+        note: "Kết quả học tập",
+        icon: "⭐",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        label: "Buổi học",
+        value: attendanceStats.total,
+        note: `${attendanceStats.present} buổi tham dự`,
+        icon: "📅",
+        color: "from-amber-500 to-orange-500",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${attendanceStats.rate}%`,
+        note: "Tỉ lệ tham gia",
+        icon: "🏆",
+        color: "from-purple-500 to-purple-600",
+      },
+    ]
     : overviewStats;
 
   // Build timetable from classes (child's enrolled classes)
@@ -672,28 +835,28 @@ export default function ParentDashboard({
   // Weekly schedule with attendance
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
     ? dashboardData.upcomingSessions.slice(0, 7).map((s, idx) => {
-        const sessionDate = new Date(s.date);
-        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        return {
-          day: days[sessionDate.getDay()],
-          date: sessionDate.toLocaleDateString("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-          }),
-          code: s.className.substring(0, 7).toUpperCase(),
-          time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}`,
-          room: "Phòng học",
-          teacher: "Giáo viên",
-          status: s.status === "completed" ? "confirmed" : "pending",
-          attendanceStatus: s.attendanceStatus,
-        };
-      })
+      const sessionDate = new Date(s.date);
+      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      return {
+        day: days[sessionDate.getDay()],
+        date: sessionDate.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        code: s.className.substring(0, 7).toUpperCase(),
+        time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`,
+        room: "Phòng học",
+        teacher: "Giáo viên",
+        status: s.status === "completed" ? "confirmed" : "pending",
+        attendanceStatus: s.attendanceStatus,
+      };
+    })
     : weeklySchedule;
 
   const paidBadge = child.paid ? (
@@ -709,30 +872,72 @@ export default function ParentDashboard({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Trường Thành Education
-            </h1>
-            <p className="text-sm text-gray-500">Dashboard Phụ huynh</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationCenter userRole={user.role} />
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-base shadow-md">
-                {user.name.charAt(0)}
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-600">{user.email}</p>
-              </div>
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+              T
             </div>
-            <Button variant="outline" onClick={onLogout}>
-              Đăng xuất
-            </Button>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+                Trường Thành Education
+              </h1>
+              <p className="text-xs text-gray-500">Dashboard Phụ huynh</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <NotificationCenter userRole={user.role} />
+            {/* Profile Dropdown */}
+            <div className="relative ml-3" ref={dropdownRef}>
+              {/* Avatar */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative group focus:outline-none"
+              >
+                {/* Avatar chính */}
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-blue-500">
+                  {user.name.charAt(0)}
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
+                  <ChevronDown size={10} strokeWidth={3} />
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  {/* User info summary */}
+                  <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                    </span>
+                    Hồ sơ
+                  </button>
+
+                  <button
+                    onClick={onLogout}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                    </span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -887,18 +1092,16 @@ export default function ParentDashboard({
                     return (
                       <div
                         key={dayData.dateStr}
-                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-[220px] ${
-                          isToday
-                            ? "border-emerald-400 ring-2 ring-emerald-200"
-                            : "border-gray-200"
-                        }`}
+                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-[220px] ${isToday
+                          ? "border-emerald-400 ring-2 ring-emerald-200"
+                          : "border-gray-200"
+                          }`}
                       >
                         <div
-                          className={`text-white px-3 py-2 text-center ${
-                            isToday
-                              ? "bg-gradient-to-r from-emerald-600 to-green-600"
-                              : "bg-gradient-to-r from-blue-600 to-indigo-600"
-                          }`}
+                          className={`text-white px-3 py-2 text-center ${isToday
+                            ? "bg-gradient-to-r from-emerald-600 to-green-600"
+                            : "bg-gradient-to-r from-blue-600 to-indigo-600"
+                            }`}
                         >
                           <p className="text-xs font-semibold leading-tight">
                             {dayData.dayName}
@@ -939,15 +1142,14 @@ export default function ParentDashboard({
                                 {/* Attendance Status */}
                                 {item.attendanceStatus ? (
                                   <div
-                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
-                                      item.attendanceStatus === "present"
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : item.attendanceStatus === "absent"
+                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${item.attendanceStatus === "present"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : item.attendanceStatus === "absent"
                                         ? "bg-red-100 text-red-700"
                                         : item.attendanceStatus === "late"
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-blue-100 text-blue-700"
-                                    }`}
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-blue-100 text-blue-700"
+                                      }`}
                                   >
                                     {item.attendanceStatus === "present" &&
                                       "✅ Có mặt"}
@@ -1087,7 +1289,7 @@ export default function ParentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -1106,6 +1308,15 @@ export default function ParentDashboard({
         />
       )}
       {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
+      {showSettings && (
+        <SettingsModal
+          user={{
+            name: user.name,
+            email: user.email,
+          }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 }
