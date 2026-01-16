@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   useAuthStore,
   useNotificationsStore,
   useClassesStore,
+  usePaymentRequestsStore,
+  useIncidentsStore,
 } from "@/lib/stores";
 import { router } from "expo-router";
 
@@ -23,101 +25,395 @@ const { width } = Dimensions.get("window");
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
-      return { label: "Học sinh", colors: ["#3B82F6", "#2563EB"], icon: "school" };
+      return {
+        label: "Học sinh",
+        colors: ["#3B82F6", "#2563EB"],
+        icon: "school",
+      };
     case "teacher":
-      return { label: "Giáo viên", colors: ["#10B981", "#059669"], icon: "person" };
+      return {
+        label: "Giáo viên",
+        colors: ["#10B981", "#059669"],
+        icon: "person",
+      };
     case "parent":
-      return { label: "Phụ huynh", colors: ["#F59E0B", "#D97706"], icon: "people" };
+      return {
+        label: "Phụ huynh",
+        colors: ["#F59E0B", "#D97706"],
+        icon: "people",
+      };
     case "admin":
-      return { label: "Quản trị viên", colors: ["#8B5CF6", "#7C3AED"], icon: "settings" };
+      return {
+        label: "Quản trị viên",
+        colors: ["#8B5CF6", "#7C3AED"],
+        icon: "settings",
+      };
     default:
       return { label: role, colors: ["#6B7280", "#4B5563"], icon: "person" };
   }
 };
 
-// Overview cards matching web dashboard
-const getOverviewCards = (role: string) => {
-  const baseCards = [
-    {
-      label: "Khóa học",
-      value: "3",
-      note: "Đang theo học",
-      icon: "book" as const,
-      colors: ["#3B82F6", "#2563EB"],
-    },
-    {
-      label: "Buổi học tới",
-      value: "2",
-      note: "Tuần này",
-      icon: "calendar" as const,
-      colors: ["#10B981", "#059669"],
-    },
-    {
-      label: "Điểm TB",
-      value: "8.2",
-      note: "Kết quả tốt",
-      icon: "star" as const,
-      colors: ["#F59E0B", "#D97706"],
-    },
-    {
-      label: "Xếp hạng",
-      value: "Top 10",
-      note: "Trong lớp",
-      icon: "trophy" as const,
-      colors: ["#8B5CF6", "#7C3AED"],
-    },
-  ];
-  return baseCards;
+// Role-specific overview cards
+const getOverviewCards = (
+  role: string,
+  data: {
+    classCount: number;
+    pendingPayments: number;
+    pendingPaymentAmount: number;
+    incidentsCount: number;
+  }
+) => {
+  const baseCards = {
+    student: [
+      {
+        label: "Khóa học",
+        value: data.classCount.toString(),
+        note: "Đang theo học",
+        icon: "book" as const,
+        colors: ["#3B82F6", "#2563EB"],
+      },
+      {
+        label: "Thanh toán",
+        value: data.pendingPayments > 0 ? data.pendingPayments.toString() : "0",
+        note: data.pendingPayments > 0 ? "Chưa thanh toán" : "Đã hoàn thành",
+        icon: "wallet" as const,
+        colors:
+          data.pendingPayments > 0
+            ? ["#EF4444", "#DC2626"]
+            : ["#10B981", "#059669"],
+      },
+      {
+        label: "Điểm TB",
+        value: "8.2",
+        note: "Kết quả tốt",
+        icon: "star" as const,
+        colors: ["#F59E0B", "#D97706"],
+      },
+      {
+        label: "Sự cố",
+        value: data.incidentsCount.toString(),
+        note: "Đang xử lý",
+        icon: "warning" as const,
+        colors: ["#8B5CF6", "#7C3AED"],
+      },
+    ],
+    parent: [
+      {
+        label: "Khóa học con",
+        value: data.classCount.toString(),
+        note: "Đang theo học",
+        icon: "book" as const,
+        colors: ["#3B82F6", "#2563EB"],
+      },
+      {
+        label: "Cần thanh toán",
+        value: data.pendingPayments > 0 ? data.pendingPayments.toString() : "0",
+        note: data.pendingPayments > 0 ? "Khoản chờ" : "Đã hoàn thành",
+        icon: "wallet" as const,
+        colors:
+          data.pendingPayments > 0
+            ? ["#EF4444", "#DC2626"]
+            : ["#10B981", "#059669"],
+      },
+      {
+        label: "Điểm TB",
+        value: "8.2",
+        note: "Kết quả tốt",
+        icon: "star" as const,
+        colors: ["#F59E0B", "#D97706"],
+      },
+      {
+        label: "Xếp loại",
+        value: "Tốt",
+        note: "Đánh giá chung",
+        icon: "trophy" as const,
+        colors: ["#8B5CF6", "#7C3AED"],
+      },
+    ],
+    teacher: [
+      {
+        label: "Lớp giảng dạy",
+        value: data.classCount.toString(),
+        note: "Đang dạy",
+        icon: "book" as const,
+        colors: ["#10B981", "#059669"],
+      },
+      {
+        label: "Học sinh",
+        value: "45",
+        note: "Tổng số",
+        icon: "people" as const,
+        colors: ["#3B82F6", "#2563EB"],
+      },
+      {
+        label: "Buổi dạy",
+        value: "12",
+        note: "Tháng này",
+        icon: "calendar" as const,
+        colors: ["#F59E0B", "#D97706"],
+      },
+      {
+        label: "Đánh giá",
+        value: "4.8",
+        note: "Từ học sinh",
+        icon: "star" as const,
+        colors: ["#8B5CF6", "#7C3AED"],
+      },
+    ],
+    admin: [
+      {
+        label: "Lớp học",
+        value: data.classCount.toString(),
+        note: "Đang hoạt động",
+        icon: "school" as const,
+        colors: ["#8B5CF6", "#7C3AED"],
+      },
+      {
+        label: "Học sinh",
+        value: "120",
+        note: "Tổng số",
+        icon: "people" as const,
+        colors: ["#3B82F6", "#2563EB"],
+      },
+      {
+        label: "Giáo viên",
+        value: "15",
+        note: "Đang dạy",
+        icon: "person" as const,
+        colors: ["#10B981", "#059669"],
+      },
+      {
+        label: "Sự cố",
+        value: data.incidentsCount.toString(),
+        note: "Chờ xử lý",
+        icon: "warning" as const,
+        colors: ["#F59E0B", "#D97706"],
+      },
+    ],
+  };
+
+  return baseCards[role as keyof typeof baseCards] || baseCards.student;
+};
+
+// Role-specific quick actions
+const getQuickActions = (
+  role: string,
+  unreadCount: number,
+  pendingPayments: number
+) => {
+  const baseActions = {
+    student: [
+      {
+        icon: "calendar" as const,
+        label: "Lịch học",
+        subtitle: "Xem lịch tuần",
+        colors: ["#3B82F6", "#2563EB"],
+        onPress: () => router.push("/(tabs)/schedule"),
+      },
+      {
+        icon: "school" as const,
+        label: "Lớp học",
+        subtitle: "Quản lý lớp",
+        colors: ["#10B981", "#059669"],
+        onPress: () => router.push("/(tabs)/classes"),
+      },
+      {
+        icon: "wallet" as const,
+        label: "Thanh toán",
+        subtitle:
+          pendingPayments > 0
+            ? `${pendingPayments} chờ thanh toán`
+            : "Đã hoàn thành",
+        colors:
+          pendingPayments > 0 ? ["#EF4444", "#DC2626"] : ["#F59E0B", "#D97706"],
+        badge: pendingPayments,
+        onPress: () => router.push("/(tabs)/payments"),
+      },
+      {
+        icon: "warning" as const,
+        label: "Sự cố",
+        subtitle: "Báo cáo vấn đề",
+        colors: ["#8B5CF6", "#7C3AED"],
+        onPress: () => router.push("/(tabs)/incidents"),
+      },
+    ],
+    parent: [
+      {
+        icon: "calendar" as const,
+        label: "Lịch học con",
+        subtitle: "Xem lịch học",
+        colors: ["#F59E0B", "#D97706"],
+        onPress: () => router.push("/(tabs)/schedule"),
+      },
+      {
+        icon: "school" as const,
+        label: "Lớp học",
+        subtitle: "Theo dõi lớp",
+        colors: ["#10B981", "#059669"],
+        onPress: () => router.push("/(tabs)/classes"),
+      },
+      {
+        icon: "wallet" as const,
+        label: "Thanh toán",
+        subtitle:
+          pendingPayments > 0
+            ? `${pendingPayments} chờ thanh toán`
+            : "Đã hoàn thành",
+        colors:
+          pendingPayments > 0 ? ["#EF4444", "#DC2626"] : ["#3B82F6", "#2563EB"],
+        badge: pendingPayments,
+        onPress: () => router.push("/(tabs)/payments"),
+      },
+      {
+        icon: "warning" as const,
+        label: "Sự cố",
+        subtitle: "Phản ánh vấn đề",
+        colors: ["#8B5CF6", "#7C3AED"],
+        onPress: () => router.push("/(tabs)/incidents"),
+      },
+    ],
+    teacher: [
+      {
+        icon: "calendar" as const,
+        label: "Lịch dạy",
+        subtitle: "Xem lịch tuần",
+        colors: ["#10B981", "#059669"],
+        onPress: () => router.push("/(tabs)/schedule"),
+      },
+      {
+        icon: "school" as const,
+        label: "Lớp học",
+        subtitle: "Quản lý lớp",
+        colors: ["#3B82F6", "#2563EB"],
+        onPress: () => router.push("/(tabs)/classes"),
+      },
+      {
+        icon: "notifications" as const,
+        label: "Thông báo",
+        subtitle: unreadCount > 0 ? `${unreadCount} chưa đọc` : "Cập nhật",
+        colors: ["#F59E0B", "#D97706"],
+        badge: unreadCount,
+        onPress: () => router.push("/(tabs)/notifications"),
+      },
+      {
+        icon: "warning" as const,
+        label: "Sự cố",
+        subtitle: "Báo cáo vấn đề",
+        colors: ["#8B5CF6", "#7C3AED"],
+        onPress: () => router.push("/(tabs)/incidents"),
+      },
+    ],
+    admin: [
+      {
+        icon: "school" as const,
+        label: "Lớp học",
+        subtitle: "Quản lý lớp",
+        colors: ["#8B5CF6", "#7C3AED"],
+        onPress: () => router.push("/(tabs)/classes"),
+      },
+      {
+        icon: "notifications" as const,
+        label: "Thông báo",
+        subtitle: unreadCount > 0 ? `${unreadCount} chưa đọc` : "Cập nhật",
+        colors: ["#3B82F6", "#2563EB"],
+        badge: unreadCount,
+        onPress: () => router.push("/(tabs)/notifications"),
+      },
+      {
+        icon: "person" as const,
+        label: "Tài khoản",
+        subtitle: "Cài đặt",
+        colors: ["#10B981", "#059669"],
+        onPress: () => router.push("/(tabs)/profile"),
+      },
+      {
+        icon: "calendar" as const,
+        label: "Lịch",
+        subtitle: "Xem lịch",
+        colors: ["#F59E0B", "#D97706"],
+        onPress: () => router.push("/(tabs)/schedule"),
+      },
+    ],
+  };
+
+  return baseActions[role as keyof typeof baseActions] || baseActions.student;
 };
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { unreadCount, fetchNotifications } = useNotificationsStore();
   const { classes, fetchClasses, isLoading } = useClassesStore();
+  const {
+    myRequests,
+    childrenRequests,
+    fetchMyRequests,
+    fetchChildrenRequests,
+  } = usePaymentRequestsStore();
+  const { myIncidents, fetchMyIncidents } = useIncidentsStore();
+
+  const role = user?.role || "student";
 
   useEffect(() => {
-    fetchNotifications();
-    fetchClasses();
-  }, []);
+    loadData();
+  }, [role]);
+
+  const loadData = useCallback(async () => {
+    await fetchNotifications();
+    await fetchClasses();
+
+    if (role === "student") {
+      await fetchMyRequests();
+      await fetchMyIncidents();
+    } else if (role === "parent") {
+      await fetchChildrenRequests();
+      await fetchMyIncidents();
+    } else if (role === "teacher") {
+      await fetchMyIncidents();
+    }
+  }, [role]);
 
   const onRefresh = async () => {
-    await Promise.all([fetchNotifications(), fetchClasses()]);
+    await loadData();
   };
 
-  const roleConfig = getRoleConfig(user?.role || "");
-  const overviewCards = getOverviewCards(user?.role || "");
+  // Calculate pending payments
+  const pendingPayments =
+    role === "student"
+      ? myRequests.filter(
+          (r) => r.status === "pending" || r.status === "overdue"
+        ).length
+      : role === "parent"
+      ? childrenRequests
+          .flatMap((c) => c.requests)
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .length
+      : 0;
 
-  const quickActions = [
-    {
-      icon: "calendar" as const,
-      label: "Lịch học",
-      subtitle: "Xem lịch tuần",
-      colors: ["#3B82F6", "#2563EB"],
-      onPress: () => router.push("/(tabs)/schedule"),
-    },
-    {
-      icon: "school" as const,
-      label: "Lớp học",
-      subtitle: "Quản lý lớp",
-      colors: ["#10B981", "#059669"],
-      onPress: () => router.push("/(tabs)/classes"),
-    },
-    {
-      icon: "notifications" as const,
-      label: "Thông báo",
-      subtitle: unreadCount > 0 ? `${unreadCount} chưa đọc` : "Cập nhật",
-      colors: ["#F59E0B", "#D97706"],
-      badge: unreadCount,
-      onPress: () => router.push("/(tabs)/notifications"),
-    },
-    {
-      icon: "person" as const,
-      label: "Tài khoản",
-      subtitle: "Cài đặt",
-      colors: ["#8B5CF6", "#7C3AED"],
-      onPress: () => router.push("/(tabs)/profile"),
-    },
-  ];
+  const pendingPaymentAmount =
+    role === "student"
+      ? myRequests
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .reduce((sum, r) => sum + r.finalAmount, 0)
+      : role === "parent"
+      ? childrenRequests
+          .flatMap((c) => c.requests)
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .reduce((sum, r) => sum + r.finalAmount, 0)
+      : 0;
+
+  const pendingIncidents = myIncidents.filter(
+    (i) => i.status === "pending" || i.status === "in_progress"
+  ).length;
+
+  const roleConfig = getRoleConfig(role);
+  const overviewCards = getOverviewCards(role, {
+    classCount: classes.length,
+    pendingPayments,
+    pendingPaymentAmount,
+    incidentsCount: pendingIncidents,
+  });
+
+  const quickActions = getQuickActions(role, unreadCount, pendingPayments);
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
@@ -139,7 +435,11 @@ export default function HomeScreen() {
           <View style={styles.welcomeContent}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={32} color={roleConfig.colors[0]} />
+                <Ionicons
+                  name="person"
+                  size={32}
+                  color={roleConfig.colors[0]}
+                />
               </View>
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge}>
@@ -155,7 +455,11 @@ export default function HomeScreen() {
                 {user?.fullName || "Người dùng"}
               </Text>
               <View style={styles.roleBadge}>
-                <Ionicons name={roleConfig.icon as any} size={12} color="#FFFFFF" />
+                <Ionicons
+                  name={roleConfig.icon as any}
+                  size={12}
+                  color="#FFFFFF"
+                />
                 <Text style={styles.roleText}>{roleConfig.label}</Text>
               </View>
             </View>
@@ -210,7 +514,9 @@ export default function HomeScreen() {
                   ) : null}
                 </LinearGradient>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
-                <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                <Text style={styles.quickActionSubtitle}>
+                  {action.subtitle}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -250,7 +556,11 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
               >
                 <LinearGradient
-                  colors={index % 2 === 0 ? ["#3B82F6", "#2563EB"] : ["#10B981", "#059669"]}
+                  colors={
+                    index % 2 === 0
+                      ? ["#3B82F6", "#2563EB"]
+                      : ["#10B981", "#059669"]
+                  }
                   style={styles.classIconBg}
                 >
                   <Ionicons name="book" size={20} color="#FFFFFF" />
@@ -267,26 +577,146 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Streak Card - Gamification Element */}
-        <View style={styles.section}>
-          <View style={styles.streakCard}>
-            <LinearGradient
-              colors={["#FEF3C7", "#FDE68A"]}
-              style={styles.streakGradient}
+        {/* Payment Alert - for Student and Parent only */}
+        {(role === "student" || role === "parent") && pendingPayments > 0 && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.alertCard}
+              onPress={() => router.push("/(tabs)/payments")}
+              activeOpacity={0.8}
             >
-              <View style={styles.streakContent}>
-                <Text style={styles.streakIcon}>🔥</Text>
-                <View style={styles.streakInfo}>
-                  <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
-                  <Text style={styles.streakValue}>12 ngày liên tục</Text>
+              <LinearGradient
+                colors={["#FEE2E2", "#FECACA"]}
+                style={styles.alertGradient}
+              >
+                <View style={styles.alertContent}>
+                  <View style={styles.alertIconBg}>
+                    <Ionicons name="wallet" size={24} color="#DC2626" />
+                  </View>
+                  <View style={styles.alertInfo}>
+                    <Text style={styles.alertTitle}>
+                      Có khoản cần thanh toán
+                    </Text>
+                    <Text style={styles.alertSubtitle}>
+                      {pendingPayments} khoản •{" "}
+                      {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                        maximumFractionDigits: 0,
+                      }).format(pendingPaymentAmount)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#DC2626" />
                 </View>
-                <View style={styles.streakBadge}>
-                  <Ionicons name="flame" size={16} color="#D97706" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Streak Card - Gamification Element (Student only) */}
+        {role === "student" && (
+          <View style={styles.section}>
+            <View style={styles.streakCard}>
+              <LinearGradient
+                colors={["#FEF3C7", "#FDE68A"]}
+                style={styles.streakGradient}
+              >
+                <View style={styles.streakContent}>
+                  <Text style={styles.streakIcon}>🔥</Text>
+                  <View style={styles.streakInfo}>
+                    <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
+                    <Text style={styles.streakValue}>12 ngày liên tục</Text>
+                  </View>
+                  <View style={styles.streakBadge}>
+                    <Ionicons name="flame" size={16} color="#D97706" />
+                  </View>
+                </View>
+              </LinearGradient>
+            </View>
+          </View>
+        )}
+
+        {/* Teacher Stats Card */}
+        {role === "teacher" && (
+          <View style={styles.section}>
+            <View style={styles.teacherStatsCard}>
+              <Text style={styles.teacherStatsTitle}>Thống kê tháng này</Text>
+              <View style={styles.teacherStatsGrid}>
+                <View style={styles.teacherStatItem}>
+                  <LinearGradient
+                    colors={["#10B981", "#059669"]}
+                    style={styles.teacherStatIcon}
+                  >
+                    <Ionicons name="calendar" size={18} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.teacherStatValue}>12</Text>
+                  <Text style={styles.teacherStatLabel}>Buổi đã dạy</Text>
+                </View>
+                <View style={styles.teacherStatItem}>
+                  <LinearGradient
+                    colors={["#3B82F6", "#2563EB"]}
+                    style={styles.teacherStatIcon}
+                  >
+                    <Ionicons name="people" size={18} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.teacherStatValue}>95%</Text>
+                  <Text style={styles.teacherStatLabel}>Tỉ lệ đi học</Text>
+                </View>
+                <View style={styles.teacherStatItem}>
+                  <LinearGradient
+                    colors={["#F59E0B", "#D97706"]}
+                    style={styles.teacherStatIcon}
+                  >
+                    <Ionicons name="star" size={18} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.teacherStatValue}>4.8</Text>
+                  <Text style={styles.teacherStatLabel}>Đánh giá</Text>
                 </View>
               </View>
-            </LinearGradient>
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Parent Child Progress */}
+        {role === "parent" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Tiến độ học tập</Text>
+            </View>
+            <View style={styles.progressCard}>
+              <View style={styles.progressItem}>
+                <Text style={styles.progressLabel}>Điểm trung bình</Text>
+                <View style={styles.progressBar}>
+                  <LinearGradient
+                    colors={["#10B981", "#059669"]}
+                    style={[styles.progressFill, { width: "82%" }]}
+                  />
+                </View>
+                <Text style={styles.progressValue}>8.2/10</Text>
+              </View>
+              <View style={styles.progressItem}>
+                <Text style={styles.progressLabel}>Chuyên cần</Text>
+                <View style={styles.progressBar}>
+                  <LinearGradient
+                    colors={["#3B82F6", "#2563EB"]}
+                    style={[styles.progressFill, { width: "95%" }]}
+                  />
+                </View>
+                <Text style={styles.progressValue}>95%</Text>
+              </View>
+              <View style={styles.progressItem}>
+                <Text style={styles.progressLabel}>Bài tập</Text>
+                <View style={styles.progressBar}>
+                  <LinearGradient
+                    colors={["#F59E0B", "#D97706"]}
+                    style={[styles.progressFill, { width: "88%" }]}
+                  />
+                </View>
+                <Text style={styles.progressValue}>88%</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -606,5 +1036,125 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(217, 119, 6, 0.2)",
     padding: 10,
     borderRadius: 12,
+  },
+  // Alert Card
+  alertCard: {
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  alertGradient: {
+    padding: 16,
+  },
+  alertContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  alertIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(220, 38, 38, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  alertInfo: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#B91C1C",
+    marginBottom: 2,
+  },
+  alertSubtitle: {
+    fontSize: 13,
+    color: "#DC2626",
+  },
+  // Teacher Stats
+  teacherStatsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  teacherStatsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 16,
+  },
+  teacherStatsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  teacherStatItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  teacherStatIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  teacherStatValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  teacherStatLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  // Parent Progress
+  progressCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  progressItem: {
+    marginBottom: 16,
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6B7280",
+    textAlign: "right",
   },
 });

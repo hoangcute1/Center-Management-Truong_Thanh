@@ -4,3 +4,7 @@ export * from "./classes-store";
 export * from "./notifications-store";
 export * from "./schedule-store";
 export * from "./attendance-store";
+export * from "./sessions-store";
+export * from "./payment-requests-store";
+export * from "./tuition-store";
+export * from "./incidents-store";
