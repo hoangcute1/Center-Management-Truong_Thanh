@@ -28,3 +28,4 @@ export {
   type UpdateSessionData,
   type ScheduleQuery,
 } from "./schedule-store";
+export { useChatStore } from "./chat-store";
