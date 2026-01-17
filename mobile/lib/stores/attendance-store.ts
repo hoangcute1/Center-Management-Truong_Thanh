@@ -5,7 +5,12 @@ import { translateErrorMessage } from "./auth-store";
 export interface AttendanceRecord {
   _id: string;
   sessionId: string;
-  studentId: string;
+  studentId:
+    | string
+    | {
+        _id: string;
+        fullName: string;
+      };
   status: "present" | "absent" | "late" | "excused";
   notes?: string;
   createdAt: Date;
@@ -20,6 +25,7 @@ interface AttendanceState {
     sessionId?: string;
     studentId?: string;
   }) => Promise<void>;
+  fetchSessionAttendance: (sessionId: string) => Promise<AttendanceRecord[]>;
   updateAttendance: (
     sessionId: string,
     studentId: string,
@@ -44,6 +50,23 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         "Không thể tải điểm danh"
       );
       set({ error: errorMessage, isLoading: false });
+    }
+  },
+
+  fetchSessionAttendance: async (sessionId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.get(`/attendance/session/${sessionId}`);
+      const data = response.data.data || response.data || [];
+      set({ attendance: data, isLoading: false });
+      return data;
+    } catch (error: any) {
+      const errorMessage = translateErrorMessage(
+        error,
+        "Không thể tải điểm danh buổi học"
+      );
+      set({ error: errorMessage, isLoading: false });
+      return [];
     }
   },
 

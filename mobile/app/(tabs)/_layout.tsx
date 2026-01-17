@@ -10,9 +10,11 @@ export default function TabsLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  const role = user?.role;
+
   // Get role-based header color
   const getHeaderColor = () => {
-    switch (user?.role) {
+    switch (role) {
       case "student":
         return "#3B82F6";
       case "teacher":
@@ -25,6 +27,16 @@ export default function TabsLayout() {
         return "#3B82F6";
     }
   };
+
+  // Check if tab should be visible based on role
+  const shouldShowPayments = role === "student" || role === "parent";
+  const shouldShowIncidents =
+    role === "student" || role === "parent" || role === "teacher";
+  const shouldShowSchedule =
+    role === "student" || role === "teacher" || role === "parent";
+  const shouldShowClasses =
+    role === "student" || role === "teacher" || role === "parent";
+  const shouldShowAdmin = role === "admin";
 
   return (
     <Tabs
@@ -44,7 +56,7 @@ export default function TabsLayout() {
           elevation: 12,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: "600",
           marginTop: 4,
         },
@@ -64,6 +76,7 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
+      {/* Home - visible for all */}
       <Tabs.Screen
         name="index"
         options={{
@@ -80,11 +93,14 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* Schedule - visible for student, teacher, parent */}
       <Tabs.Screen
         name="schedule"
         options={{
-          title: "Lịch học",
-          headerTitle: "Lịch học",
+          title: role === "teacher" ? "Lịch dạy" : "Lịch học",
+          headerTitle: role === "teacher" ? "Lịch dạy" : "Lịch học",
+          href: shouldShowSchedule ? "/(tabs)/schedule" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -96,11 +112,14 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* Classes - visible for student, teacher, parent */}
       <Tabs.Screen
         name="classes"
         options={{
           title: "Lớp học",
           headerTitle: "Lớp học",
+          href: shouldShowClasses ? "/(tabs)/classes" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -112,6 +131,65 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* Payments - visible for student, parent only */}
+      <Tabs.Screen
+        name="payments"
+        options={{
+          title: "Thanh toán",
+          headerTitle: "Thanh toán",
+          href: shouldShowPayments ? "/(tabs)/payments" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "wallet" : "wallet-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Incidents - visible for student, parent, teacher */}
+      <Tabs.Screen
+        name="incidents"
+        options={{
+          title: "Sự cố",
+          headerTitle: "Báo cáo sự cố",
+          href: shouldShowIncidents ? "/(tabs)/incidents" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "warning" : "warning-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Admin Dashboard - visible for admin only */}
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: "Quản lý",
+          headerTitle: "Quản lý hệ thống",
+          href: shouldShowAdmin ? "/(tabs)/admin" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "shield-checkmark" : "shield-checkmark-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Notifications - visible for all */}
       <Tabs.Screen
         name="notifications"
         options={{
@@ -128,6 +206,8 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* Profile - visible for all */}
       <Tabs.Screen
         name="profile"
         options={{

@@ -54,6 +54,16 @@ export class ClassEntity {
 
   @Prop({ default: 'active' })
   status: 'active' | 'inactive';
+
+  // ===== Payment Fields =====
+  @Prop({ default: 0 })
+  fee: number;
+
+  @Prop({ default: 'VND' })
+  currency: string;
+
+  @Prop()
+  feeNote?: string;
 }
 
 export const ClassSchema = SchemaFactory.createForClass(ClassEntity);

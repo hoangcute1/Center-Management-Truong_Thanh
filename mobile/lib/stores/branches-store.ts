@@ -10,6 +10,7 @@ export interface Branch {
   address?: string;
   phone?: string;
   email?: string;
+  description?: string;
   status: "active" | "inactive";
   isActive: boolean;
   createdAt?: string;
@@ -41,6 +42,7 @@ const normalizeBranch = (branch: any): Branch => {
     address: branch.address,
     phone: branch.phone,
     email: branch.email,
+    description: branch.description,
     status,
     isActive,
     createdAt: branch.createdAt,
@@ -55,6 +57,8 @@ interface BranchesState {
   error: string | null;
 
   fetchBranches: () => Promise<void>;
+  addBranch: (data: Partial<Branch>) => Promise<void>;
+  updateBranch: (id: string, data: Partial<Branch>) => Promise<void>;
   selectBranch: (branch: Branch | null) => void;
   clearError: () => void;
 }
@@ -110,6 +114,52 @@ export const useBranchesStore = create<BranchesState>()(
             "Không thể tải danh sách cơ sở"
           );
           set({ error: errorMessage, isLoading: false, branches: [] });
+        }
+      },
+
+      addBranch: async (data: Partial<Branch>) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.post("/branches", data);
+          const newBranch = normalizeBranch(response.data);
+          set((state) => ({
+            branches: [...state.branches, newBranch],
+            isLoading: false,
+          }));
+        } catch (error: any) {
+          console.error("Error adding branch:", error);
+          const errorMessage = translateErrorMessage(
+            error,
+            "Không thể thêm cơ sở"
+          );
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      updateBranch: async (id: string, data: Partial<Branch>) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.patch(`/branches/${id}`, data);
+          const updatedBranch = normalizeBranch(response.data);
+          set((state) => ({
+            branches: state.branches.map((b) =>
+              b._id === id ? updatedBranch : b
+            ),
+            selectedBranch:
+              state.selectedBranch?._id === id
+                ? updatedBranch
+                : state.selectedBranch,
+            isLoading: false,
+          }));
+        } catch (error: any) {
+          console.error("Error updating branch:", error);
+          const errorMessage = translateErrorMessage(
+            error,
+            "Không thể cập nhật cơ sở"
+          );
+          set({ error: errorMessage, isLoading: false });
+          throw error;
         }
       },
 

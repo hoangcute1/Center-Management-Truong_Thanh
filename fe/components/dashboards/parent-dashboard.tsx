@@ -19,6 +19,8 @@ import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useParentDashboardStore } from "@/lib/stores/parent-dashboard-store";
+import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Day names for schedule
@@ -499,6 +501,18 @@ export default function ParentDashboard({
     isLoading: dashboardLoading,
     fetchDashboardData,
   } = useParentDashboardStore();
+  const { childrenRequests, fetchChildrenRequests } = usePaymentRequestsStore();
+
+  useEffect(() => {
+    fetchChildrenRequests();
+  }, [fetchChildrenRequests]);
+
+  const allRequests = childrenRequests.flatMap((c) => c.requests);
+  const pendingPayments = allRequests.filter((r) => r.status === 'pending' || r.status === 'overdue');
+  const paidPayments = allRequests.filter((r) => r.status === 'paid');
+
+  const totalPendingAmount = pendingPayments.reduce((sum, r) => sum + r.finalAmount, 0);
+  const totalPaidAmount = paidPayments.reduce((sum, r) => sum + r.finalAmount, 0);
   const { user: authUser } = useAuthStore();
 
   // Fetch data on mount
@@ -647,7 +661,7 @@ export default function ParentDashboard({
           classId: item.classInfo._id,
           className: item.classInfo.name,
           classCode:
-            item.classInfo.code ||
+            (item.classInfo as any).code ||
             item.classInfo.name.substring(0, 7).toUpperCase(),
           teacherName: item.classInfo.teacherName,
           startTime: item.schedule.startTime,
@@ -943,6 +957,28 @@ export default function ParentDashboard({
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+        {pendingPayments.length > 0 && (
+          <div 
+            onClick={() => window.location.href = '/payment'}
+            className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
+          >
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
+                <div>
+                  <p className="text-sm font-bold text-red-700">Thông báo học phí</p>
+                  <p className="text-sm text-red-600">
+                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán cho con. 
+                    Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700">
+                Thanh toán ngay
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
@@ -1049,7 +1085,7 @@ export default function ParentDashboard({
                         Thông tin con
                       </p>
                       <p className="text-sm text-gray-500">
-                        {childData.name} - {childData.grade}
+                        {childData.name} - {(childData as any).grade || "Lớp 10"}
                       </p>
                     </div>
                     <Button
@@ -1073,6 +1109,44 @@ export default function ParentDashboard({
                         </p>
                       </Card>
                     ))}
+                  </div>
+                </Card>
+
+                {/* Financial Summary Card */}
+                <Card className="rounded-2xl shadow-sm border border-gray-100 p-6 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                       💰 Thông tin học phí
+                    </h2>
+                    <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
+                      Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-600">Cần thanh toán</p>
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                          {pendingPayments.length} khoản
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-red-600 truncate">
+                        {totalPendingAmount.toLocaleString('vi-VN')} đ
+                      </p>
+                    </div>
+                    
+                    <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm text-gray-600">Đã thanh toán</p>
+                        <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                          {paidPayments.length} khoản
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-600 truncate">
+                        {totalPaidAmount.toLocaleString('vi-VN')} đ
+                      </p>
+                    </div>
                   </div>
                 </Card>
               </>
@@ -1230,23 +1304,65 @@ export default function ParentDashboard({
           </TabsContent>
 
           <TabsContent value="payment" className="mt-6">
-            <Card className="p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    Quản lý thanh toán
-                  </p>
-                  <p className="text-sm text-gray-600">Học phí: 2.5 Tr VND</p>
+            <Card className="p-6 border-0 shadow-lg rounded-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-200">
+                    💳
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Thanh toán học phí
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Xem và thanh toán các khoản phí cho con
+                    </p>
+                  </div>
                 </div>
-                {paidBadge}
+                <Button
+                  onClick={() => window.location.href = '/payment'}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-200"
+                >
+                  Vào trang thanh toán →
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={child.paid}
-              >
-                Đã thanh toán
-              </Button>
+
+              {/* Quick Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div 
+                  onClick={() => window.location.href = '/payment'}
+                  className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-white shadow flex items-center justify-center text-xl">
+                      📋
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">Danh sách yêu cầu</h3>
+                      <p className="text-sm text-gray-500">
+                        Kiểm tra các khoản cần đóng
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => window.location.href = '/payment'}
+                  className="p-5 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-100 cursor-pointer hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-white shadow flex items-center justify-center text-xl">
+                      history
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">Lịch sử giao dịch</h3>
+                      <p className="text-sm text-gray-500">
+                        Xem lại các khoản đã thanh toán
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </Card>
           </TabsContent>
 
