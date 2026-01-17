@@ -478,7 +478,7 @@ const grades = [
   { subject: "Lý", score: 75, status: "Khá", detail: "Ôn phần điện" },
 ];
 
-const contacts = [
+const defaultContacts = [
   {
     name: "Cô Trần Thị B",
     subject: "Dạy môn Toán",
@@ -843,6 +843,7 @@ export default function StudentDashboard({
   onLogout,
 }: StudentDashboardProps) {
   const [chatWith, setChatWith] = useState<{
+    id: string;
     name: string;
     role: string;
   } | null>(null);
@@ -898,6 +899,36 @@ export default function StudentDashboard({
     fetchDashboardData,
   } = useStudentDashboardStore();
   const { user: authUser } = useAuthStore();
+
+  const teacherContacts = useMemo(() => {
+    if (!dashboardData?.classes?.length) return [];
+    const unique = new Map<string, { id: string; name: string; subject: string }>();
+
+    dashboardData.classes.forEach((item) => {
+      const teacherId = typeof item.teacherId === "string"
+        ? item.teacherId
+        : (item.teacherId as any)?.toString?.();
+      if (!teacherId) return;
+      unique.set(teacherId, {
+        id: teacherId,
+        name: item.teacherName || "Giáo viên phụ trách",
+        subject: item.subject || item.name,
+      });
+    });
+
+    return Array.from(unique.values());
+  }, [dashboardData?.classes]);
+
+  const contacts = useMemo(() => {
+    if (!teacherContacts.length) return defaultContacts;
+    return teacherContacts.map((c) => ({
+      id: c.id,
+      name: c.name,
+      subject: c.subject || "Giáo viên phụ trách",
+      avatar: c.name.toLowerCase().includes("cô") ? "👩‍🏫" : "👨‍🏫",
+      status: "online",
+    }));
+  }, [teacherContacts]);
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
 
@@ -2010,7 +2041,7 @@ export default function StudentDashboard({
               <div className="space-y-3">
                 {contacts.map((c) => (
                   <div
-                    key={c.name}
+                    key={c.id || c.name}
                     className="flex items-center justify-between rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
                   >
                     <div className="flex items-center gap-4">
@@ -2042,8 +2073,10 @@ export default function StudentDashboard({
                     </div>
                     <Button
                       className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-md shadow-blue-200"
+                      disabled={!c.id}
                       onClick={() =>
-                        setChatWith({ name: c.name, role: "teacher" })
+                        c.id &&
+                        setChatWith({ id: c.id, name: c.name, role: "teacher" })
                       }
                     >
                       💬 Chat
@@ -2162,9 +2195,9 @@ export default function StudentDashboard({
 
       {chatWith && (
         <ChatWindow
+          recipientId={chatWith.id}
           recipientName={chatWith.name}
           recipientRole={chatWith.role}
-          currentUserName={user.name}
           onClose={() => setChatWith(null)}
         />
       )}

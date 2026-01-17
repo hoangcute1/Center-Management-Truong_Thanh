@@ -287,8 +287,26 @@ export const useParentDashboardStore = create<
             name: c.name,
             description: c.description,
             subject: c.subject,
-            teacherName: c.teacherId?.name || c.teacher?.name || "N/A",
-            teacherId: c.teacherId?._id || c.teacher?._id || c.teacherId,
+            teacherName:
+              c.teacherId?.name ||
+              c.teacher?.name ||
+              c.teacherName ||
+              "N/A",
+            teacherId: (() => {
+              if (c.teacherId && typeof c.teacherId === "object") {
+                return c.teacherId._id?.toString?.() || c.teacherId.id;
+              }
+              if (typeof c.teacherId === "string") {
+                return c.teacherId;
+              }
+              if (c.teacher && typeof c.teacher === "object") {
+                return c.teacher._id?.toString?.();
+              }
+              if (typeof c.teacher === "string") {
+                return c.teacher;
+              }
+              return undefined;
+            })(),
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
           })),

@@ -883,6 +883,7 @@ export default function TeacherDashboard({
   onLogout,
 }: TeacherDashboardProps) {
   const [chatWith, setChatWith] = useState<{
+    id: string;
     name: string;
     role: string;
   } | null>(null);
@@ -1755,7 +1756,7 @@ export default function TeacherDashboard({
                     <Button
                       className="bg-blue-600 hover:bg-blue-700"
                       onClick={() =>
-                        setChatWith({ name: s.name, role: "student" })
+                        setChatWith({ id: s._id, name: s.name, role: "student" })
                       }
                     >
                       Chat
@@ -1781,9 +1782,9 @@ export default function TeacherDashboard({
 
       {chatWith && (
         <ChatWindow
+          recipientId={chatWith.id}
           recipientName={chatWith.name}
           recipientRole={chatWith.role}
-          currentUserName={user.name}
           onClose={() => setChatWith(null)}
         />
       )}

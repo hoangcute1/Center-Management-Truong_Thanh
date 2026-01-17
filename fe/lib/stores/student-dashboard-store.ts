@@ -27,7 +27,9 @@ export interface StudentDashboardData {
     _id: string;
     name: string;
     description?: string;
+    subject?: string;
     teacherName: string;
+    teacherId?: string;
     schedule: Array<{
       dayOfWeek: number;
       startTime: string;
@@ -166,7 +168,27 @@ export const useStudentDashboardStore = create<
             _id: c._id,
             name: c.name,
             description: c.description,
-            teacherName: c.teacher?.name || "N/A",
+            subject: c.subject,
+            teacherName:
+              c.teacher?.name ||
+              c.teacherName ||
+              (typeof c.teacherId === "object" ? c.teacherId?.name : undefined) ||
+              "N/A",
+            teacherId: (() => {
+              if (c.teacher && typeof c.teacher === "object") {
+                return c.teacher._id?.toString?.();
+              }
+              if (typeof c.teacher === "string") {
+                return c.teacher;
+              }
+              if (c.teacherId && typeof c.teacherId === "object") {
+                return c.teacherId._id?.toString?.();
+              }
+              if (typeof c.teacherId === "string") {
+                return c.teacherId;
+              }
+              return undefined;
+            })(),
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
             progress: 75, // TODO: Calculate from sessions

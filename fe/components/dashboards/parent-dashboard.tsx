@@ -197,11 +197,6 @@ const teacherNotes = [
   },
 ];
 
-const contacts = [
-  { name: "Cô Trần Thị B", subject: "Dạy môn Toán" },
-  { name: "Thầy Lê Văn E", subject: "Dạy môn Anh văn" },
-];
-
 function DetailModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
@@ -327,6 +322,7 @@ export default function ParentDashboard({
   onLogout,
 }: ParentDashboardProps) {
   const [chatWith, setChatWith] = useState<{
+    id: string;
     name: string;
     role: string;
   } | null>(null);
@@ -378,6 +374,25 @@ export default function ParentDashboard({
         teacher: c.teacherName,
       }))
     : courses;
+
+  const teacherContacts = useMemo(() => {
+    if (!dashboardData?.classes?.length) return [];
+    const unique = new Map<string, { id: string; name: string; subject: string }>();
+
+    dashboardData.classes.forEach((item) => {
+      const teacherId = typeof item.teacherId === "string"
+        ? item.teacherId
+        : (item.teacherId as any)?.toString?.();
+      if (!teacherId) return;
+      unique.set(teacherId, {
+        id: teacherId,
+        name: item.teacherName || "Giáo viên phụ trách",
+        subject: item.subject || item.name,
+      });
+    });
+
+    return Array.from(unique.values());
+  }, [dashboardData?.classes]);
 
   const attendanceStats = dashboardData?.attendanceStats || {
     present: 28,
@@ -1136,25 +1151,32 @@ export default function ParentDashboard({
               <p className="font-semibold text-gray-900">
                 Liên hệ với giáo viên
               </p>
-              {contacts.map((c) => (
-                <div
-                  key={c.name}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
-                >
-                  <div>
-                    <p className="font-semibold text-gray-900">{c.name}</p>
-                    <p className="text-xs text-gray-500">{c.subject}</p>
-                  </div>
-                  <Button
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={() =>
-                      setChatWith({ name: c.name, role: "teacher" })
-                    }
+              {teacherContacts.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Chưa có giáo viên nào được phân công cho học sinh.
+                </p>
+              ) : (
+                teacherContacts.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
                   >
-                    Chat
-                  </Button>
-                </div>
-              ))}
+                    <div>
+                      <p className="font-semibold text-gray-900">{c.name}</p>
+                      <p className="text-xs text-gray-500">{c.subject}</p>
+                    </div>
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700"
+                      disabled={!c.id}
+                      onClick={() =>
+                        setChatWith({ id: c.id, name: c.name, role: "teacher" })
+                      }
+                    >
+                      Chat
+                    </Button>
+                  </div>
+                ))
+              )}
             </Card>
           </TabsContent>
 
@@ -1173,9 +1195,9 @@ export default function ParentDashboard({
 
       {chatWith && (
         <ChatWindow
+          recipientId={chatWith.id}
           recipientName={chatWith.name}
           recipientRole={chatWith.role}
-          currentUserName={user.name}
           onClose={() => setChatWith(null)}
         />
       )}

@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
@@ -18,6 +19,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Truong Thanh API')
