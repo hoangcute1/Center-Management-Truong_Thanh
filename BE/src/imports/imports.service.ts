@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { ClassesService } from '../classes/classes.service';
@@ -32,13 +32,48 @@ export class ImportsService {
   }
 
   // Đọc file Excel/CSV và trả về array of objects
-  parseFile(buffer: Buffer, mimetype: string): Record<string, any>[] {
+  async parseFile(
+    buffer: Buffer,
+    mimetype: string,
+  ): Promise<Record<string, any>[]> {
     try {
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      return data as Record<string, any>[];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+      const worksheet = workbook.worksheets[0];
+
+      if (!worksheet || worksheet.rowCount === 0) {
+        return [];
+      }
+
+      const headers: string[] = [];
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber - 1] = String(cell.value || '');
+      });
+
+      const data: Record<string, any>[] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header row
+
+        const rowData: Record<string, any> = {};
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber - 1];
+          if (header) {
+            rowData[header] = cell.value ?? '';
+          }
+        });
+
+        // Fill missing columns with empty string
+        headers.forEach((header) => {
+          if (!(header in rowData)) {
+            rowData[header] = '';
+          }
+        });
+
+        data.push(rowData);
+      });
+
+      return data;
     } catch (error) {
       throw new BadRequestException(
         'Không thể đọc file. Vui lòng kiểm tra định dạng file.',
@@ -127,7 +162,7 @@ export class ImportsService {
     mimetype: string,
     dto: ImportUsersDto,
   ): Promise<ImportResponse> {
-    const rawData = this.parseFile(buffer, mimetype);
+    const rawData = await this.parseFile(buffer, mimetype);
 
     if (rawData.length === 0) {
       throw new BadRequestException('File không có dữ liệu');
@@ -201,24 +236,47 @@ export class ImportsService {
 
           // Xử lý học bổng
           if (row.hasScholarship) {
-            const scholarshipStr = String(row.hasScholarship).toLowerCase().trim();
-            createData.hasScholarship = ['có', 'co', 'yes', 'true', '1', 'x'].includes(scholarshipStr);
+            const scholarshipStr = String(row.hasScholarship)
+              .toLowerCase()
+              .trim();
+            createData.hasScholarship = [
+              'có',
+              'co',
+              'yes',
+              'true',
+              '1',
+              'x',
+            ].includes(scholarshipStr);
           }
-          
+
           if (createData.hasScholarship && row.scholarshipType) {
             const typeStr = String(row.scholarshipType).toLowerCase().trim();
             // Map loại học bổng
-            if (typeStr.includes('giao vien') || typeStr.includes('giáo viên') || typeStr === 'teacher_child') {
+            if (
+              typeStr.includes('giao vien') ||
+              typeStr.includes('giáo viên') ||
+              typeStr === 'teacher_child'
+            ) {
               createData.scholarshipType = 'teacher_child';
-            } else if (typeStr.includes('ngheo') || typeStr.includes('nghèo') || typeStr === 'poor_family') {
+            } else if (
+              typeStr.includes('ngheo') ||
+              typeStr.includes('nghèo') ||
+              typeStr === 'poor_family'
+            ) {
               createData.scholarshipType = 'poor_family';
-            } else if (typeStr.includes('mo coi') || typeStr.includes('mồ côi') || typeStr === 'orphan') {
+            } else if (
+              typeStr.includes('mo coi') ||
+              typeStr.includes('mồ côi') ||
+              typeStr === 'orphan'
+            ) {
               createData.scholarshipType = 'orphan';
             }
           }
-          
+
           if (createData.hasScholarship && row.scholarshipPercent) {
-            const percent = parseInt(String(row.scholarshipPercent).replace('%', ''));
+            const percent = parseInt(
+              String(row.scholarshipPercent).replace('%', ''),
+            );
             if (!isNaN(percent) && percent >= 0 && percent <= 100) {
               createData.scholarshipPercent = percent;
             }
@@ -426,13 +484,26 @@ export class ImportsService {
         ];
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(sampleData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Template');
 
-    // Set column widths
-    worksheet['!cols'] = headers.map(() => ({ wch: 25 }));
+    // Add headers
+    worksheet.columns = headers.map((header) => ({
+      header,
+      key: header,
+      width: 25,
+    }));
 
-    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    // Add sample data rows
+    sampleData.forEach((row) => {
+      worksheet.addRow(row);
+    });
+
+    // Style header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+
+    const arrayBuffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(arrayBuffer);
   }
 }

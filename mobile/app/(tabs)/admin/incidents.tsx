@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+gimport { useEffect, useState } from "react";
 import {
   View,
   Text,
