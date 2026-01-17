@@ -17,7 +17,21 @@ export class ChatController {
   }
 
   @Get('messages')
-  list(@CurrentUser() user: UserDocument, @Query('with') withUserId?: string) {
-    return this.chatService.list(user, withUserId);
+  async list(@CurrentUser() user: UserDocument, @Query('with') withUserId?: string) {
+    console.log('Fetching messages for user:', user.name, 'with:', withUserId);
+    const messages = await this.chatService.list(user, withUserId);
+    console.log('Found messages:', messages.length);
+    return messages;
+  }
+
+  @Get('conversations')
+  getConversations(@CurrentUser() user: UserDocument) {
+    return this.chatService.getConversations(user);
+  }
+
+  @Post('test-message')
+  async createTestMessage(@CurrentUser() user: UserDocument, @Body() body: { receiverId: string; content: string }) {
+    console.log('Creating test message from', user.name, 'to', body.receiverId, ':', body.content);
+    return this.chatService.send(user, body);
   }
 }

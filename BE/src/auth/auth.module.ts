@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { InvitesModule } from '../invites/invites.module';
 import { ApprovalsModule } from '../approvals/approvals.module';
+import { jwtConfig } from '../config/jwt.config';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { ApprovalsModule } from '../approvals/approvals.module';
     InvitesModule,
     ApprovalsModule,
     PassportModule,
-    JwtModule.register({}),
+    JwtModule.register(jwtConfig),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
