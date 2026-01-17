@@ -920,7 +920,7 @@ function TeacherProfileModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Bằng cấp/Chứng chỉ</label>
+            <label className="text-gray-700 font-medium">Chứng chỉ</label>
             <input
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               defaultValue={user.qualification || "?"}
@@ -929,7 +929,7 @@ function TeacherProfileModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Ghi chú cá nhân</label>
+            <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               defaultValue={user.teacherNote || "?"}
