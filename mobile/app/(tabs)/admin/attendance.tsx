@@ -724,6 +724,7 @@ export default function AdminAttendanceScreen() {
         </View>
       ) : viewMode === "classes" ? (
         <FlatList
+          style={{ flex: 1 }}
           data={filteredClasses}
           renderItem={renderClassCard}
           keyExtractor={(item) => item._id}
@@ -744,6 +745,7 @@ export default function AdminAttendanceScreen() {
         />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={filteredSessions}
           renderItem={renderSessionCard}
           keyExtractor={(item) => item._id}

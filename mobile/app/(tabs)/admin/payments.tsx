@@ -330,6 +330,7 @@ export default function AdminPaymentsScreen() {
         </View>
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={payments}
           renderItem={renderPaymentCard}
           keyExtractor={(item) => item._id}

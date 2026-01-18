@@ -373,6 +373,7 @@ export default function AccountsManagementScreen() {
         </View>
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={filteredUsers}
           renderItem={renderUserCard}
           keyExtractor={(item) => item._id}

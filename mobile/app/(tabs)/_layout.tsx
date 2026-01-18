@@ -118,7 +118,7 @@ export default function TabsLayout() {
           headerTitle: role === "teacher" ? "Lịch dạy" : "Lịch học",
           href: shouldShowSchedule ? "/(tabs)/schedule" : null,
           headerLeft: role === "admin" ? () => <BackButton /> : undefined,
-          tabBarStyle: role === "admin" ? { display: "none" } : undefined,
+          // tabBarStyle removed to keep tab bar visible
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -137,9 +137,9 @@ export default function TabsLayout() {
         options={{
           title: "Lớp học",
           headerTitle: "Lớp học",
-          href: shouldShowClasses ? "/(tabs)/classes" : null,
+          href: null, // Hidden from tab bar as requested
           headerLeft: role === "admin" ? () => <BackButton /> : undefined,
-          tabBarStyle: role === "admin" ? { display: "none" } : undefined,
+          // Removed tabBarStyle display: none to force tab bar persistence if accessed
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons

@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -6,
   },
   menuCard: {
-    width: (width - 44) / 2,
+    width: (width - 62) / 3,
     marginHorizontal: 6,
     marginBottom: 12,
     backgroundColor: "#FFFFFF",

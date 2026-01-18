@@ -329,6 +329,7 @@ export default function AdminIncidentsScreen() {
         </View>
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={filteredIncidents}
           renderItem={renderIncidentCard}
           keyExtractor={(item) => item._id}
