@@ -107,7 +107,7 @@ export default function AdminPaymentsScreen() {
         params.status = selectedStatus;
       }
 
-      const response = await api.get("/payments", { params });
+      const response = await api.get("/payments/admin/all", { params });
       const data = response.data.data || response.data || [];
       setPayments(Array.isArray(data) ? data : []);
 
@@ -125,7 +125,7 @@ export default function AdminPaymentsScreen() {
   const calculateSummary = (data: Payment[]) => {
     const total = data.reduce(
       (acc, p) => (p.status === "completed" ? acc + (p.amount || 0) : acc),
-      0
+      0,
     );
     const pending = data.filter((p) => p.status === "pending").length;
     const completed = data.filter((p) => p.status === "completed").length;
@@ -456,7 +456,7 @@ export default function AdminPaymentsScreen() {
                       <Text style={styles.infoLabel}>Ngày tạo</Text>
                       <Text style={styles.infoValue}>
                         {new Date(selectedPayment.createdAt).toLocaleString(
-                          "vi-VN"
+                          "vi-VN",
                         )}
                       </Text>
                     </View>

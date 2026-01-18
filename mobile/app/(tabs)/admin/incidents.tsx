@@ -1,4 +1,4 @@
-gimport { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -118,7 +118,7 @@ export default function AdminIncidentsScreen() {
   };
 
   const filteredIncidents = incidents.filter((incident) =>
-    selectedStatus === "all" ? true : incident.status === selectedStatus
+    selectedStatus === "all" ? true : incident.status === selectedStatus,
   );
 
   // Calculate stats
@@ -127,13 +127,13 @@ export default function AdminIncidentsScreen() {
     pending: incidents.filter((i) => i.status === "pending").length,
     inProgress: incidents.filter((i) => i.status === "in_progress").length,
     resolved: incidents.filter(
-      (i) => i.status === "resolved" || i.status === "rejected"
+      (i) => i.status === "resolved" || i.status === "rejected",
     ).length,
   };
 
   const handleUpdateStatus = async (
     incident: StoreIncident,
-    newStatus: IncidentStatus
+    newStatus: IncidentStatus,
   ) => {
     try {
       await updateIncident(incident._id, { status: newStatus });
@@ -575,16 +575,20 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     paddingHorizontal: 16,
-    gap: 10,
+    gap: 12,
   },
   statCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    minWidth: 90,
+    borderRadius: 14,
+    padding: 14,
+    minWidth: 95,
     alignItems: "center",
     borderWidth: 2,
-    marginRight: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statValue: {
     fontSize: 24,

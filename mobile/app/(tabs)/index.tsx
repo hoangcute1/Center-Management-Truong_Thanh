@@ -61,7 +61,7 @@ const getOverviewCards = (
     pendingPayments: number;
     pendingPaymentAmount: number;
     incidentsCount: number;
-  }
+  },
 ) => {
   const baseCards = {
     student: [
@@ -199,7 +199,7 @@ const getOverviewCards = (
 const getQuickActions = (
   role: string,
   unreadCount: number,
-  pendingPayments: number
+  pendingPayments: number,
 ) => {
   const baseActions = {
     student: [
@@ -322,16 +322,16 @@ const getQuickActions = (
       {
         icon: "person" as const,
         label: "Tài khoản",
-        subtitle: "Cài đặt",
+        subtitle: "Quản lý",
         colors: ["#10B981", "#059669"],
-        onPress: () => router.push("/(tabs)/profile"),
+        onPress: () => router.push("/(tabs)/admin/accounts"),
       },
       {
-        icon: "calendar" as const,
-        label: "Lịch",
-        subtitle: "Xem lịch",
+        icon: "shield-checkmark" as const,
+        label: "Quản lý",
+        subtitle: "Dashboard",
         colors: ["#F59E0B", "#D97706"],
-        onPress: () => router.push("/(tabs)/schedule"),
+        onPress: () => router.push("/(tabs)/admin"),
       },
     ],
   };
@@ -380,14 +380,14 @@ export default function HomeScreen() {
   const pendingPayments =
     role === "student"
       ? myRequests.filter(
-          (r) => r.status === "pending" || r.status === "overdue"
+          (r) => r.status === "pending" || r.status === "overdue",
         ).length
       : role === "parent"
-      ? childrenRequests
-          .flatMap((c) => c.requests)
-          .filter((r) => r.status === "pending" || r.status === "overdue")
-          .length
-      : 0;
+        ? childrenRequests
+            .flatMap((c) => c.requests)
+            .filter((r) => r.status === "pending" || r.status === "overdue")
+            .length
+        : 0;
 
   const pendingPaymentAmount =
     role === "student"
@@ -395,14 +395,14 @@ export default function HomeScreen() {
           .filter((r) => r.status === "pending" || r.status === "overdue")
           .reduce((sum, r) => sum + r.finalAmount, 0)
       : role === "parent"
-      ? childrenRequests
-          .flatMap((c) => c.requests)
-          .filter((r) => r.status === "pending" || r.status === "overdue")
-          .reduce((sum, r) => sum + r.finalAmount, 0)
-      : 0;
+        ? childrenRequests
+            .flatMap((c) => c.requests)
+            .filter((r) => r.status === "pending" || r.status === "overdue")
+            .reduce((sum, r) => sum + r.finalAmount, 0)
+        : 0;
 
   const pendingIncidents = myIncidents.filter(
-    (i) => i.status === "pending" || i.status === "in_progress"
+    (i) => i.status === "pending" || i.status === "in_progress",
   ).length;
 
   const roleConfig = getRoleConfig(role);
@@ -522,60 +522,66 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* My Classes */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Lớp học của tôi</Text>
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/classes")}
-              style={styles.seeAllButton}
-            >
-              <Text style={styles.seeAll}>Xem tất cả</Text>
-              <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
-            </TouchableOpacity>
-          </View>
-
-          {classes.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <LinearGradient
-                colors={["#F3F4F6", "#E5E7EB"]}
-                style={styles.emptyIconBg}
-              >
-                <Ionicons name="school-outline" size={40} color="#9CA3AF" />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>Chưa có lớp học nào</Text>
-              <Text style={styles.emptyText}>
-                Bạn sẽ thấy danh sách lớp học tại đây
-              </Text>
-            </View>
-          ) : (
-            classes.slice(0, 3).map((classItem, index) => (
+        {/* My Classes - only for non-admin */}
+        {role !== "admin" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Lớp học của tôi</Text>
               <TouchableOpacity
-                key={classItem._id}
-                style={styles.classCard}
-                activeOpacity={0.7}
+                onPress={() => router.push("/(tabs)/classes")}
+                style={styles.seeAllButton}
               >
-                <LinearGradient
-                  colors={
-                    index % 2 === 0
-                      ? ["#3B82F6", "#2563EB"]
-                      : ["#10B981", "#059669"]
-                  }
-                  style={styles.classIconBg}
-                >
-                  <Ionicons name="book" size={20} color="#FFFFFF" />
-                </LinearGradient>
-                <View style={styles.classInfo}>
-                  <Text style={styles.className}>{classItem.name}</Text>
-                  <Text style={styles.classSubject}>{classItem.subject}</Text>
-                </View>
-                <View style={styles.classArrow}>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </View>
+                <Text style={styles.seeAll}>Xem tất cả</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
               </TouchableOpacity>
-            ))
-          )}
-        </View>
+            </View>
+
+            {classes.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <LinearGradient
+                  colors={["#F3F4F6", "#E5E7EB"]}
+                  style={styles.emptyIconBg}
+                >
+                  <Ionicons name="school-outline" size={40} color="#9CA3AF" />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>Chưa có lớp học nào</Text>
+                <Text style={styles.emptyText}>
+                  Bạn sẽ thấy danh sách lớp học tại đây
+                </Text>
+              </View>
+            ) : (
+              classes.slice(0, 3).map((classItem, index) => (
+                <TouchableOpacity
+                  key={classItem._id}
+                  style={styles.classCard}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={
+                      index % 2 === 0
+                        ? ["#3B82F6", "#2563EB"]
+                        : ["#10B981", "#059669"]
+                    }
+                    style={styles.classIconBg}
+                  >
+                    <Ionicons name="book" size={20} color="#FFFFFF" />
+                  </LinearGradient>
+                  <View style={styles.classInfo}>
+                    <Text style={styles.className}>{classItem.name}</Text>
+                    <Text style={styles.classSubject}>{classItem.subject}</Text>
+                  </View>
+                  <View style={styles.classArrow}>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#9CA3AF"
+                    />
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
 
         {/* Payment Alert - for Student and Parent only */}
         {(role === "student" || role === "parent") && pendingPayments > 0 && (

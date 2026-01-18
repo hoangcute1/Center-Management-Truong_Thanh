@@ -8,43 +8,61 @@ import { useChatStore } from "@/lib/stores/chat-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 interface ChatWindowProps {
-  recipient: {
+  recipient?: {
     _id: string;
     name: string;
     role: string;
   };
+  // Legacy props for backward compatibility
+  recipientName?: string;
+  recipientRole?: string;
+  currentUserName?: string;
   onClose: () => void;
 }
 
-export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
+export default function ChatWindow({
+  recipient,
+  recipientName,
+  recipientRole,
+  onClose,
+}: ChatWindowProps) {
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   const { user: currentUser } = useAuthStore();
-  const { 
-    messages, 
+  const {
+    messages,
     typingUsers,
     onlineUsers,
-    fetchMessages, 
-    sendMessage, 
-    setCurrentConversation 
+    fetchMessages,
+    sendMessage,
+    setCurrentConversation,
   } = useChatStore();
 
-  const conversationMessages = messages[recipient._id] || [];
-  const isRecipientOnline = onlineUsers.includes(recipient._id);
-  const isRecipientTyping = typingUsers[recipient._id];
+  // Support both new recipient object and legacy props
+  const recipientId = recipient?._id;
+  const displayName = recipient?.name || recipientName || "Unknown";
+  const displayRole = recipient?.role || recipientRole || "user";
+
+  const conversationMessages = recipientId ? messages[recipientId] || [] : [];
+  const isRecipientOnline = recipientId
+    ? onlineUsers.includes(recipientId)
+    : false;
+  const isRecipientTyping = recipientId ? typingUsers[recipientId] : false;
 
   useEffect(() => {
-    // Set current conversation and fetch messages
-    setCurrentConversation(recipient._id);
-    fetchMessages(recipient._id);
+    // Set current conversation and fetch messages only if we have a valid recipient ID
+    if (recipientId) {
+      setCurrentConversation(recipientId);
+      fetchMessages(recipientId);
+    }
 
     return () => {
       setCurrentConversation(null);
     };
-  }, [recipient._id, setCurrentConversation, fetchMessages]);
+  }, [recipientId, setCurrentConversation, fetchMessages]);
 
   // Auto scroll to bottom when new message arrives
   useEffect(() => {
@@ -52,14 +70,14 @@ export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
   }, [conversationMessages, isRecipientTyping]);
 
   const handleSend = async () => {
-    if (!text.trim() || isSending) return;
+    if (!text.trim() || isSending || !recipientId) return;
 
     setIsSending(true);
     try {
-      await sendMessage(recipient._id, text.trim());
+      await sendMessage(recipientId, text.trim());
       setText("");
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
     } finally {
       setIsSending(false);
     }
@@ -74,15 +92,15 @@ export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
-    
+
     // Handle typing indicator
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Send typing start
     // socketService.setTyping(recipient._id, true);
-    
+
     // Set timeout to stop typing
     typingTimeoutRef.current = setTimeout(() => {
       // socketService.setTyping(recipient._id, false);
@@ -111,9 +129,9 @@ export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
               )}
             </div>
             <div>
-              <p className="font-semibold text-gray-900">{recipient.name}</p>
+              <p className="font-semibold text-gray-900">{displayName}</p>
               <p className="text-xs text-gray-500 capitalize flex items-center gap-2">
-                {recipient.role}
+                {displayRole}
                 {isRecipientOnline && (
                   <span className="text-green-500">● Online</span>
                 )}
@@ -131,14 +149,26 @@ export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
 
         {/* Messages */}
         <div className="min-h-64 max-h-96 sm:flex-1 sm:max-h-none overflow-y-auto mb-4 space-y-3">
-          {conversationMessages.length === 0 ? (
+          {!recipientId ? (
+            <div className="text-center py-8 text-gray-400">
+              <p className="font-medium">Không thể trò chuyện</p>
+              <p className="text-sm">
+                Vui lòng chọn người nhận từ danh sách chat
+              </p>
+            </div>
+          ) : conversationMessages.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <p className="font-medium">Chưa có tin nhắn nào</p>
               <p className="text-sm">Bắt đầu trò chuyện nhé!</p>
             </div>
           ) : (
             conversationMessages.map((msg) => {
-              const isMe = msg.senderId._id === currentUser?._id;
+              // Handle both populated senderId object and string ID
+              const senderId =
+                typeof msg.senderId === "object"
+                  ? msg.senderId?._id
+                  : msg.senderId;
+              const isMe = senderId === currentUser?._id;
               return (
                 <div
                   key={msg._id}
@@ -154,7 +184,9 @@ export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
                         : "bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
                     }`}
                   >
-                    {(isMe ? currentUser?.name : recipient.name)?.charAt(0).toUpperCase()}
+                    {(isMe ? currentUser?.name : displayName)
+                      ?.charAt(0)
+                      .toUpperCase()}
                   </div>
 
                   {/* Message bubble */}
@@ -182,23 +214,29 @@ export default function ChatWindow({ recipient, onClose }: ChatWindowProps) {
               );
             })
           )}
-          
+
           {/* Typing indicator */}
           {isRecipientTyping && (
             <div className="flex items-end gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-semibold text-white">
-                {recipient.name.charAt(0).toUpperCase()}
+                {displayName.charAt(0).toUpperCase()}
               </div>
               <div className="bg-gray-100 rounded-2xl rounded-bl-none px-4 py-2">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.1s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
                 </div>
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
 

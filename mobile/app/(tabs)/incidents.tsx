@@ -519,7 +519,7 @@ export default function IncidentsScreen() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState<"all" | IncidentStatus>(
-    "all"
+    "all",
   );
 
   useEffect(() => {
@@ -536,19 +536,19 @@ export default function IncidentsScreen() {
 
   const handleReportSubmit = async (
     type: IncidentType,
-    description: string
+    description: string,
   ) => {
     try {
       await createIncident({ type, description, platform: "mobile" });
       setShowReportModal(false);
       Alert.alert(
         "Thành công",
-        "Báo cáo sự cố của bạn đã được gửi. Chúng tôi sẽ xem xét và phản hồi sớm nhất."
+        "Báo cáo sự cố của bạn đã được gửi. Chúng tôi sẽ xem xét và phản hồi sớm nhất.",
       );
     } catch (err: any) {
       Alert.alert(
         "Lỗi",
-        err.message || "Không thể gửi báo cáo. Vui lòng thử lại."
+        err.message || "Không thể gửi báo cáo. Vui lòng thử lại.",
       );
     }
   };
@@ -800,11 +800,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 16,
+    paddingHorizontal: 12,
   },
   statItem: {
     alignItems: "center",
+    flex: 1,
   },
   statValue: {
     fontSize: 24,
@@ -813,12 +815,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 2,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 4,
   },
   statDivider: {
     width: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginVertical: 4,
   },
   // Filter
   filterContainer: {

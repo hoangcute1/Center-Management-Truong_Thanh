@@ -65,7 +65,7 @@ export default function LoginScreen() {
   } = useBranchesStore();
   const [formError, setFormError] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function LoginScreen() {
           // Bỏ qua lỗi validation để tiếp tục đăng nhập, sẽ được xử lý phía dưới
           console.log(
             "[LOGIN] Validation error (ignored):",
-            validationError?.message
+            validationError?.message,
           );
         }
       }
@@ -183,7 +183,7 @@ export default function LoginScreen() {
         ) {
           Alert.alert(
             "Đã điều chỉnh cơ sở",
-            "Cơ sở đã được cập nhật theo thông tin tài khoản của bạn."
+            "Cơ sở đã được cập nhật theo thông tin tài khoản của bạn.",
           );
         }
       }
@@ -795,15 +795,15 @@ const styles = StyleSheet.create({
   roleGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: -6,
+    justifyContent: "space-between",
     marginBottom: 20,
+    gap: 12,
   },
   roleCard: {
-    width: (width - 92) / 2,
+    width: "48%",
     backgroundColor: "#F9FAFB",
     borderRadius: 16,
-    padding: 14,
-    margin: 6,
+    padding: 16,
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#E5E7EB",

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,13 +20,33 @@ const { width } = Dimensions.get("window");
 const getNotificationConfig = (type: Notification["type"]) => {
   switch (type) {
     case "success":
-      return { icon: "checkmark-circle" as const, colors: ["#10B981", "#059669"], bgColor: "#D1FAE5" };
+      return {
+        icon: "checkmark-circle" as const,
+        colors: ["#10B981", "#059669"],
+        bgColor: "#D1FAE5",
+        label: "Thành công",
+      };
     case "warning":
-      return { icon: "warning" as const, colors: ["#F59E0B", "#D97706"], bgColor: "#FEF3C7" };
+      return {
+        icon: "warning" as const,
+        colors: ["#F59E0B", "#D97706"],
+        bgColor: "#FEF3C7",
+        label: "Cảnh báo",
+      };
     case "error":
-      return { icon: "close-circle" as const, colors: ["#EF4444", "#DC2626"], bgColor: "#FEE2E2" };
+      return {
+        icon: "close-circle" as const,
+        colors: ["#EF4444", "#DC2626"],
+        bgColor: "#FEE2E2",
+        label: "Lỗi",
+      };
     default:
-      return { icon: "information-circle" as const, colors: ["#3B82F6", "#2563EB"], bgColor: "#DBEAFE" };
+      return {
+        icon: "information-circle" as const,
+        colors: ["#3B82F6", "#2563EB"],
+        bgColor: "#DBEAFE",
+        label: "Thông tin",
+      };
   }
 };
 
@@ -43,6 +65,18 @@ const formatDate = (date: Date) => {
   return d.toLocaleDateString("vi-VN");
 };
 
+const formatFullDate = (date: Date) => {
+  const d = new Date(date);
+  return d.toLocaleDateString("vi-VN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 export default function NotificationsScreen() {
   const {
     notifications,
@@ -52,6 +86,10 @@ export default function NotificationsScreen() {
     markAsRead,
     markAllAsRead,
   } = useNotificationsStore();
+
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
+  const [isDetailVisible, setIsDetailVisible] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -65,7 +103,13 @@ export default function NotificationsScreen() {
     if (!notification.isRead) {
       markAsRead(notification._id);
     }
-    // Navigate to relevant screen based on notification type
+    setSelectedNotification(notification);
+    setIsDetailVisible(true);
+  };
+
+  const closeDetail = () => {
+    setIsDetailVisible(false);
+    setSelectedNotification(null);
   };
 
   const renderNotification = ({ item }: { item: Notification }) => {
@@ -108,6 +152,7 @@ export default function NotificationsScreen() {
             </Text>
           </View>
         </View>
+        <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
       </TouchableOpacity>
     );
   };
@@ -146,7 +191,10 @@ export default function NotificationsScreen() {
       {/* Header Actions */}
       {notifications.length > 0 && unreadCount > 0 && (
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
+          <TouchableOpacity
+            onPress={markAllAsRead}
+            style={styles.markAllButton}
+          >
             <Ionicons name="checkmark-done" size={18} color="#3B82F6" />
             <Text style={styles.markAllRead}>Đánh dấu tất cả đã đọc</Text>
           </TouchableOpacity>
@@ -169,13 +217,115 @@ export default function NotificationsScreen() {
               colors={["#F3F4F6", "#E5E7EB"]}
               style={styles.emptyIconBg}
             >
-              <Ionicons name="notifications-outline" size={48} color="#9CA3AF" />
+              <Ionicons
+                name="notifications-outline"
+                size={48}
+                color="#9CA3AF"
+              />
             </LinearGradient>
             <Text style={styles.emptyTitle}>Không có thông báo</Text>
             <Text style={styles.emptyText}>Bạn chưa có thông báo nào</Text>
           </View>
         }
       />
+
+      {/* Notification Detail Modal */}
+      <Modal
+        visible={isDetailVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeDetail}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={closeDetail} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Chi tiết thông báo</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          {selectedNotification && (
+            <ScrollView
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Notification Type Badge */}
+              {(() => {
+                const config = getNotificationConfig(selectedNotification.type);
+                return (
+                  <View style={styles.detailTypeContainer}>
+                    <LinearGradient
+                      colors={config.colors as [string, string]}
+                      style={styles.detailIconBg}
+                    >
+                      <Ionicons name={config.icon} size={32} color="#FFFFFF" />
+                    </LinearGradient>
+                    <View
+                      style={[
+                        styles.detailTypeBadge,
+                        { backgroundColor: config.bgColor },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.detailTypeText,
+                          { color: config.colors[0] },
+                        ]}
+                      >
+                        {config.label}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Title */}
+              <Text style={styles.detailTitle}>
+                {selectedNotification.title}
+              </Text>
+
+              {/* Time */}
+              <View style={styles.detailTimeContainer}>
+                <Ionicons name="time-outline" size={16} color="#6B7280" />
+                <Text style={styles.detailTime}>
+                  {formatFullDate(selectedNotification.createdAt)}
+                </Text>
+              </View>
+
+              {/* Content */}
+              <View style={styles.detailContentCard}>
+                <Text style={styles.detailContentLabel}>Nội dung</Text>
+                <Text style={styles.detailContent}>
+                  {selectedNotification.content}
+                </Text>
+              </View>
+
+              {/* Status */}
+              <View style={styles.detailStatusContainer}>
+                <View style={styles.detailStatusRow}>
+                  <View style={styles.detailStatusItem}>
+                    <View
+                      style={[
+                        styles.detailStatusDot,
+                        {
+                          backgroundColor: selectedNotification.isRead
+                            ? "#10B981"
+                            : "#3B82F6",
+                        },
+                      ]}
+                    />
+                    <Text style={styles.detailStatusText}>
+                      {selectedNotification.isRead ? "Đã đọc" : "Chưa đọc"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -254,6 +404,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingTop: 8,
+    paddingBottom: 32,
     flexGrow: 1,
   },
   notificationCard: {
@@ -267,6 +418,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+    alignItems: "center",
   },
   unreadNotification: {
     backgroundColor: "#FFFFFF",
@@ -345,5 +497,120 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  detailTypeContainer: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  detailIconBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  detailTypeBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  detailTypeText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  detailTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  detailTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 24,
+  },
+  detailTime: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  detailContentCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  detailContentLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  detailContent: {
+    fontSize: 16,
+    color: "#1F2937",
+    lineHeight: 26,
+  },
+  detailStatusContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  detailStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailStatusItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  detailStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  detailStatusText: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
   },
 });

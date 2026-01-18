@@ -39,7 +39,7 @@ const roleTabs: {
   { key: "student", label: "Học sinh", icon: "school", color: "#3B82F6" },
   { key: "parent", label: "Phụ huynh", icon: "people", color: "#10B981" },
   { key: "teacher", label: "Giáo viên", icon: "person", color: "#F59E0B" },
-  { key: "admin", label: "Admin", icon: "shield", color: "#8B5CF6" },
+  { key: "admin", label: "Quản trị", icon: "shield", color: "#8B5CF6" },
 ];
 
 const getRoleBadge = (role: UserRole) => {
@@ -124,7 +124,7 @@ export default function AccountsManagementScreen() {
     (user) =>
       user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone?.includes(searchQuery)
+      user.phone?.includes(searchQuery),
   );
 
   const handleToggleStatus = async (user: User) => {
@@ -132,7 +132,7 @@ export default function AccountsManagementScreen() {
       await api.patch(`/users/${user._id}`, { isActive: !user.isActive });
       Alert.alert(
         "Thành công",
-        `Đã ${user.isActive ? "vô hiệu hóa" : "kích hoạt"} tài khoản`
+        `Đã ${user.isActive ? "vô hiệu hóa" : "kích hoạt"} tài khoản`,
       );
       fetchUsers();
     } catch (error) {
@@ -174,13 +174,31 @@ export default function AccountsManagementScreen() {
           </View>
           <View
             style={[
-              styles.statusDot,
+              styles.statusBadge,
               {
                 backgroundColor:
-                  user.isActive !== false ? "#10B981" : "#EF4444",
+                  user.isActive !== false ? "#D1FAE5" : "#FEE2E2",
               },
             ]}
-          />
+          >
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor:
+                    user.isActive !== false ? "#10B981" : "#EF4444",
+                },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                { color: user.isActive !== false ? "#059669" : "#DC2626" },
+              ]}
+            >
+              {user.isActive !== false ? "Hoạt động" : "Tạm khóa"}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -413,7 +431,7 @@ export default function AccountsManagementScreen() {
                       <Text style={styles.infoLabel}>Ngày tạo</Text>
                       <Text style={styles.infoValue}>
                         {new Date(selectedUser.createdAt).toLocaleDateString(
-                          "vi-VN"
+                          "vi-VN",
                         )}
                       </Text>
                     </View>
@@ -497,47 +515,55 @@ const styles = StyleSheet.create({
   // Stats
   statsScrollView: {
     marginTop: 16,
+    maxHeight: 100,
   },
   statsContainer: {
     paddingHorizontal: 16,
-    gap: 10,
+    paddingRight: 24,
   },
   statCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    minWidth: 90,
+    minWidth: 100,
     alignItems: "center",
     borderWidth: 2,
-    marginRight: 10,
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "700",
   },
   statLabel: {
     fontSize: 12,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 6,
+    fontWeight: "500",
   },
   // Search
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    margin: 16,
-    marginBottom: 8,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
+    paddingHorizontal: 14,
+    height: 50,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
@@ -546,26 +572,27 @@ const styles = StyleSheet.create({
   },
   // Tabs
   tabsScrollView: {
-    marginBottom: 8,
+    marginBottom: 12,
+    maxHeight: 50,
   },
   tabsContainer: {
     paddingHorizontal: 16,
-    gap: 8,
+    paddingRight: 24,
   },
   roleTab: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
-    marginRight: 8,
+    marginRight: 10,
     gap: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   roleTabText: {
     fontSize: 13,
@@ -575,68 +602,80 @@ const styles = StyleSheet.create({
   // List
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
   userAvatarText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: "#1F2937",
   },
   userEmail: {
     fontSize: 13,
     color: "#6B7280",
-    marginTop: 2,
+    marginTop: 3,
   },
   userPhone: {
     fontSize: 12,
     color: "#9CA3AF",
-    marginTop: 2,
+    marginTop: 3,
   },
   userRight: {
     alignItems: "flex-end",
     gap: 8,
   },
   roleBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 12,
   },
   roleBadgeText: {
     fontSize: 11,
     fontWeight: "600",
   },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 5,
+  },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
   // Loading & Empty
   loadingContainer: {
@@ -653,7 +692,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 80,
+    paddingTop: 60,
   },
   emptyText: {
     fontSize: 14,
@@ -670,7 +709,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
@@ -690,7 +729,7 @@ const styles = StyleSheet.create({
   modalAvatar: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -736,6 +775,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     marginTop: 24,
     gap: 12,
+    paddingBottom: 40,
   },
   actionButton: {
     flexDirection: "row",
