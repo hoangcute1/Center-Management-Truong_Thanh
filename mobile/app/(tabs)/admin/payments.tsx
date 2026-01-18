@@ -242,12 +242,17 @@ export default function AdminPaymentsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      {/* Header */}
+      {/* Summary Header - No duplicate title */}
       <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
-        <Text style={styles.headerTitle}>💳 Quản lý thanh toán</Text>
-        <Text style={styles.headerSubtitle}>
-          Theo dõi doanh thu và giao dịch
-        </Text>
+        <View style={styles.headerContent}>
+          <Ionicons name="wallet" size={28} color="rgba(255,255,255,0.9)" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerValue}>
+              {formatCompactCurrency(summary.totalRevenue)}
+            </Text>
+            <Text style={styles.headerSubtitle}>Tổng doanh thu</Text>
+          </View>
+        </View>
       </LinearGradient>
 
       {/* Summary Cards */}
@@ -522,10 +527,23 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 22,
@@ -533,9 +551,9 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "rgba(255,255,255,0.8)",
-    marginTop: 4,
+    marginTop: 2,
   },
   // Summary
   summaryContainer: {

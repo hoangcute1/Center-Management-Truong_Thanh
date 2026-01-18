@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -122,6 +123,22 @@ const adminMenuItems = [
     colors: ["#8B5CF6", "#7C3AED"],
     onPress: () => router.push("/(tabs)/admin/branches"),
   },
+  {
+    id: "finance",
+    icon: "wallet" as const,
+    label: "Tài chính",
+    subtitle: "Quản lý thu chi",
+    colors: ["#10B981", "#059669"],
+    onPress: () => router.push("/(tabs)/admin/finance"),
+  },
+  {
+    id: "leaderboard",
+    icon: "trophy" as const,
+    label: "Bảng xếp hạng",
+    subtitle: "Học sinh xuất sắc",
+    colors: ["#F59E0B", "#D97706"],
+    onPress: () => router.push("/(tabs)/admin/leaderboard"),
+  },
 ];
 
 // Quick stats for finance
@@ -139,6 +156,26 @@ const financeStats = [
     icon: "trending-down",
   },
   { label: "Lợi nhuận", value: "535 Tr", color: "#3B82F6", icon: "diamond" },
+];
+
+// Mock revenue data by month
+const revenueByMonth = [
+  { month: "T1", value: 45 },
+  { month: "T2", value: 52 },
+  { month: "T3", value: 48 },
+  { month: "T4", value: 61 },
+  { month: "T5", value: 55 },
+  { month: "T6", value: 67 },
+];
+
+// Subject colors for pie chart
+const subjectColors = [
+  "#3B82F6", // Toán
+  "#10B981", // Lý
+  "#F59E0B", // Hóa
+  "#EF4444", // Văn
+  "#8B5CF6", // Anh
+  "#EC4899", // Sinh
 ];
 
 export default function AdminDashboardScreen() {
@@ -212,7 +249,7 @@ export default function AdminDashboardScreen() {
 
   // Calculate dynamic stats
   const pendingIncidents = incidents.filter(
-    (i) => i.status === "pending" || i.status === "in_progress"
+    (i) => i.status === "pending" || i.status === "in_progress",
   ).length;
 
   const dynamicOverviewStats = [
@@ -246,6 +283,32 @@ export default function AdminDashboardScreen() {
         pendingIncidents > 0 ? ["#EF4444", "#DC2626"] : ["#8B5CF6", "#7C3AED"],
     },
   ];
+
+  // Calculate student distribution by subject
+  const studentsBySubject = useMemo(() => {
+    const subjectMap: Record<string, number> = {};
+    classes.forEach((cls) => {
+      const subject = cls.subject || "Khác";
+      const studentCount = cls.studentIds?.length || 0;
+      subjectMap[subject] = (subjectMap[subject] || 0) + studentCount;
+    });
+
+    const data = Object.entries(subjectMap).map(([subject, count], index) => ({
+      subject,
+      count,
+      color: subjectColors[index % subjectColors.length],
+    }));
+
+    // Sort by count descending
+    return data.sort((a, b) => b.count - a.count);
+  }, [classes]);
+
+  const totalStudentsInClasses = useMemo(() => {
+    return studentsBySubject.reduce((sum, item) => sum + item.count, 0);
+  }, [studentsBySubject]);
+
+  // Find max revenue value for scaling
+  const maxRevenue = Math.max(...revenueByMonth.map((item) => item.value));
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
@@ -304,6 +367,91 @@ export default function AdminDashboardScreen() {
                 </LinearGradient>
               </View>
             ))}
+          </View>
+        </View>
+
+        {/* Revenue Chart */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📈 Doanh thu theo tháng</Text>
+          <View style={styles.chartCard}>
+            <View style={styles.barChartContainer}>
+              {revenueByMonth.map((item, index) => (
+                <View key={index} style={styles.barWrapper}>
+                  <Text style={styles.barValue}>{item.value}Tr</Text>
+                  <View style={styles.barBackground}>
+                    <LinearGradient
+                      colors={["#3B82F6", "#2563EB"]}
+                      style={[
+                        styles.bar,
+                        { height: `${(item.value / maxRevenue) * 100}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.barLabel}>{item.month}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.chartLegend}>
+              <View style={styles.legendDot} />
+              <Text style={styles.legendText}>Doanh thu (triệu VND)</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Student Distribution Pie Chart */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎓 Phân bổ học sinh theo môn</Text>
+          <View style={styles.chartCard}>
+            {studentsBySubject.length === 0 ? (
+              <View style={styles.emptyChartContainer}>
+                <Ionicons name="pie-chart-outline" size={40} color="#9CA3AF" />
+                <Text style={styles.emptyChartText}>Chưa có dữ liệu</Text>
+              </View>
+            ) : (
+              <>
+                {/* Simple horizontal bar chart as alternative to pie */}
+                <View style={styles.horizontalBarChart}>
+                  {studentsBySubject.slice(0, 5).map((item, index) => (
+                    <View key={index} style={styles.horizontalBarRow}>
+                      <View style={styles.horizontalBarLabelContainer}>
+                        <View
+                          style={[
+                            styles.subjectDot,
+                            { backgroundColor: item.color },
+                          ]}
+                        />
+                        <Text style={styles.horizontalBarLabel}>
+                          {item.subject}
+                        </Text>
+                      </View>
+                      <View style={styles.horizontalBarTrack}>
+                        <View
+                          style={[
+                            styles.horizontalBarFill,
+                            {
+                              width:
+                                totalStudentsInClasses > 0
+                                  ? `${(item.count / totalStudentsInClasses) * 100}%`
+                                  : "0%",
+                              backgroundColor: item.color,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.horizontalBarValue}>
+                        {item.count}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.chartSummary}>
+                  <Text style={styles.chartSummaryText}>
+                    Tổng: {totalStudentsInClasses} học sinh trong{" "}
+                    {classes.length} lớp
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -391,8 +539,8 @@ export default function AdminDashboardScreen() {
                     index % 3 === 0
                       ? ["#3B82F6", "#2563EB"]
                       : index % 3 === 1
-                      ? ["#10B981", "#059669"]
-                      : ["#F59E0B", "#D97706"]
+                        ? ["#10B981", "#059669"]
+                        : ["#F59E0B", "#D97706"]
                   }
                   style={styles.classIcon}
                 >
@@ -606,6 +754,135 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(255,255,255,0.7)",
     marginTop: 4,
+  },
+  // Charts
+  chartCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  barChartContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    height: 160,
+    paddingHorizontal: 8,
+  },
+  barWrapper: {
+    alignItems: "center",
+    flex: 1,
+  },
+  barValue: {
+    fontSize: 10,
+    color: "#6B7280",
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  barBackground: {
+    width: 32,
+    height: 120,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+  },
+  bar: {
+    width: "100%",
+    borderRadius: 8,
+  },
+  barLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  chartLegend: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#3B82F6",
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  horizontalBarChart: {
+    paddingVertical: 8,
+  },
+  horizontalBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  horizontalBarLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 80,
+  },
+  subjectDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  horizontalBarLabel: {
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  horizontalBarTrack: {
+    flex: 1,
+    height: 20,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginHorizontal: 8,
+  },
+  horizontalBarFill: {
+    height: "100%",
+    borderRadius: 10,
+  },
+  horizontalBarValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    width: 30,
+    textAlign: "right",
+  },
+  chartSummary: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    alignItems: "center",
+  },
+  chartSummaryText: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  emptyChartContainer: {
+    alignItems: "center",
+    paddingVertical: 32,
+  },
+  emptyChartText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 12,
   },
   // Menu Grid
   menuGrid: {

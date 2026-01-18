@@ -490,12 +490,15 @@ export default function AdminAttendanceScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      {/* Header */}
+      {/* Summary Header - No duplicate title */}
       <LinearGradient colors={["#14B8A6", "#0D9488"]} style={styles.header}>
-        <Text style={styles.headerTitle}>📋 Quản lý điểm danh</Text>
-        <Text style={styles.headerSubtitle}>
-          Theo dõi điểm danh các lớp học
-        </Text>
+        <View style={styles.headerContent}>
+          <Ionicons name="checkbox" size={28} color="rgba(255,255,255,0.9)" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerValue}>{stats.presentRate}%</Text>
+            <Text style={styles.headerSubtitle}>Tỷ lệ có mặt hôm nay</Text>
+          </View>
+        </View>
       </LinearGradient>
 
       {/* Stats Cards */}
@@ -1037,6 +1040,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 22,

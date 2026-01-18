@@ -66,6 +66,17 @@ export default function AccountsManagementScreen() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
 
+  // Create account modal states
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "student" as UserRole,
+  });
+
   // Stats
   const [stats, setStats] = useState({
     total: 0,
@@ -145,6 +156,54 @@ export default function AccountsManagementScreen() {
     setIsDetailVisible(true);
   };
 
+  const handleCreateAccount = async () => {
+    // Validate form
+    if (!newUserForm.fullName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập họ tên");
+      return;
+    }
+    if (!newUserForm.email.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập email");
+      return;
+    }
+    if (!newUserForm.password.trim() || newUserForm.password.length < 6) {
+      Alert.alert("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự");
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      await api.post("/auth/register", {
+        fullName: newUserForm.fullName.trim(),
+        email: newUserForm.email.trim().toLowerCase(),
+        phone: newUserForm.phone.trim() || undefined,
+        password: newUserForm.password,
+        role: newUserForm.role,
+      });
+
+      Alert.alert("Thành công", "Đã tạo tài khoản mới");
+      setIsCreateModalVisible(false);
+      resetCreateForm();
+      fetchUsers();
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Không thể tạo tài khoản";
+      Alert.alert("Lỗi", message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setNewUserForm({
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
+      role: "student",
+    });
+  };
+
   const renderUserCard = ({ item: user }: { item: User }) => {
     const badge = getRoleBadge(user.role);
 
@@ -206,12 +265,24 @@ export default function AccountsManagementScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      {/* Header */}
+      {/* Summary Header - No duplicate title */}
       <LinearGradient colors={["#6366F1", "#4F46E5"]} style={styles.header}>
-        <Text style={styles.headerTitle}>👥 Quản lý tài khoản</Text>
-        <Text style={styles.headerSubtitle}>
-          {stats.total} người dùng trong hệ thống
-        </Text>
+        <View style={styles.headerContent}>
+          <Ionicons name="people" size={28} color="rgba(255,255,255,0.9)" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerValue}>{stats.total}</Text>
+            <Text style={styles.headerSubtitle}>người dùng trong hệ thống</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              resetCreateForm();
+              setIsCreateModalVisible(true);
+            }}
+          >
+            <Ionicons name="add" size={24} color="#6366F1" />
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       {/* Stats Cards */}
@@ -485,6 +556,154 @@ export default function AccountsManagementScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* Create Account Modal */}
+      <Modal
+        visible={isCreateModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsCreateModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setIsCreateModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Tạo tài khoản mới</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Role Selector */}
+            <Text style={styles.formLabel}>Loại tài khoản</Text>
+            <View style={styles.roleSelector}>
+              {(["student", "parent", "teacher"] as UserRole[]).map((role) => {
+                const badge = getRoleBadge(role);
+                return (
+                  <TouchableOpacity
+                    key={role}
+                    style={[
+                      styles.roleSelectorItem,
+                      newUserForm.role === role && {
+                        borderColor: badge.color,
+                        backgroundColor: badge.bg,
+                      },
+                    ]}
+                    onPress={() =>
+                      setNewUserForm((prev) => ({ ...prev, role }))
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        role === "student"
+                          ? "school"
+                          : role === "parent"
+                            ? "people"
+                            : "person"
+                      }
+                      size={20}
+                      color={
+                        newUserForm.role === role ? badge.color : "#6B7280"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.roleSelectorText,
+                        newUserForm.role === role && { color: badge.color },
+                      ]}
+                    >
+                      {badge.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Full Name */}
+            <Text style={styles.formLabel}>Họ và tên *</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập họ và tên"
+                placeholderTextColor="#9CA3AF"
+                value={newUserForm.fullName}
+                onChangeText={(text) =>
+                  setNewUserForm((prev) => ({ ...prev, fullName: text }))
+                }
+              />
+            </View>
+
+            {/* Email */}
+            <Text style={styles.formLabel}>Email *</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập email"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={newUserForm.email}
+                onChangeText={(text) =>
+                  setNewUserForm((prev) => ({ ...prev, email: text }))
+                }
+              />
+            </View>
+
+            {/* Phone */}
+            <Text style={styles.formLabel}>Số điện thoại</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập số điện thoại"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                value={newUserForm.phone}
+                onChangeText={(text) =>
+                  setNewUserForm((prev) => ({ ...prev, phone: text }))
+                }
+              />
+            </View>
+
+            {/* Password */}
+            <Text style={styles.formLabel}>Mật khẩu *</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập mật khẩu (ít nhất 6 ký tự)"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                value={newUserForm.password}
+                onChangeText={(text) =>
+                  setNewUserForm((prev) => ({ ...prev, password: text }))
+                }
+              />
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                isCreating && styles.submitButtonDisabled,
+              ]}
+              onPress={handleCreateAccount}
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                  <Text style={styles.submitButtonText}>Tạo tài khoản</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -497,10 +716,23 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 22,
@@ -508,27 +740,29 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "rgba(255,255,255,0.8)",
-    marginTop: 4,
+    marginTop: 2,
   },
   // Stats
   statsScrollView: {
     marginTop: 16,
-    maxHeight: 100,
+    maxHeight: 110,
   },
   statsContainer: {
     paddingHorizontal: 16,
     paddingRight: 24,
+    gap: 12,
   },
   statCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
+    width: 100,
     minWidth: 100,
     alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
-    marginRight: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -538,12 +772,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 26,
     fontWeight: "700",
+    lineHeight: 32,
   },
   statLabel: {
     fontSize: 12,
     color: "#6B7280",
     marginTop: 6,
     fontWeight: "500",
+    textAlign: "center",
   },
   // Search
   searchContainer: {
@@ -788,5 +1024,77 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  // Add Button in Header
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  // Create Account Form
+  formLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  roleSelector: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  roleSelectorItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
+  },
+  roleSelectorText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  formInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 15,
+    color: "#1F2937",
+  },
+  submitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#6366F1",
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 24,
+    gap: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#A5B4FC",
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

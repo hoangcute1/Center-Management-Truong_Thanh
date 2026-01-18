@@ -74,6 +74,28 @@ export default function AdminLayout() {
           headerLeft: () => <BackButton />,
         }}
       />
+      <Stack.Screen
+        name="finance"
+        options={{
+          headerShown: true,
+          title: "Quản lý tài chính",
+          headerLeft: () => <BackButton />,
+          headerStyle: {
+            backgroundColor: "#10B981",
+          },
+        }}
+      />
+      <Stack.Screen
+        name="leaderboard"
+        options={{
+          headerShown: true,
+          title: "Bảng xếp hạng",
+          headerLeft: () => <BackButton />,
+          headerStyle: {
+            backgroundColor: "#F59E0B",
+          },
+        }}
+      />
     </Stack>
   );
 }

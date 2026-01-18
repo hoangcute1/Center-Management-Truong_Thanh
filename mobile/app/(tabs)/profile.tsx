@@ -7,35 +7,76 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "@/lib/stores";
-import AddStudentModal from "@/components/AddStudentModal";
+import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
 
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
-      return { label: "Học sinh", colors: ["#3B82F6", "#2563EB"], icon: "school" };
+      return {
+        label: "Học sinh",
+        colors: ["#3B82F6", "#2563EB"],
+        icon: "school",
+      };
     case "teacher":
-      return { label: "Giáo viên", colors: ["#10B981", "#059669"], icon: "person" };
+      return {
+        label: "Giáo viên",
+        colors: ["#10B981", "#059669"],
+        icon: "person",
+      };
     case "parent":
-      return { label: "Phụ huynh", colors: ["#F59E0B", "#D97706"], icon: "people" };
+      return {
+        label: "Phụ huynh",
+        colors: ["#F59E0B", "#D97706"],
+        icon: "people",
+      };
     case "admin":
-      return { label: "Quản trị viên", colors: ["#8B5CF6", "#7C3AED"], icon: "settings" };
+      return {
+        label: "Quản trị viên",
+        colors: ["#8B5CF6", "#7C3AED"],
+        icon: "settings",
+      };
     default:
       return { label: role, colors: ["#6B7280", "#4B5563"], icon: "person" };
   }
 };
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const roleConfig = getRoleConfig(user?.role || "");
-  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+
+  // Modal states
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Profile form
+  const [profileForm, setProfileForm] = useState({
+    fullName: user?.fullName || "",
+    phone: user?.phone || "",
+  });
+
+  // Password form
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // Theme setting
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
@@ -51,6 +92,78 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleUpdateProfile = async () => {
+    if (!profileForm.fullName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập họ tên");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await api.patch(`/users/${user?._id}`, {
+        fullName: profileForm.fullName.trim(),
+        phone: profileForm.phone.trim() || undefined,
+      });
+
+      // Update local state
+      if (updateUser) {
+        updateUser({
+          ...user!,
+          fullName: profileForm.fullName.trim(),
+          phone: profileForm.phone.trim(),
+        });
+      }
+
+      Alert.alert("Thành công", "Đã cập nhật thông tin cá nhân");
+      setShowProfileModal(false);
+    } catch (error: any) {
+      Alert.alert(
+        "Lỗi",
+        error.response?.data?.message || "Không thể cập nhật thông tin",
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword) {
+      Alert.alert("Lỗi", "Vui lòng nhập mật khẩu hiện tại");
+      return;
+    }
+    if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
+      Alert.alert("Lỗi", "Mật khẩu mới phải có ít nhất 6 ký tự");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      Alert.alert("Lỗi", "Xác nhận mật khẩu không khớp");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await api.post("/auth/change-password", {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      Alert.alert("Thành công", "Đã đổi mật khẩu thành công");
+      setShowPasswordModal(false);
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error: any) {
+      Alert.alert(
+        "Lỗi",
+        error.response?.data?.message || "Không thể đổi mật khẩu",
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const menuSections = [
     {
       title: "Tài khoản",
@@ -59,32 +172,22 @@ export default function ProfileScreen() {
           icon: "person-outline" as const,
           label: "Thông tin cá nhân",
           color: "#3B82F6",
-          onPress: () => {},
+          onPress: () => {
+            setProfileForm({
+              fullName: user?.fullName || "",
+              phone: user?.phone || "",
+            });
+            setShowProfileModal(true);
+          },
         },
         {
           icon: "lock-closed-outline" as const,
           label: "Đổi mật khẩu",
           color: "#8B5CF6",
-          onPress: () => {},
+          onPress: () => setShowPasswordModal(true),
         },
       ],
     },
-    // Admin section - only show for admin users
-    ...(user?.role === "admin"
-      ? [
-          {
-            title: "Quản trị",
-            items: [
-              {
-                icon: "person-add-outline" as const,
-                label: "Thêm học sinh",
-                color: "#3B82F6",
-                onPress: () => setShowAddStudentModal(true),
-              },
-            ],
-          },
-        ]
-      : []),
     {
       title: "Cài đặt",
       items: [
@@ -98,7 +201,7 @@ export default function ProfileScreen() {
           icon: "moon-outline" as const,
           label: "Giao diện",
           color: "#6366F1",
-          onPress: () => {},
+          onPress: () => setShowThemeModal(true),
         },
       ],
     },
@@ -198,7 +301,12 @@ export default function ProfileScreen() {
                   onPress={item.onPress}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.menuIconBg, { backgroundColor: `${item.color}15` }]}>
+                  <View
+                    style={[
+                      styles.menuIconBg,
+                      { backgroundColor: `${item.color}15` },
+                    ]}
+                  >
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
                   <Text style={styles.menuItemLabel}>{item.label}</Text>
@@ -231,14 +339,249 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* Add Student Modal */}
-      <AddStudentModal
-        visible={showAddStudentModal}
-        onClose={() => setShowAddStudentModal(false)}
-        onSuccess={() => {
-          Alert.alert("Thành công", "Đã thêm học sinh mới!");
-        }}
-      />
+      {/* Profile Edit Modal */}
+      <Modal
+        visible={showProfileModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowProfileModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowProfileModal(false)}>
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Thông tin cá nhân</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.formLabel}>Họ và tên</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập họ và tên"
+                placeholderTextColor="#9CA3AF"
+                value={profileForm.fullName}
+                onChangeText={(text) =>
+                  setProfileForm((prev) => ({ ...prev, fullName: text }))
+                }
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Email</Text>
+            <View style={[styles.inputContainer, styles.inputDisabled]}>
+              <Ionicons name="mail-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={[styles.formInput, styles.inputTextDisabled]}
+                value={user?.email || ""}
+                editable={false}
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Số điện thoại</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="call-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập số điện thoại"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                value={profileForm.phone}
+                onChangeText={(text) =>
+                  setProfileForm((prev) => ({ ...prev, phone: text }))
+                }
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                isUpdating && styles.submitButtonDisabled,
+              ]}
+              onPress={handleUpdateProfile}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                  <Text style={styles.submitButtonText}>Lưu thay đổi</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Password Change Modal */}
+      <Modal
+        visible={showPasswordModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.formLabel}>Mật khẩu hiện tại</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập mật khẩu hiện tại"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                value={passwordForm.currentPassword}
+                onChangeText={(text) =>
+                  setPasswordForm((prev) => ({
+                    ...prev,
+                    currentPassword: text,
+                  }))
+                }
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Mật khẩu mới</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="key-outline" size={20} color="#6B7280" />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                value={passwordForm.newPassword}
+                onChangeText={(text) =>
+                  setPasswordForm((prev) => ({ ...prev, newPassword: text }))
+                }
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Xác nhận mật khẩu mới</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={20}
+                color="#6B7280"
+              />
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nhập lại mật khẩu mới"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
+                value={passwordForm.confirmPassword}
+                onChangeText={(text) =>
+                  setPasswordForm((prev) => ({
+                    ...prev,
+                    confirmPassword: text,
+                  }))
+                }
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: "#8B5CF6" },
+                isUpdating && styles.submitButtonDisabled,
+              ]}
+              onPress={handleChangePassword}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="key" size={20} color="#FFFFFF" />
+                  <Text style={styles.submitButtonText}>Đổi mật khẩu</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Theme Modal */}
+      <Modal
+        visible={showThemeModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowThemeModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowThemeModal(false)}>
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Giao diện</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.themeOption}>
+              <View style={styles.themeOptionLeft}>
+                <View
+                  style={[styles.themeIconBg, { backgroundColor: "#FEF3C7" }]}
+                >
+                  <Ionicons name="sunny" size={24} color="#F59E0B" />
+                </View>
+                <View>
+                  <Text style={styles.themeOptionTitle}>Chế độ sáng</Text>
+                  <Text style={styles.themeOptionDesc}>Giao diện mặc định</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.themeRadio,
+                  !isDarkMode && styles.themeRadioActive,
+                ]}
+                onPress={() => setIsDarkMode(false)}
+              >
+                {!isDarkMode && <View style={styles.themeRadioInner} />}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.themeOption}>
+              <View style={styles.themeOptionLeft}>
+                <View
+                  style={[styles.themeIconBg, { backgroundColor: "#E0E7FF" }]}
+                >
+                  <Ionicons name="moon" size={24} color="#6366F1" />
+                </View>
+                <View>
+                  <Text style={styles.themeOptionTitle}>Chế độ tối</Text>
+                  <Text style={styles.themeOptionDesc}>
+                    Bảo vệ mắt khi trời tối
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.themeRadio,
+                  isDarkMode && styles.themeRadioActive,
+                ]}
+                onPress={() => setIsDarkMode(true)}
+              >
+                {isDarkMode && <View style={styles.themeRadioInner} />}
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.themeNote}>
+              * Chức năng đang được phát triển. Sẽ sớm có mặt trong các phiên
+              bản tiếp theo.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -435,5 +778,131 @@ const styles = StyleSheet.create({
   versionNumber: {
     fontSize: 12,
     color: "#9CA3AF",
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  inputDisabled: {
+    backgroundColor: "#F3F4F6",
+  },
+  formInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 15,
+    color: "#1F2937",
+  },
+  inputTextDisabled: {
+    color: "#9CA3AF",
+  },
+  submitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#3B82F6",
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 24,
+    gap: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#93C5FD",
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  // Theme styles
+  themeOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  themeOptionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  themeIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  themeOptionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  themeOptionDesc: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  themeRadio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  themeRadioActive: {
+    borderColor: "#3B82F6",
+  },
+  themeRadioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#3B82F6",
+  },
+  themeNote: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 24,
+    fontStyle: "italic",
   },
 });

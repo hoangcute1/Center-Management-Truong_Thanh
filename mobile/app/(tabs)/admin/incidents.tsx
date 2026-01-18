@@ -249,8 +249,15 @@ export default function AdminIncidentsScreen() {
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {/* Header */}
       <LinearGradient colors={["#F97316", "#EA580C"]} style={styles.header}>
-        <Text style={styles.headerTitle}>🐛 Quản lý sự cố</Text>
-        <Text style={styles.headerSubtitle}>Xử lý báo cáo từ người dùng</Text>
+        <View style={styles.headerContent}>
+          <Ionicons name="bug" size={28} color="#FFFFFF" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerValue}>{stats.total}</Text>
+            <Text style={styles.headerSubtitle}>
+              Sự cố • {stats.pending} chờ xử lý
+            </Text>
+          </View>
+        </View>
       </LinearGradient>
 
       {/* Stats Cards */}
@@ -558,6 +565,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 22,

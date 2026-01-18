@@ -57,7 +57,7 @@ export default function BranchesManagementScreen() {
   const filteredBranches = branches.filter(
     (branch) =>
       branch.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      branch.address?.toLowerCase().includes(searchQuery.toLowerCase())
+      branch.address?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleAddBranch = async () => {
@@ -107,7 +107,7 @@ export default function BranchesManagementScreen() {
       await updateBranch(branch._id, { isActive: !branch.isActive });
       Alert.alert(
         "Thành công",
-        `Đã ${branch.isActive ? "vô hiệu hóa" : "kích hoạt"} cơ sở`
+        `Đã ${branch.isActive ? "vô hiệu hóa" : "kích hoạt"} cơ sở`,
       );
     } catch (error) {
       Alert.alert("Lỗi", "Không thể thay đổi trạng thái");
@@ -318,11 +318,10 @@ export default function BranchesManagementScreen() {
       {/* Header */}
       <LinearGradient colors={["#8B5CF6", "#7C3AED"]} style={styles.header}>
         <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerTitle}>🏢 Quản lý cơ sở</Text>
-            <Text style={styles.headerSubtitle}>
-              {branches.length} cơ sở trong hệ thống
-            </Text>
+          <Ionicons name="business" size={28} color="#FFFFFF" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerValue}>{branches.length}</Text>
+            <Text style={styles.headerSubtitle}>Cơ sở trong hệ thống</Text>
           </View>
           <TouchableOpacity
             style={styles.addButton}
@@ -435,8 +434,16 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 22,

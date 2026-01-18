@@ -1,7 +1,7 @@
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/lib/stores";
-import { View, Platform } from "react-native";
+import { View, Platform, TouchableOpacity } from "react-native";
 
 export default function TabsLayout() {
   const { isAuthenticated, user } = useAuthStore();
@@ -33,10 +33,26 @@ export default function TabsLayout() {
   const shouldShowIncidents =
     role === "student" || role === "parent" || role === "teacher";
   const shouldShowSchedule =
-    role === "student" || role === "teacher" || role === "parent";
+    role === "student" ||
+    role === "teacher" ||
+    role === "parent" ||
+    role === "admin";
   const shouldShowClasses =
-    role === "student" || role === "teacher" || role === "parent";
+    role === "student" ||
+    role === "teacher" ||
+    role === "parent" ||
+    role === "admin";
   const shouldShowAdmin = role === "admin";
+
+  // Back button component for admin accessing schedule/classes
+  const BackButton = () => (
+    <TouchableOpacity
+      onPress={() => router.back()}
+      style={{ marginLeft: 8, padding: 8 }}
+    >
+      <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+    </TouchableOpacity>
+  );
 
   return (
     <Tabs
@@ -94,13 +110,15 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Schedule - visible for student, teacher, parent */}
+      {/* Schedule - visible for student, teacher, parent, admin */}
       <Tabs.Screen
         name="schedule"
         options={{
           title: role === "teacher" ? "Lịch dạy" : "Lịch học",
           headerTitle: role === "teacher" ? "Lịch dạy" : "Lịch học",
           href: shouldShowSchedule ? "/(tabs)/schedule" : null,
+          headerLeft: role === "admin" ? () => <BackButton /> : undefined,
+          tabBarStyle: role === "admin" ? { display: "none" } : undefined,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -113,13 +131,15 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Classes - visible for student, teacher, parent */}
+      {/* Classes - visible for student, teacher, parent, admin */}
       <Tabs.Screen
         name="classes"
         options={{
           title: "Lớp học",
           headerTitle: "Lớp học",
           href: shouldShowClasses ? "/(tabs)/classes" : null,
+          headerLeft: role === "admin" ? () => <BackButton /> : undefined,
+          tabBarStyle: role === "admin" ? { display: "none" } : undefined,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
