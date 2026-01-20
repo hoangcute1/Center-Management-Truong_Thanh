@@ -123,18 +123,53 @@ export class FinanceService {
       ],
     };
 
+    // Build aggregation pipeline
+    const pipeline: any[] = [
+      { $match: matchStage },
+    ];
+
     // Filter by branch if not ALL
     if (branchId !== 'ALL') {
-      matchStage.branchId = new Types.ObjectId(branchId);
+      pipeline.push(
+        // Lookup student để lấy branchId nếu payment không có
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'studentId',
+            foreignField: '_id',
+            as: 'student',
+          },
+        },
+        { $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+        // Match branchId: ưu tiên payment.branchId, fallback student.branchId
+        {
+          $match: {
+            $expr: {
+              $eq: [
+                {
+                  $cond: [
+                    { $ifNull: ['$branchId', false] },
+                    '$branchId',
+                    '$student.branchId',
+                  ],
+                },
+                new Types.ObjectId(branchId),
+              ],
+            },
+          },
+        },
+      );
     }
 
-    const result = await this.paymentModel.aggregate([
-      { $match: matchStage },
-      {
-        $addFields: {
-          effectiveDate: { $ifNull: ['$paidAt', '$createdAt'] },
-        },
+    // Add fields để tính effectiveDate
+    pipeline.push({
+      $addFields: {
+        effectiveDate: { $ifNull: ['$paidAt', '$createdAt'] },
       },
+    });
+
+    // Group by month
+    pipeline.push(
       {
         $group: {
           _id: { $month: '$effectiveDate' },
@@ -142,7 +177,9 @@ export class FinanceService {
         },
       },
       { $sort: { _id: 1 } },
-    ]);
+    );
+
+    const result = await this.paymentModel.aggregate(pipeline);
 
     return result.map((r) => ({
       month: r._id,
@@ -194,12 +231,46 @@ export class FinanceService {
       ],
     };
 
+    // Build pipeline
+    const pipeline: any[] = [
+      { $match: matchStage },
+    ];
+
+    // Add branch filter with fallback if not ALL
     if (branchId !== 'ALL') {
-      matchStage.branchId = new Types.ObjectId(branchId);
+      pipeline.push(
+        // Lookup student for fallback
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'studentId',
+            foreignField: '_id',
+            as: 'studentInfo',
+          },
+        },
+        { $unwind: { path: '$studentInfo', preserveNullAndEmptyArrays: true } },
+        // Match branch
+        {
+          $match: {
+            $expr: {
+              $eq: [
+                {
+                  $cond: [
+                    { $ifNull: ['$branchId', false] },
+                    '$branchId',
+                    '$studentInfo.branchId',
+                  ],
+                },
+                new Types.ObjectId(branchId),
+              ],
+            },
+          },
+        },
+      );
     }
 
-    const result = await this.paymentModel.aggregate([
-      { $match: matchStage },
+    // Continue with request and class lookups
+    pipeline.push(
       { $unwind: '$requestIds' },
       {
         $lookup: {
@@ -246,7 +317,9 @@ export class FinanceService {
       },
       { $match: { _id: { $ne: null } } },
       { $sort: { amount: -1 } },
-    ]);
+    );
+
+    const result = await this.paymentModel.aggregate(pipeline);
 
     return result.map((r) => ({
       subject: r._id,

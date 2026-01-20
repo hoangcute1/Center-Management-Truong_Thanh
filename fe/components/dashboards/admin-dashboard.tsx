@@ -30,6 +30,9 @@ import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
 import { usePaymentsStore } from "@/lib/stores/payments-store";
+import { useFinanceStore } from "@/lib/stores/finance-store";
+import ExpenseModal from "@/components/modals/expense-modal";
+
 
 
 interface AdminDashboardProps {
@@ -482,10 +485,10 @@ function UserDetailModal({
                   {user.gender === "male"
                     ? "Nam"
                     : user.gender === "female"
-                    ? "Nữ"
-                    : user.gender === "other"
-                    ? "Khác"
-                    : "Chưa cập nhật"}
+                      ? "Nữ"
+                      : user.gender === "other"
+                        ? "Khác"
+                        : "Chưa cập nhật"}
                 </p>
               </div>
               <div>
@@ -530,8 +533,8 @@ function UserDetailModal({
                     <p className="text-gray-500">Loại học bổng</p>
                     <p className="font-medium text-gray-900">
                       {user.scholarshipType === 'teacher_child' ? '👨‍🏫 Con giáo viên' :
-                       user.scholarshipType === 'poor_family' ? '🏠 Hộ nghèo' :
-                       user.scholarshipType === 'orphan' ? '💙 Con mồ côi' : 'Không xác định'}
+                        user.scholarshipType === 'poor_family' ? '🏠 Hộ nghèo' :
+                          user.scholarshipType === 'orphan' ? '💙 Con mồ côi' : 'Không xác định'}
                     </p>
                   </div>
                   <div>
@@ -544,9 +547,9 @@ function UserDetailModal({
                     <div className="bg-amber-100 rounded-lg p-2">
                       <p className="text-sm text-amber-800">
                         💡 Học sinh được giảm <strong>{user.scholarshipPercent || 0}%</strong> học phí do thuộc diện <strong>
-                        {user.scholarshipType === 'teacher_child' ? 'Con giáo viên' :
-                         user.scholarshipType === 'poor_family' ? 'Hộ nghèo' :
-                         user.scholarshipType === 'orphan' ? 'Con mồ côi' : ''}
+                          {user.scholarshipType === 'teacher_child' ? 'Con giáo viên' :
+                            user.scholarshipType === 'poor_family' ? 'Hộ nghèo' :
+                              user.scholarshipType === 'orphan' ? 'Con mồ côi' : ''}
                         </strong>
                       </p>
                     </div>
@@ -656,19 +659,19 @@ function UserDetailModal({
                   {user.role === "student"
                     ? "Mã số học sinh"
                     : user.role === "teacher"
-                    ? "Mã số giáo viên"
-                    : user.role === "parent"
-                    ? "Mã số phụ huynh"
-                    : "Mã tài khoản"}
+                      ? "Mã số giáo viên"
+                      : user.role === "parent"
+                        ? "Mã số phụ huynh"
+                        : "Mã tài khoản"}
                 </p>
                 <p className="font-medium text-gray-900 font-mono text-lg">
                   {user.role === "student" && user.studentCode
                     ? user.studentCode
                     : user.role === "teacher" && user.teacherCode
-                    ? user.teacherCode
-                    : user.role === "parent" && user.parentCode
-                    ? user.parentCode
-                    : `#${user._id.slice(-8).toUpperCase()}`}
+                      ? user.teacherCode
+                      : user.role === "parent" && user.parentCode
+                        ? user.parentCode
+                        : `#${user._id.slice(-8).toUpperCase()}`}
                 </p>
               </div>
               <div>
@@ -676,12 +679,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : "Không xác định"}
                 </p>
               </div>
@@ -703,12 +706,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.updatedAt
                     ? new Date(user.updatedAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : "Không xác định"}
                 </p>
               </div>
@@ -825,7 +828,7 @@ function EditUserModal({
     };
 
     // Không update email vì email là unique identifier
-    
+
     if (!isParent) {
       if (formData.dateOfBirth) {
         updateData.dateOfBirth = new Date(formData.dateOfBirth);
@@ -1095,11 +1098,10 @@ function EditUserModal({
                           <button
                             type="button"
                             onClick={() => toggleCategory(cat.subjects)}
-                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                              cat.subjects.every((s) => formData.subjects.includes(s))
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) => formData.subjects.includes(s))
+                              ? "bg-purple-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
                           >
                             {cat.category}
                           </button>
@@ -1110,11 +1112,10 @@ function EditUserModal({
                               key={subject}
                               type="button"
                               onClick={() => toggleSubject(subject)}
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
-                                formData.subjects.includes(subject)
-                                  ? "bg-purple-500 text-white"
-                                  : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
-                              }`}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${formData.subjects.includes(subject)
+                                ? "bg-purple-500 text-white"
+                                : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
+                                }`}
                             >
                               #{subject}
                             </button>
@@ -1507,13 +1508,12 @@ function AddModal({
                         <button
                           type="button"
                           onClick={() => toggleCategory(cat.subjects)}
-                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                            cat.subjects.every((s) =>
-                              selectedSubjects.includes(s)
-                            )
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          }`}
+                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
+                            selectedSubjects.includes(s)
+                          )
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
                         >
                           {cat.category}
                         </button>
@@ -1532,11 +1532,10 @@ function AddModal({
                             key={subject}
                             type="button"
                             onClick={() => toggleSubject(subject)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                              selectedSubjects.includes(subject)
-                                ? "bg-blue-500 text-white shadow-sm"
-                                : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
-                            }`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${selectedSubjects.includes(subject)
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                              }`}
                           >
                             #{subject}
                           </button>
@@ -1740,11 +1739,24 @@ export default function AdminDashboard({
     fetchUsers,
     isLoading: usersLoading,
   } = useUsersStore();
+
+  // Finance store (new)
   const {
-    financeOverview,
-    fetchFinanceOverview,
+    dashboard: financeDashboard,
+    expenses,
     isLoading: financeLoading,
-  } = usePaymentsStore();
+    error: financeError,
+    fetchDashboard,
+    fetchExpenses,
+    createExpense,
+    deleteExpense,
+    clearError: clearFinanceError,
+  } = useFinanceStore();
+
+  // Finance state
+  const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
 
   // State for add user modal
   const [addUserLoading, setAddUserLoading] = useState(false);
@@ -1752,6 +1764,7 @@ export default function AdminDashboard({
 
   // Kiểm tra xem user có phải admin không
   const isAdmin = user.role === "admin";
+
 
 
   // State for branch filter - Nếu không phải admin, mặc định là branchId của user
@@ -1773,13 +1786,13 @@ export default function AdminDashboard({
   // Apply search filter
   const searchFilteredUsers = searchQuery.trim()
     ? filteredUsers.filter((u) => {
-        const query = searchQuery.toLowerCase().trim();
-        return (
-          u.name?.toLowerCase().includes(query) ||
-          u.email?.toLowerCase().includes(query) ||
-          u.phone?.toLowerCase().includes(query)
-        );
-      })
+      const query = searchQuery.toLowerCase().trim();
+      return (
+        u.name?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        u.phone?.toLowerCase().includes(query)
+      );
+    })
     : filteredUsers;
 
   const apiStudents = searchFilteredUsers.filter((u) => u.role === "student");
@@ -1806,21 +1819,67 @@ export default function AdminDashboard({
     });
   }, [fetchBranches, fetchUsers, fetchClasses]);
 
-  // Fetch finance data when switching to finance tab
+  // Fetch finance dashboard when switching to finance tab or branch/year changes
   useEffect(() => {
     if (activeTab === "finance") {
-      console.log("🔄 Fetching finance overview...");
-      fetchFinanceOverview()
-        .then(() => {
-          console.log("✅ Finance data loaded successfully");
-        })
-        .catch((err) => {
-          console.error("❌ Could not fetch finance data:", err);
-        });
+      console.log(`🔄 Fetching finance dashboard: branch=${selectedBranch}, year=${selectedYear}`);
+      fetchDashboard(selectedBranch, selectedYear);
+
+      // Fetch expenses only if specific branch selected
+      if (selectedBranch !== "ALL") {
+        fetchExpenses(selectedBranch);
+      }
     }
-  }, [activeTab, fetchFinanceOverview]);
+  }, [activeTab, selectedBranch, selectedYear, fetchDashboard, fetchExpenses]);
 
+  // === Finance Helper Functions ===
+  const formatCurrency = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `${(amount / 1000000).toFixed(1)} Tr`;
+    } else if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(0)}K`;
+    }
+    return amount.toLocaleString('vi-VN');
+  };
 
+  const getMonthName = (month: number): string => {
+    const names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    return names[month - 1] || `T${month}`;
+  };
+
+  const handleAddExpense = async (data: { amount: number; description: string; expenseDate: string }) => {
+    try {
+      await createExpense({
+        branchId: selectedBranch,
+        ...data,
+      });
+
+      // Refresh data parallel
+      await Promise.all([
+        fetchDashboard(selectedBranch, selectedYear),
+        selectedBranch !== "ALL" ? fetchExpenses(selectedBranch) : Promise.resolve(),
+      ]);
+
+      // Modal auto closes via onSubmit prop
+    } catch (error) {
+      console.error("Failed to create expense:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm("Bạn có chắc muốn xóa chi phí này?")) return;
+
+    try {
+      await deleteExpense(id);
+
+      // Refresh data
+      await fetchDashboard(selectedBranch, selectedYear);
+      await fetchExpenses(selectedBranch);
+    } catch (error) {
+      console.error("Failed to delete expense:", error);
+    }
+  };
 
   // Handlers for branches
   const handleAddBranch = () => {
@@ -2398,19 +2457,18 @@ export default function AdminDashboard({
                             </p>
                           </div>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              course.status === "active"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : course.status === "completed"
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${course.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : course.status === "completed"
                                 ? "bg-gray-100 text-gray-700"
                                 : "bg-amber-100 text-amber-700"
-                            }`}
+                              }`}
                           >
                             {course.status === "active"
                               ? "Đang mở"
                               : course.status === "completed"
-                              ? "Đã kết thúc"
-                              : "Tạm dừng"}
+                                ? "Đã kết thúc"
+                                : "Tạm dừng"}
                           </span>
                           <Button
                             variant="outline"
@@ -2560,17 +2618,17 @@ export default function AdminDashboard({
                       setShowModal(
                         activeAccountTab === "students"
                           ? {
-                              title: "Thêm học sinh",
-                              fields: [
-                                "Họ và tên",
-                                "Email",
-                                "Số điện thoại",
-                                "Tên phụ huynh",
-                                "SĐT phụ huynh",
-                              ],
-                            }
+                            title: "Thêm học sinh",
+                            fields: [
+                              "Họ và tên",
+                              "Email",
+                              "Số điện thoại",
+                              "Tên phụ huynh",
+                              "SĐT phụ huynh",
+                            ],
+                          }
                           : activeAccountTab === "parents"
-                          ? {
+                            ? {
                               title: "Thêm phụ huynh",
                               fields: [
                                 "Họ và tên",
@@ -2579,7 +2637,7 @@ export default function AdminDashboard({
                                 "Email con (học sinh)",
                               ],
                             }
-                          : {
+                            : {
                               title: "Thêm giáo viên",
                               fields: [
                                 "Họ và tên",
@@ -2600,33 +2658,30 @@ export default function AdminDashboard({
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
                 <button
                   onClick={() => setActiveAccountTab("students")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "students"
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                  }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "students"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:bg-white/50"
+                    }`}
                 >
                   <span>👨‍🎓</span>
                   <span>Học sinh ({apiStudents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("parents")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "parents"
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                  }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "parents"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:bg-white/50"
+                    }`}
                 >
                   <span>👨‍👩‍👧</span>
                   <span>Phụ huynh ({apiParents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("teachers")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "teachers"
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                  }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "teachers"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:bg-white/50"
+                    }`}
                 >
                   <span>👨‍🏫</span>
                   <span>Giáo viên ({apiTeachers.length})</span>
@@ -2647,8 +2702,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có học sinh tại cơ sở "${getBranchName(
-                                effectiveBranchFilter
-                              )}"`
+                              effectiveBranchFilter
+                            )}"`
                             : "Chưa có học sinh"}
                         </div>
                       ) : (
@@ -2683,8 +2738,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {s.createdAt
                                   ? new Date(s.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
+                                    "vi-VN"
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -2709,8 +2764,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có phụ huynh tại cơ sở "${getBranchName(
-                                effectiveBranchFilter
-                              )}"`
+                              effectiveBranchFilter
+                            )}"`
                             : "Chưa có phụ huynh"}
                         </div>
                       ) : (
@@ -2744,8 +2799,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {p.createdAt
                                   ? new Date(p.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
+                                    "vi-VN"
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -2770,8 +2825,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có giáo viên tại cơ sở "${getBranchName(
-                                effectiveBranchFilter
-                              )}"`
+                              effectiveBranchFilter
+                            )}"`
                             : "Chưa có giáo viên"}
                         </div>
                       ) : (
@@ -2810,8 +2865,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {t.createdAt
                                   ? new Date(t.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
+                                    "vi-VN"
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -2857,11 +2912,10 @@ export default function AdminDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      rankingView === key
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-gray-600 hover:bg-white/50"
-                    }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:bg-white/50"
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -2876,27 +2930,25 @@ export default function AdminDashboard({
                 {leaderboardData[rankingView].map((row) => (
                   <div
                     key={`${rankingView}-${row.rank}-${row.name}`}
-                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                      row.rank === 1
-                        ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                        : row.rank === 2
+                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                      ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                      : row.rank === 2
                         ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                         : row.rank === 3
-                        ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                        : "border-gray-100 bg-white hover:border-blue-200"
-                    }`}
+                          ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                          : "border-gray-100 bg-white hover:border-blue-200"
+                      }`}
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                          row.rank === 1
-                            ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                            : row.rank === 2
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                          ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                          : row.rank === 2
                             ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
                             : row.rank === 3
-                            ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                              ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         {row.rank === 1 && "🏆"}
                         {row.rank === 2 && "🥈"}
@@ -2938,37 +2990,94 @@ export default function AdminDashboard({
             </Card>
           </TabsContent>
 
-          {/* Tab Tài chính */}
+          {/* Tab Tàichính */}
           <TabsContent value="finance" className="mt-6">
-            {financeLoading ? (
+            {/* Branch Selector & Year Selector */}
+            <div className="mb-6 flex gap-4 items-center">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn cơ sở
+                </label>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="w-full rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ALL">Tất cả cơ sở</option>
+                  {branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-40">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Năm
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={2026}>2026</option>
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {financeLoading && (
               <Card className="p-12 text-center bg-white border-0 shadow-lg">
                 <div className="text-6xl mb-4 animate-pulse">💰</div>
-                <p className="text-gray-500 text-lg font-medium">Đang tải dữ liệu tài chính...</p>
+                <p className="text-gray-500 text-lg font-medium">
+                  Đang tải dữ liệu tài chính...
+                </p>
               </Card>
-            ) : !financeOverview ? (
+            )}
+
+            {/* Error State */}
+            {financeError && !financeLoading && (
               <Card className="p-12 text-center bg-white border-0 shadow-lg">
-                <div className="text-6xl mb-4">📊</div>
-                <p className="text-gray-500 text-lg font-medium mb-2">Chưa có dữ liệu tài chính</p>
-                <p className="text-gray-400 text-sm">Thử lại sau hoặc kiểm tra kết nối backend</p>
+                <div className="text-6xl mb-4">❌</div>
+                <p className="text-red-600 text-lg font-medium mb-2">
+                  {financeError}
+                </p>
+                <Button
+                  onClick={() => {
+                    clearFinanceError();
+                    fetchDashboard(selectedBranch, selectedYear);
+                  }}
+                  className="mt-4"
+                >
+                  Thử lại
+                </Button>
               </Card>
-            ) : (
+            )}
+
+            {/* Dashboard Content */}
+            {!financeLoading && !financeError && financeDashboard && (
               <>
-                {/* Finance Summary Cards */}
-                <div className="grid gap-4 md:grid-cols-3">
-                  {/* Tổng doanh thu */}
+                {/* Summary Cards */}
+                <div className="grid gap-4 md:grid-cols-3 mb-6">
+                  {/* Total Revenue */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-white/80 text-sm font-medium">Tổng doanh thu</p>
+                          <p className="text-white/80 text-sm font-medium">
+                            💰 Tổng Thu
+                          </p>
                           <p className="text-3xl font-bold mt-2">
-                            {(financeOverview.summary.totalRevenue / 1000000).toFixed(0)} Tr
+                            {formatCurrency(financeDashboard.summary.totalRevenue)}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {financeOverview.summary.growthRate && financeOverview.summary.growthRate > 0
-                              ? `+${financeOverview.summary.growthRate.toFixed(1)}%`
-                              : financeOverview.summary.growthRate?.toFixed(1) + '%' || 'N/A'} so với kỳ trước
+                            {financeDashboard.summary.totalRevenue > 0
+                              ? `${selectedBranch === "ALL" ? "Tất cả cơ sở" : "Cơ sở này"}`
+                              : "Chưa có dữ liệu"}
                           </p>
                         </div>
                         <span className="text-4xl opacity-80">📈</span>
@@ -2976,144 +3085,190 @@ export default function AdminDashboard({
                     </div>
                   </Card>
 
-                  {/* VNPay Revenue */}
+                  {/* Total Expense */}
                   <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 opacity-90" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-pink-600 opacity-90" />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-white/80 text-sm font-medium">Thanh toán VNPay</p>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-white/80 text-sm font-medium">
+                              💸 Tổng Chi
+                            </p>
+                            {selectedBranch !== "ALL" && (
+                              <button
+                                onClick={() => setShowExpenseModal(true)}
+                                className="px-4 py-1.5 bg-white text-pink-600 hover:bg-pink-50 border border-white/40 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md flex items-center gap-1"
+                              >
+                                <span className="text-base leading-none">+</span>
+                                <span>Thêm</span>
+                              </button>
+                            )}
+                          </div>
                           <p className="text-3xl font-bold mt-2">
-                            {(financeOverview.summary.vnpayRevenue / 1000000).toFixed(0)} Tr
+                            {formatCurrency(financeDashboard.summary.totalExpense)}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {financeOverview.summary.totalRevenue > 0 
-                              ? ((financeOverview.summary.vnpayRevenue / financeOverview.summary.totalRevenue) * 100).toFixed(1) + '%'
-                              : '0%'} tổng doanh thu
+                            {financeDashboard.summary.totalExpense > 0
+                              ? `Chi phí vận hành`
+                              : "Chưa có chi phí"}
                           </p>
                         </div>
-                        <span className="text-4xl opacity-80">💳</span>
+                        <span className="text-4xl opacity-80">💸</span>
                       </div>
                     </div>
                   </Card>
 
-                  {/* Cash Revenue */}
-                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-600 opacity-90" />
+                  {/* Profit */}
+                  <Card className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${financeDashboard.summary.profit >= 0
+                      ? 'from-blue-500 to-indigo-600'
+                      : 'from-orange-500 to-red-600'
+                      } opacity-90`} />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-white/80 text-sm font-medium">Thanh toán tiền mặt</p>
+                          <p className="text-white/80 text-sm font-medium">
+                            💎 Lợi nhuận
+                          </p>
                           <p className="text-3xl font-bold mt-2">
-                            {(financeOverview.summary.cashRevenue / 1000000).toFixed(0)} Tr
+                            {formatCurrency(financeDashboard.summary.profit)}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {financeOverview.summary.totalRevenue > 0
-                              ? ((financeOverview.summary.cashRevenue / financeOverview.summary.totalRevenue) * 100).toFixed(1) + '%'
-                              : '0%'} tổng doanh thu
+                            = Thu - Chi
                           </p>
                         </div>
-                        <span className="text-4xl opacity-80">💵</span>
+                        <span className="text-4xl opacity-80">
+                          {financeDashboard.summary.profit >= 0 ? '📊' : '📉'}
+                        </span>
                       </div>
                     </div>
                   </Card>
                 </div>
 
-                {/* Finance Charts */}
-                <div className="grid gap-6 lg:grid-cols-2 mt-6">
+                {/* Charts */}
+                <div className="grid gap-6 lg:grid-cols-2 mb-6">
+                  {/* Revenue/Expense by Month Chart */}
                   <Card className="p-6 bg-white border-0 shadow-lg">
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="text-2xl">📊</span>
+                      <span className="text-2xl">📈</span>
                       <div>
-                        <p className="font-bold text-gray-900">Doanh thu theo tháng</p>
-                        <p className="text-xs text-gray-500">{financeOverview.monthlyData.length} tháng gần nhất</p>
-
+                        <p className="font-bold text-gray-900">
+                          Thu/Chi theo tháng
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Năm {selectedYear}
+                        </p>
                       </div>
                     </div>
                     <div className="h-72">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={financeOverview.monthlyData.map(m => ({
-                          month: m.month,
-                          revenue: m.revenue / 1000000, // Convert to millions
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis
-                            dataKey="month"
-                            tick={{ fontSize: 11, fill: "#6b7280" }}
-                          />
-                          <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              border: "none",
-                              borderRadius: "12px",
-                              boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-                            }}
-                            formatter={(value: number) => [`${value.toFixed(1)} Tr`, "Doanh thu"]}
-                          />
-                          <Bar
-                            dataKey="revenue"
-                            fill="#3b82f6"
-                            radius={[4, 4, 0, 0]}
-                            name="Doanh thu"
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      {financeDashboard.chart.revenueByMonth.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={financeDashboard.chart.revenueByMonth.map((item, idx) => ({
+                              month: getMonthName(item.month),
+                              thu: item.amount / 1000000,
+                              chi: (financeDashboard.chart.expenseByMonth[idx]?.amount || 0) / 1000000,
+                            }))}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis
+                              dataKey="month"
+                              tick={{ fontSize: 11, fill: "#6b7280" }}
+                            />
+                            <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "none",
+                                borderRadius: "12px",
+                                boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                              }}
+                              formatter={(value: number) => [`${value.toFixed(1)} Tr`]}
+                            />
+                            <Bar
+                              dataKey="thu"
+                              fill="#3b82f6"
+                              radius={[4, 4, 0, 0]}
+                              name="Thu"
+                            />
+                            <Bar
+                              dataKey="chi"
+                              fill="#ef4444"
+                              radius={[4, 4, 0, 0]}
+                              name="Chi"
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-400">
+                          📊 Chưa có dữ liệu
+                        </div>
+                      )}
                     </div>
                   </Card>
 
+                  {/* Revenue by Subject Chart */}
                   <Card className="p-6 bg-white border-0 shadow-lg">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl">🎯</span>
                       <div>
-                        <p className="font-bold text-gray-900">Phân bổ theo phương thức</p>
-                        <p className="text-xs text-gray-500">Tỷ lệ thanh toán</p>
+                        <p className="font-bold text-gray-900">
+                          Thu theo môn học
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Phân bổ doanh thu
+                        </p>
                       </div>
                     </div>
                     <div className="h-72">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[
-                              { name: "VNPay", value: financeOverview.byMethod.vnpay_test },
-                              { name: "Tiền mặt", value: financeOverview.byMethod.cash },
-                              { name: "Học bổng", value: financeOverview.byMethod.scholarship || 0 },
-                            ].filter(item => item.value > 0)}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            innerRadius={60}
-                            label={({ name, percent }) =>
-                              `${name} ${(percent * 100).toFixed(0)}%`
-                            }
-                          >
-                            {[
-                              financeOverview.byMethod.vnpay_test > 0 && "#3b82f6",
-                              financeOverview.byMethod.cash > 0 && "#f97316",
-                              (financeOverview.byMethod.scholarship || 0) > 0 && "#10b981",
-                            ].filter(Boolean).map((color, idx) => (
-                              <Cell key={idx} fill={color as string} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            formatter={(value: number) => `${(value / 1000000).toFixed(1)} Tr`}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      {financeDashboard.revenueBySubject.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={financeDashboard.revenueBySubject}
+                              dataKey="amount"
+                              nameKey="subject"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              label={({ subject, amount }: { subject: string; amount: number }) => {
+                                const total = financeDashboard.revenueBySubject.reduce((sum, s) => sum + s.amount, 0);
+                                const percent = total > 0 ? ((amount / total) * 100).toFixed(0) : 0;
+                                return `${subject} ${percent}%`;
+                              }}
+                            >
+                              {financeDashboard.revenueBySubject.map((_, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value: number) => `${formatCurrency(value)}`}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-400">
+                          🎯 Chưa có dữ liệu phân bổ
+                        </div>
+                      )}
                     </div>
                   </Card>
                 </div>
 
-                {/* Finance Table */}
-                <Card className="p-6 mt-6 bg-white border-0 shadow-lg">
+                {/* Detail Table */}
+                <Card className="p-6 bg-white border-0 shadow-lg mb-6">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-2xl">📋</span>
                     <div>
-                      <p className="font-bold text-gray-900">Chi tiết doanh thu theo tháng</p>
+                      <p className="font-bold text-gray-900">
+                        Chi tiết theo tháng
+                      </p>
                       <p className="text-xs text-gray-500">
-                        Tổng {financeOverview.summary.totalPaymentsCount} giao dịch thành công
+                        Bảng phân tích thu/chi
                       </p>
                     </div>
                   </div>
@@ -3125,36 +3280,39 @@ export default function AdminDashboard({
                             Tháng
                           </th>
                           <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                            Doanh thu
+                            Thu
                           </th>
                           <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                            Giao dịch
+                            Chi
                           </th>
                           <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                            TB/giao dịch
+                            Lợi nhuận
                           </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {financeOverview.monthlyData.map((row) => (
+                        {financeDashboard.detailByMonth.map((row) => (
                           <tr
                             key={row.month}
                             className="border-b border-gray-100 hover:bg-gray-50"
                           >
                             <td className="py-3 px-4 font-medium text-gray-900">
-                              {row.month}
+                              Tháng {row.month}
                             </td>
                             <td className="py-3 px-4 text-right text-blue-600 font-semibold">
-                              {(row.revenue / 1000000).toFixed(1)} Tr
+                              {formatCurrency(row.revenue)}
                             </td>
-                            <td className="py-3 px-4 text-right text-gray-700">
-                              {row.count}
+                            <td className="py-3 px-4 text-right text-red-500 font-semibold">
+                              {formatCurrency(row.expense)}
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                                {row.count > 0 
-                                  ? `${((row.revenue / row.count) / 1000000).toFixed(2)} Tr`
-                                  : 'N/A'}
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${row.profit >= 0
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-red-100 text-red-700'
+                                  }`}
+                              >
+                                {formatCurrency(row.profit)}
                               </span>
                             </td>
                           </tr>
@@ -3163,8 +3321,79 @@ export default function AdminDashboard({
                     </table>
                   </div>
                 </Card>
+
+                {/* Expense History (only if branch != ALL) */}
+                {selectedBranch !== "ALL" && expenses.length > 0 && (
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">📜</span>
+                      <div>
+                        <p className="font-bold text-gray-900">
+                          Lịch sử chi phí
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Danh sách chi phí đã tạo
+                        </p>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600">
+                              Ngày
+                            </th>
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600">
+                              Nội dung
+                            </th>
+                            <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                              Số tiền
+                            </th>
+                            <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                              Thao tác
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expenses.map((expense) => (
+                            <tr
+                              key={expense._id}
+                              className="border-b border-gray-100 hover:bg-gray-50"
+                            >
+                              <td className="py-3 px-4 text-gray-700">
+                                {new Date(expense.expenseDate).toLocaleDateString('vi-VN')}
+                              </td>
+                              <td className="py-3 px-4 text-gray-900">
+                                {expense.description}
+                              </td>
+                              <td className="py-3 px-4 text-right text-red-600 font-semibold">
+                                {expense.amount.toLocaleString('vi-VN')} ₫
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => handleDeleteExpense(expense._id)}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                  🗑️ Xóa
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                )}
               </>
             )}
+
+            {/* Expense Modal */}
+            <ExpenseModal
+              isOpen={showExpenseModal}
+              branchId={selectedBranch}
+              onClose={() => setShowExpenseModal(false)}
+              onSubmit={handleAddExpense}
+            />
           </TabsContent>
 
 
@@ -3230,11 +3459,10 @@ export default function AdminDashboard({
                       </div>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            branch.status === "active"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${branch.status === "active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-600"
+                            }`}
                         >
                           {branch.status === "active"
                             ? "✅ Hoạt động"
@@ -3555,11 +3783,11 @@ export default function AdminDashboard({
           classData={classStudentsModal}
           branchId={
             typeof classStudentsModal.branchId === "object" &&
-            classStudentsModal.branchId
+              classStudentsModal.branchId
               ? classStudentsModal.branchId._id
               : classStudentsModal.branchId ||
-                classStudentsModal.branch?._id ||
-                ""
+              classStudentsModal.branch?._id ||
+              ""
           }
           onClose={() => setClassStudentsModal(null)}
           onUpdate={() => {
