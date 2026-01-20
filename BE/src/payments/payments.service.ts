@@ -19,6 +19,8 @@ import {
 import { PaymentRequestsService } from '../payment-requests/payment-requests.service';
 import { VnpayService } from './vnpay.service';
 import { CreatePaymentDto, ConfirmCashPaymentDto } from './dto/payment.dto';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { Branch, BranchDocument } from '../branches/schemas/branch.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -26,9 +28,12 @@ export class PaymentsService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(PaymentTransaction.name)
     private transactionModel: Model<PaymentTransactionDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Branch.name) private branchModel: Model<BranchDocument>,
     private paymentRequestsService: PaymentRequestsService,
     private vnpayService: VnpayService,
   ) {}
+
 
   // ==================== CREATE PAYMENT ====================
 
@@ -60,7 +65,26 @@ export class PaymentsService {
       throw new BadRequestException('Tổng số tiền phải lớn hơn 0');
     }
 
-    // 3. Tạo payment record
+    // 3. Fetch student để lấy branchId snapshot
+    const student = await this.userModel.findById(studentId).lean();
+    if (!student) {
+      throw new NotFoundException('Không tìm thấy học sinh');
+    }
+
+    // Fetch branch để lấy branchName
+    let branchId: Types.ObjectId | null = null;
+    let branchName: string | null = null;
+    if (student.branchId) {
+
+      const branch = await this.branchModel.findById(student.branchId).lean();
+      if (branch) {
+        branchId = new Types.ObjectId(student.branchId);
+        branchName = branch.name;
+      }
+
+    }
+
+    // 4. Tạo payment record với branch snapshot
     const payment = new this.paymentModel({
       requestIds: dto.requestIds.map((id) => new Types.ObjectId(id)),
       paidBy: new Types.ObjectId(userId),
@@ -71,6 +95,8 @@ export class PaymentsService {
           ? PaymentMethod.VNPAY_TEST
           : PaymentMethod.CASH,
       status: PaymentStatus.PENDING,
+      branchId: branchId ? new Types.ObjectId(branchId) : null,
+      branchName: branchName,
     });
 
     // 4. Xử lý theo payment method
