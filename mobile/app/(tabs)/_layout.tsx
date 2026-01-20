@@ -171,17 +171,25 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Incidents - visible for student, parent, teacher */}
+      {/* Incidents/Contact - visible for student, parent, teacher */}
       <Tabs.Screen
         name="incidents"
         options={{
-          title: "Sự cố",
-          headerTitle: "Báo cáo sự cố",
+          title: role === "teacher" ? "Liên hệ" : "Sự cố",
+          headerTitle: role === "teacher" ? "Liên hệ hỗ trợ" : "Báo cáo sự cố",
           href: shouldShowIncidents ? "/(tabs)/incidents" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
-                name={focused ? "warning" : "warning-outline"}
+                name={
+                  role === "teacher"
+                    ? focused
+                      ? "chatbubbles"
+                      : "chatbubbles-outline"
+                    : focused
+                      ? "warning"
+                      : "warning-outline"
+                }
                 size={24}
                 color={color}
               />
