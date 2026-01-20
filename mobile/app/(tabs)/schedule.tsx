@@ -540,6 +540,11 @@ export default function ScheduleScreen() {
     if (typeof session.classId === "object" && session.classId?.name) {
       return session.classId.name;
     }
+    // Try to find in classes store
+    if (typeof session.classId === "string") {
+       const cls = classes.find(c => c._id === session.classId);
+       if (cls) return cls.name;
+    }
     return "Chưa xác định";
   };
 
@@ -547,6 +552,11 @@ export default function ScheduleScreen() {
   const getSubject = (session: any) => {
     if (typeof session.classId === "object" && session.classId?.subject) {
       return session.classId.subject;
+    }
+     // Try to find in classes store
+    if (typeof session.classId === "string") {
+       const cls = classes.find(c => c._id === session.classId);
+       if (cls && cls.subject) return cls.subject;
     }
     return session.subject || "";
   };
@@ -2042,6 +2052,15 @@ export default function ScheduleScreen() {
           {weekDates.map((date, index) => {
             const selected = isSelected(date);
             const today = isToday(date);
+            
+            // Check if there are any sessions for this date
+            const hasSessions = sessions.some(s => {
+                const sDate = new Date(s.startTime);
+                return sDate.getDate() === date.getDate() && 
+                       sDate.getMonth() === date.getMonth() && 
+                       sDate.getFullYear() === date.getFullYear();
+            });
+
             return (
               <TouchableOpacity
                 key={index}
@@ -2075,6 +2094,15 @@ export default function ScheduleScreen() {
                     {formatDate(date)}
                   </Text>
                 </View>
+                {/* Session Indicator Dot */}
+                {hasSessions && (
+                    <View style={[
+                        styles.sessionDot, 
+                        selected ? { backgroundColor: "#FFFFFF" } : 
+                        today ? { backgroundColor: "#3B82F6" } : 
+                        { backgroundColor: "#10B981" }
+                    ]} />
+                )}
               </TouchableOpacity>
             );
           })}
@@ -2311,6 +2339,13 @@ const styles = StyleSheet.create({
   },
   todayDateText: {
     color: "#3B82F6",
+  },
+  sessionDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: "#10B981",
+      marginTop: 4,
   },
   selectedDateHeader: {
     flexDirection: "row",

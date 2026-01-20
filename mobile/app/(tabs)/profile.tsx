@@ -575,10 +575,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.themeNote}>
-              * Chức năng đang được phát triển. Sẽ sớm có mặt trong các phiên
-              bản tiếp theo.
-            </Text>
+
           </View>
         </SafeAreaView>
       </Modal>

@@ -248,6 +248,7 @@ const getQuickActions = (
         label: "Lịch học",
         subtitle: "Xem lịch tuần",
         colors: ["#3B82F6", "#2563EB"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -255,6 +256,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -269,13 +271,6 @@ const getQuickActions = (
         badge: pendingPayments,
         onPress: () => router.push("/(tabs)/payments"),
       },
-      {
-        icon: "warning" as const,
-        label: "Sự cố",
-        subtitle: "Báo cáo vấn đề",
-        colors: ["#8B5CF6", "#7C3AED"],
-        onPress: () => router.push("/(tabs)/incidents"),
-      },
     ],
     parent: [
       {
@@ -283,6 +278,7 @@ const getQuickActions = (
         label: "Lịch học con",
         subtitle: "Xem lịch học",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -290,6 +286,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Theo dõi lớp",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -309,6 +306,7 @@ const getQuickActions = (
         label: "Sự cố",
         subtitle: "Phản ánh vấn đề",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/incidents"),
       },
     ],
@@ -318,6 +316,7 @@ const getQuickActions = (
         label: "Lịch dạy",
         subtitle: "Xem lịch tuần",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -325,6 +324,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#3B82F6", "#2563EB"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -332,6 +332,7 @@ const getQuickActions = (
         label: "Tài liệu",
         subtitle: "Tài liệu giảng dạy",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => {}, // Disabled navigation, content is now on Home
       },
       {
@@ -339,6 +340,7 @@ const getQuickActions = (
         label: "Đánh giá",
         subtitle: "Xem đánh giá",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/incidents"),
       },
     ],
@@ -348,6 +350,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -363,6 +366,7 @@ const getQuickActions = (
         label: "Tài khoản",
         subtitle: "Quản lý",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/admin/accounts"),
       },
       {
@@ -370,6 +374,7 @@ const getQuickActions = (
         label: "Quản lý",
         subtitle: "Dashboard",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/admin"),
       },
     ],
@@ -528,10 +533,70 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Streak Card - Gamification Element (Student only) */}
+        {role === "student" && (
+          <>
+            <View style={styles.section}>
+              <View style={styles.streakCard}>
+                <LinearGradient
+                  colors={["#FEF3C7", "#FDE68A"]}
+                  style={styles.streakGradient}
+                >
+                  <View style={styles.streakContent}>
+                    <Text style={styles.streakIcon}>🔥</Text>
+                    <View style={styles.streakInfo}>
+                      <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
+                      <Text style={styles.streakValue}>12 ngày liên tục</Text>
+                    </View>
+                    <View style={styles.streakBadge}>
+                      <Ionicons name="flame" size={16} color="#D97706" />
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+            </View>
+          </>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Truy cập nhanh</Text>
           <View style={styles.quickActionsGrid}>
+            {/* Student Specific Extra Actions - Leaderboard & Grades */}
+            {role === "student" && (
+                <>
+                     <TouchableOpacity
+                        style={styles.quickActionCard}
+                        onPress={() => router.push("/grades")}
+                        activeOpacity={0.7}
+                      >
+                        <LinearGradient
+                          colors={["#F59E0B", "#D97706"]}
+                          style={styles.quickActionGradient}
+                        >
+                          <Ionicons name="ribbon" size={28} color="#FFFFFF" />
+                        </LinearGradient>
+                        <Text style={styles.quickActionLabel}>Điểm số</Text>
+                        <Text style={styles.quickActionSubtitle}>Kết quả học tập</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.quickActionCard}
+                        onPress={() => router.push("/leaderboard")}
+                        activeOpacity={0.7}
+                      >
+                        <LinearGradient
+                          colors={["#8B5CF6", "#7C3AED"]}
+                          style={styles.quickActionGradient}
+                        >
+                          <Ionicons name="trophy" size={28} color="#FFFFFF" />
+                        </LinearGradient>
+                        <Text style={styles.quickActionLabel}>Bảng xếp hạng</Text>
+                        <Text style={styles.quickActionSubtitle}>Thành tích thi đua</Text>
+                      </TouchableOpacity>
+                </>
+            )}
+
             {quickActions.map((action, index) => (
               <TouchableOpacity
                 key={index}
@@ -544,10 +609,11 @@ export default function HomeScreen() {
                   style={styles.quickActionGradient}
                 >
                   <Ionicons name={action.icon} size={28} color="#FFFFFF" />
-                  {action.badge && action.badge > 0 ? (
+                  {/* Safely check for badge */}
+                  {(action as any).badge && (action as any).badge > 0 ? (
                     <View style={styles.actionBadge}>
                       <Text style={styles.actionBadgeText}>
-                        {action.badge > 9 ? "9+" : action.badge}
+                        {(action as any).badge > 9 ? "9+" : (action as any).badge}
                       </Text>
                     </View>
                   ) : null}
@@ -655,29 +721,6 @@ export default function HomeScreen() {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Streak Card - Gamification Element (Student only) */}
-        {role === "student" && (
-          <View style={styles.section}>
-            <View style={styles.streakCard}>
-              <LinearGradient
-                colors={["#FEF3C7", "#FDE68A"]}
-                style={styles.streakGradient}
-              >
-                <View style={styles.streakContent}>
-                  <Text style={styles.streakIcon}>🔥</Text>
-                  <View style={styles.streakInfo}>
-                    <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
-                    <Text style={styles.streakValue}>12 ngày liên tục</Text>
-                  </View>
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={16} color="#D97706" />
-                  </View>
-                </View>
-              </LinearGradient>
-            </View>
           </View>
         )}
 
@@ -1330,54 +1373,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "right",
   },
-  documentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  documentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  documentIconText: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  documentInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  documentName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 4,
-  },
-  documentMeta: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 2,
-  },
-  documentClass: {
-    fontSize: 12,
-    color: "#3B82F6",
-    fontWeight: "500",
-  },
-  downloadButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
-  },
+
+
 });
