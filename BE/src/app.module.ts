@@ -21,6 +21,8 @@ import { ImportsModule } from './imports/imports.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { PaymentRequestsModule } from './payment-requests/payment-requests.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { FinanceModule } from './finance/finance.module';
 
 @Module({
   imports: [
@@ -53,7 +55,11 @@ import { PaymentsModule } from './payments/payments.module';
     IncidentsModule,
     PaymentRequestsModule,
     PaymentsModule,
+    ExpensesModule,
+    FinanceModule,
   ],
+
+
   controllers: [AppController],
   providers: [AppService],
 })

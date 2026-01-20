@@ -204,21 +204,19 @@ export default function AdminPaymentRequestsPage() {
         {/* Tabs */}
         <div className="flex border-b">
           <button
-            className={`px-4 py-2 font-medium ${
-              activeTab === "requests"
+            className={`px-4 py-2 font-medium ${activeTab === "requests"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-500"
-            }`}
+              }`}
             onClick={() => setActiveTab("requests")}
           >
             📋 Yêu cầu đóng tiền
           </button>
           <button
-            className={`px-4 py-2 font-medium flex items-center gap-2 ${
-              activeTab === "cash"
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === "cash"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-500"
-            }`}
+              }`}
             onClick={() => setActiveTab("cash")}
           >
             💵 Chờ xác nhận
@@ -229,11 +227,10 @@ export default function AdminPaymentRequestsPage() {
             )}
           </button>
           <button
-            className={`px-4 py-2 font-medium flex items-center gap-2 ${
-              activeTab === "history"
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === "history"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-500"
-            }`}
+              }`}
             onClick={() => setActiveTab("history")}
           >
             📜 Lịch sử giao dịch
@@ -332,12 +329,11 @@ export default function AdminPaymentRequestsPage() {
                               <div
                                 className="h-full bg-green-500"
                                 style={{
-                                  width: `${
-                                    req.totalStudents > 0
+                                  width: `${req.totalStudents > 0
                                       ? (req.paidCount / req.totalStudents) *
-                                        100
+                                      100
                                       : 0
-                                  }%`,
+                                    }%`,
                                 }}
                               />
                             </div>
@@ -439,12 +435,14 @@ export default function AdminPaymentRequestsPage() {
         {/* Tab: History */}
         {activeTab === "history" && (
           <Card className="p-0 overflow-hidden">
-             <div className="overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 text-gray-700 uppercase">
                   <tr>
                     <th className="px-4 py-3">Mã GD</th>
                     <th className="px-4 py-3">Học sinh</th>
+                    <th className="px-4 py-3">Cơ sở</th>
+                    <th className="px-4 py-3">Môn học</th>
                     <th className="px-4 py-3">Học phí</th>
                     <th className="px-4 py-3">Phương thức</th>
                     <th className="px-4 py-3">Trạng thái</th>
@@ -454,42 +452,44 @@ export default function AdminPaymentRequestsPage() {
                 <tbody className="divide-y divide-gray-100">
                   {allPayments.map((p) => (
                     <tr key={p._id} className="hover:bg-gray-50">
-                       <td className="px-4 py-3 font-mono text-xs">{p._id.slice(-8).toUpperCase()}</td>
-                       <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{(p.studentId as any)?.name || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">{(p.studentId as any)?.email}</p>
-                       </td>
-                       <td className="px-4 py-3 font-bold">{p.amount.toLocaleString('vi-VN')} đ</td>
-                       <td className="px-4 py-3">
-                          {p.method === 'vnpay_test' ? 'VNPay' : 
-                           p.method === 'cash' ? 'Tiền mặt' : p.method}
-                       </td>
-                       <td className="px-4 py-3">
-                          {p.status === 'success' ? (
-                            <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800'>
-                              Thành công
-                            </span>
-                          ) : p.status === 'pending' ? (
-                            <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800'>
-                              Đang xử lý
-                            </span>
-                          ) : (
-                            <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800'>
-                              {p.status}
-                            </span>
-                          )}
-                       </td>
-                       <td className="px-4 py-3 text-gray-500">
-                          {new Date(p.createdAt).toLocaleString('vi-VN')}
-                       </td>
+                      <td className="px-4 py-3 font-mono text-xs">{p._id.slice(-8).toUpperCase()}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{(p.studentId as any)?.name || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{(p.studentId as any)?.email}</p>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">{p.branchName || '—'}</td>
+                      <td className="px-4 py-3 text-gray-700">{p.subjectName || '—'}</td>
+                      <td className="px-4 py-3 font-bold">{p.amount.toLocaleString('vi-VN')} đ</td>
+                      <td className="px-4 py-3">
+                        {p.method === 'vnpay_test' ? 'VNPay' :
+                          p.method === 'cash' ? 'Tiền mặt' : p.method}
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.status === 'success' ? (
+                          <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800'>
+                            Thành công
+                          </span>
+                        ) : p.status === 'pending' ? (
+                          <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800'>
+                            Đang xử lý
+                          </span>
+                        ) : (
+                          <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800'>
+                            {p.status}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {new Date(p.createdAt).toLocaleString('vi-VN')}
+                      </td>
                     </tr>
                   ))}
                   {allPayments.length === 0 && (
-                     <tr><td colSpan={6} className="text-center py-8 text-gray-400">Chưa có giao dịch nào</td></tr>
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Chưa có giao dịch nào</td></tr>
                   )}
                 </tbody>
               </table>
-             </div>
+            </div>
           </Card>
         )}
       </main>

@@ -19,6 +19,8 @@ import {
 import { PaymentRequestsService } from '../payment-requests/payment-requests.service';
 import { VnpayService } from './vnpay.service';
 import { CreatePaymentDto, ConfirmCashPaymentDto } from './dto/payment.dto';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { Branch, BranchDocument } from '../branches/schemas/branch.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -26,9 +28,12 @@ export class PaymentsService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(PaymentTransaction.name)
     private transactionModel: Model<PaymentTransactionDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Branch.name) private branchModel: Model<BranchDocument>,
     private paymentRequestsService: PaymentRequestsService,
     private vnpayService: VnpayService,
   ) {}
+
 
   // ==================== CREATE PAYMENT ====================
 
@@ -60,7 +65,32 @@ export class PaymentsService {
       throw new BadRequestException('Tổng số tiền phải lớn hơn 0');
     }
 
-    // 3. Tạo payment record
+    // 3. Fetch student để lấy branchId snapshot
+    const student = await this.userModel.findById(studentId).lean();
+    if (!student) {
+      throw new NotFoundException('Không tìm thấy học sinh');
+    }
+
+    // Fetch branch để lấy branchName
+    let branchId: Types.ObjectId | null = null;
+    let branchName: string | null = null;
+    if (student.branchId) {
+
+      const branch = await this.branchModel.findById(student.branchId).lean();
+      if (branch) {
+        branchId = new Types.ObjectId(student.branchId);
+        branchName = branch.name;
+      }
+
+    }
+
+    // Snapshot subject names from requests
+    const subjects = requests
+      .map((r: any) => r.classSubject)
+      .filter((s) => s);
+    const subjectName = [...new Set(subjects)].join(', ');
+
+    // 4. Tạo payment record với branch snapshot
     const payment = new this.paymentModel({
       requestIds: dto.requestIds.map((id) => new Types.ObjectId(id)),
       paidBy: new Types.ObjectId(userId),
@@ -71,6 +101,9 @@ export class PaymentsService {
           ? PaymentMethod.VNPAY_TEST
           : PaymentMethod.CASH,
       status: PaymentStatus.PENDING,
+      branchId: branchId ? new Types.ObjectId(branchId) : null,
+      branchName: branchName,
+      subjectName: subjectName || undefined,
     });
 
     // 4. Xử lý theo payment method
@@ -326,6 +359,174 @@ export class PaymentsService {
       .populate('studentId', 'name email studentCode')
       .populate('paidBy', 'name email')
       .sort({ createdAt: -1 });
+  }
+
+  async getFinanceOverview(fromDate?: Date, toDate?: Date): Promise<{
+    summary: {
+      totalRevenue: number;
+      totalPaymentsCount: number;
+      vnpayRevenue: number;
+      cashRevenue: number;
+      scholarshipRevenue: number;
+      previousPeriodRevenue?: number;
+      growthRate?: number;
+    };
+    monthlyData: Array<{
+      month: string;
+      revenue: number;
+      count: number;
+    }>;
+    byMethod: {
+      vnpay_test: number;
+      cash: number;
+      scholarship: number;
+    };
+  }> {
+    // Default: last 6 months if no date range specified
+    const now = new Date();
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(now.getMonth() - 6);
+
+    const from = fromDate || sixMonthsAgo;
+    const to = toDate || now;
+
+    // Match only successful payments
+    // Note: Some payments might not have paidAt, so we'll use $or with createdAt
+    const matchStage = {
+      status: PaymentStatus.SUCCESS,
+      $or: [
+        { paidAt: { $gte: from, $lte: to } },
+        { paidAt: { $exists: false }, createdAt: { $gte: from, $lte: to } },
+      ],
+    };
+
+    // Aggregate by month - use paidAt if exists, otherwise createdAt
+    const monthlyStats = await this.paymentModel.aggregate([
+      { $match: matchStage },
+      {
+        $addFields: {
+          effectiveDate: {
+            $ifNull: ['$paidAt', '$createdAt'],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$effectiveDate' } },
+
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Debug logging
+    console.log('=== FINANCE OVERVIEW DEBUG ===');
+    console.log('Date range:', { from, to });
+    console.log('Match stage:', JSON.stringify(matchStage, null, 2));
+    
+    // Count total SUCCESS payments
+    const totalSuccessCount = await this.paymentModel.countDocuments({
+      status: PaymentStatus.SUCCESS,
+    });
+    console.log('Total SUCCESS payments in DB:', totalSuccessCount);
+    console.log('Monthly stats result:', monthlyStats);
+
+    // Aggregate by method
+
+    const methodStats = await this.paymentModel.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$method',
+          revenue: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    // Total stats
+    const totalStats = await this.paymentModel.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amount' },
+          totalCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Calculate previous period for growth rate
+    const periodDiff = to.getTime() - from.getTime();
+    const previousFrom = new Date(from.getTime() - periodDiff);
+    const previousTo = from;
+
+    const previousStats = await this.paymentModel.aggregate([
+      {
+        $match: {
+          status: PaymentStatus.SUCCESS,
+          $or: [
+            { paidAt: { $gte: previousFrom, $lt: previousTo } },
+            {
+              paidAt: { $exists: false },
+              createdAt: { $gte: previousFrom, $lt: previousTo },
+            },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+
+    const total = totalStats[0] || { totalRevenue: 0, totalCount: 0 };
+    const previousRevenue = previousStats[0]?.totalRevenue || 0;
+    const growthRate =
+      previousRevenue > 0
+        ? ((total.totalRevenue - previousRevenue) / previousRevenue) * 100
+        : 0;
+
+    // Build byMethod object
+    const byMethod = {
+      vnpay_test: 0,
+      cash: 0,
+      scholarship: 0,
+    };
+
+    methodStats.forEach((stat) => {
+      if (stat._id in byMethod) {
+        byMethod[stat._id as keyof typeof byMethod] = stat.revenue;
+      }
+    });
+
+    const result = {
+      summary: {
+        totalRevenue: total.totalRevenue,
+        totalPaymentsCount: total.totalCount,
+        vnpayRevenue: byMethod.vnpay_test,
+        cashRevenue: byMethod.cash,
+        scholarshipRevenue: byMethod.scholarship,
+        previousPeriodRevenue: previousRevenue,
+        growthRate: Math.round(growthRate * 100) / 100,
+      },
+      monthlyData: monthlyStats.map((stat) => ({
+        month: stat._id,
+        revenue: stat.revenue,
+        count: stat.count,
+      })),
+      byMethod,
+    };
+
+    console.log('Final result:', JSON.stringify(result, null, 2));
+    console.log('==============================\n');
+
+    return result;
+
   }
 
   private async logTransaction(
