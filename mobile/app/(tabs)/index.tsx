@@ -22,6 +22,46 @@ import { router } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
+// Mock data for teaching documents
+const teachingDocuments = [
+  {
+    id: "doc1",
+    name: "Tài liệu Toán 10 - Chương 1",
+    type: "PDF",
+    size: "2.4 MB",
+    uploadDate: "05/01/2025",
+    className: "Toán 10A",
+    downloads: 24,
+  },
+  {
+    id: "doc2",
+    name: "Bài tập Toán 10 - Tuần 2",
+    type: "DOCX",
+    size: "1.1 MB",
+    uploadDate: "08/01/2025",
+    className: "Toán 10A",
+    downloads: 18,
+  },
+  {
+    id: "doc3",
+    name: "Tài liệu Toán 10B - Đại số",
+    type: "PDF",
+    size: "3.2 MB",
+    uploadDate: "09/01/2025",
+    className: "Toán 10B",
+    downloads: 32,
+  },
+  {
+    id: "doc4",
+    name: "Slide bài giảng - Hình học",
+    type: "PPTX",
+    size: "5.8 MB",
+    uploadDate: "10/01/2025",
+    className: "Toán 10A",
+    downloads: 15,
+  },
+];
+
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
@@ -292,7 +332,7 @@ const getQuickActions = (
         label: "Tài liệu",
         subtitle: "Tài liệu giảng dạy",
         colors: ["#F59E0B", "#D97706"],
-        onPress: () => router.push("/(tabs)/notifications"),
+        onPress: () => {}, // Disabled navigation, content is now on Home
       },
       {
         icon: "star" as const,
@@ -641,6 +681,45 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Teacher Documents Section */}
+        {role === "teacher" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Tài liệu học tập</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAll}>Xem tất cả</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+              </TouchableOpacity>
+            </View>
+
+            {teachingDocuments.map((doc) => (
+              <TouchableOpacity
+                key={doc.id}
+                style={styles.documentCard}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.documentIcon, { backgroundColor: doc.type === 'PDF' ? '#FEE2E2' : doc.type === 'DOCX' ? '#DBEAFE' : '#FEF3C7' }]}>
+                  <Text style={[styles.documentIconText, { color: doc.type === 'PDF' ? '#DC2626' : doc.type === 'DOCX' ? '#2563EB' : '#D97706' }]}>
+                    {doc.type}
+                  </Text>
+                </View>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName} numberOfLines={1}>
+                    {doc.name}
+                  </Text>
+                  <Text style={styles.documentMeta}>
+                    {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
+                  </Text>
+                  <Text style={styles.documentClass}>{doc.className}</Text>
+                </View>
+                <TouchableOpacity style={styles.downloadButton}>
+                  <Ionicons name="download-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Teacher Stats Card */}
         {role === "teacher" && (
           <View style={styles.section}>
@@ -679,6 +758,45 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Teacher Documents Section */}
+        {role === "teacher" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Tài liệu học tập</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAll}>Xem tất cả</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+              </TouchableOpacity>
+            </View>
+
+            {teachingDocuments.map((doc) => (
+              <TouchableOpacity
+                key={doc.id}
+                style={styles.documentCard}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.documentIcon, { backgroundColor: doc.type === 'PDF' ? '#FEE2E2' : doc.type === 'DOCX' ? '#DBEAFE' : '#FEF3C7' }]}>
+                  <Text style={[styles.documentIconText, { color: doc.type === 'PDF' ? '#DC2626' : doc.type === 'DOCX' ? '#2563EB' : '#D97706' }]}>
+                    {doc.type}
+                  </Text>
+                </View>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName} numberOfLines={1}>
+                    {doc.name}
+                  </Text>
+                  <Text style={styles.documentMeta}>
+                    {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
+                  </Text>
+                  <Text style={styles.documentClass}>{doc.className}</Text>
+                </View>
+                <TouchableOpacity style={styles.downloadButton}>
+                  <Ionicons name="download-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -819,7 +937,57 @@ const styles = StyleSheet.create({
   },
   overviewScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  documentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  documentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  documentIconText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  documentInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  documentName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  documentMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  documentClass: {
+    fontSize: 12,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+  downloadButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
   },
   overviewCard: {
     backgroundColor: "#FFFFFF",
@@ -1161,5 +1329,55 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6B7280",
     textAlign: "right",
+  },
+  documentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  documentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  documentIconText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  documentInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  documentName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  documentMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  documentClass: {
+    fontSize: 12,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+  downloadButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
   },
 });

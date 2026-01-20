@@ -268,6 +268,7 @@ export default function ScheduleScreen() {
   };
 
   // Build timetable for teacher from class schedules
+  // Build timetable for teacher from class schedules
   const teacherTimetable = useMemo((): TimetableItem[] => {
     if (user?.role !== "teacher") return [];
 
@@ -277,7 +278,9 @@ export default function ScheduleScreen() {
     // Filter classes taught by this teacher
     const teacherClasses = classes.filter((cls) => {
       const teacherId =
-        typeof cls.teacherId === "string" ? cls.teacherId : cls.teacherId;
+        typeof cls.teacherId === "object" && cls.teacherId
+          ? (cls.teacherId as any)._id
+          : cls.teacherId;
       return teacherId === user._id;
     });
 
@@ -329,7 +332,9 @@ export default function ScheduleScreen() {
     // Filter classes taught by this teacher
     const teacherClasses = classes.filter((cls) => {
       const teacherId =
-        typeof cls.teacherId === "string" ? cls.teacherId : cls.teacherId;
+        typeof cls.teacherId === "object" && cls.teacherId
+          ? (cls.teacherId as any)._id
+          : cls.teacherId;
       return teacherId === user._id;
     });
 
