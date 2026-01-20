@@ -270,59 +270,22 @@ export class FinanceService {
     }
 
     // Continue with request and class lookups
+    // Use snapshot subjectName for aggregation (Reliable after backfill)
     pipeline.push(
-      { $unwind: '$requestIds' },
-      {
-        $lookup: {
-          from: 'studentpaymentrequests',
-          localField: 'requestIds',
-          foreignField: '_id',
-          as: 'request',
-        },
-      },
-      { $unwind: { path: '$request', preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: 'classes',
-          localField: 'request.classId',
-          foreignField: '_id',
-          as: 'class',
-        },
-      },
-      { $unwind: { path: '$class', preserveNullAndEmptyArrays: true } },
       {
         $group: {
-          _id: '$class.subject',
-          amount: {
-            $sum: {
-              $cond: [
-                { $ifNull: ['$request.amount', false] },
-                '$request.amount',
-                {
-                  $divide: [
-                    '$amount',
-                    {
-                      $cond: [
-                        { $gt: [{ $size: '$requestIds' }, 0] },
-                        { $size: '$requestIds' },
-                        1,
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          },
+          _id: '$subjectName',
+          amount: { $sum: '$amount' },
         },
       },
-      { $match: { _id: { $ne: null } } },
+      { $match: { _id: { $nin: [null, ''] } } },
       { $sort: { amount: -1 } },
     );
 
     const result = await this.paymentModel.aggregate(pipeline);
 
     return result.map((r) => ({
-      subject: r._id,
+      subject: r._id || 'Không xác định',
       amount: Math.round(r.amount),
     }));
   }

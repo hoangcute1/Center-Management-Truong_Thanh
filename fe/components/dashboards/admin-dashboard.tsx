@@ -3226,16 +3226,25 @@ export default function AdminDashboard({
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={financeDashboard.revenueBySubject}
-                              dataKey="amount"
-                              nameKey="subject"
+                              data={financeDashboard.revenueBySubject.map((item) => ({
+                                name: item.subject,
+                                value: item.amount,
+                              }))}
+                              dataKey="value"
+                              nameKey="name"
                               cx="50%"
                               cy="50%"
                               outerRadius={100}
-                              label={({ subject, amount }: { subject: string; amount: number }) => {
-                                const total = financeDashboard.revenueBySubject.reduce((sum, s) => sum + s.amount, 0);
-                                const percent = total > 0 ? ((amount / total) * 100).toFixed(0) : 0;
-                                return `${subject} ${percent}%`;
+                              label={({ name, value }: { name: string; value: number }) => {
+                                const total = financeDashboard.revenueBySubject.reduce(
+                                  (sum, s) => sum + s.amount,
+                                  0
+                                );
+                                const percent =
+                                  total > 0
+                                    ? ((value / total) * 100).toFixed(0)
+                                    : 0;
+                                return `${name} ${percent}%`;
                               }}
                             >
                               {financeDashboard.revenueBySubject.map((_, index) => (
