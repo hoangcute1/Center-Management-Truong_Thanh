@@ -78,6 +78,9 @@ export class Payment {
 
   @Prop()
   branchName?: string; // Snapshot của branch.name khi tạo payment
+
+  @Prop()
+  subjectName?: string; // Snapshot môn học (nối chuỗi nếu nhiều môn)
 }
 
 

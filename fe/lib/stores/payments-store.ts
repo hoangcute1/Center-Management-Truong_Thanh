@@ -12,6 +12,8 @@ export interface Payment {
   vnpTxnRef?: string;
   paidAt?: string;
   createdAt: string;
+  branchName?: string;
+  subjectName?: string;
 }
 
 export interface FinanceOverview {

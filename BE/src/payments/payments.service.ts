@@ -84,6 +84,12 @@ export class PaymentsService {
 
     }
 
+    // Snapshot subject names from requests
+    const subjects = requests
+      .map((r: any) => r.classSubject)
+      .filter((s) => s);
+    const subjectName = [...new Set(subjects)].join(', ');
+
     // 4. Tạo payment record với branch snapshot
     const payment = new this.paymentModel({
       requestIds: dto.requestIds.map((id) => new Types.ObjectId(id)),
@@ -97,6 +103,7 @@ export class PaymentsService {
       status: PaymentStatus.PENDING,
       branchId: branchId ? new Types.ObjectId(branchId) : null,
       branchName: branchName,
+      subjectName: subjectName || undefined,
     });
 
     // 4. Xử lý theo payment method
