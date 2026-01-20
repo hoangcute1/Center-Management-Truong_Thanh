@@ -14,10 +14,33 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface FinanceOverview {
+  summary: {
+    totalRevenue: number;
+    totalPaymentsCount: number;
+    vnpayRevenue: number;
+    cashRevenue: number;
+    scholarshipRevenue: number;
+    previousPeriodRevenue?: number;
+    growthRate?: number;
+  };
+  monthlyData: Array<{
+    month: string;
+    revenue: number;
+    count: number;
+  }>;
+  byMethod: {
+    vnpay_test: number;
+    cash: number;
+    scholarship: number;
+  };
+}
+
 interface PaymentsState {
   payments: Payment[];
   allPayments: Payment[];
   pendingCashPayments: Payment[];
+  financeOverview: FinanceOverview | null;
   isLoading: boolean;
   error: string | null;
 
@@ -35,6 +58,7 @@ interface PaymentsState {
   // Admin
   fetchPendingCashPayments: () => Promise<void>;
   fetchAllPayments: () => Promise<void>;
+  fetchFinanceOverview: (from?: string, to?: string) => Promise<void>;
   confirmCashPayment: (paymentId: string) => Promise<void>;
 
   // Common
@@ -47,6 +71,7 @@ export const usePaymentsStore = create<PaymentsState>((set) => ({
   payments: [],
   allPayments: [],
   pendingCashPayments: [],
+  financeOverview: null,
   isLoading: false,
   error: null,
 
@@ -73,6 +98,28 @@ export const usePaymentsStore = create<PaymentsState>((set) => ({
       set({ isLoading: false, error: message });
     }
   },
+
+  fetchFinanceOverview: async (from?: string, to?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params = new URLSearchParams();
+      if (from) params.append("from", from);
+      if (to) params.append("to", to);
+      
+      const url = `/payments/admin/finance-overview${params.toString() ? `?${params.toString()}` : ""}`;
+      console.log("📡 Calling API:", url);
+      
+      const response = await api.get(url);
+      console.log("📊 Finance overview response:", response.data);
+      
+      set({ financeOverview: response.data, isLoading: false });
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Lỗi tải dữ liệu tài chính";
+      console.error("❌ Finance overview error:", error);
+      set({ isLoading: false, error: message });
+    }
+  },
+
 
   fetchPendingCashPayments: async () => {
     set({ isLoading: true, error: null });
@@ -110,3 +157,4 @@ export const usePaymentsStore = create<PaymentsState>((set) => ({
 
   clearError: () => set({ error: null }),
 }));
+

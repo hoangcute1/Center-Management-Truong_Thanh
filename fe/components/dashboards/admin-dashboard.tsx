@@ -29,6 +29,8 @@ import IncidentsManager from "@/components/pages/incidents-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
+import { usePaymentsStore } from "@/lib/stores/payments-store";
+
 
 interface AdminDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -81,43 +83,11 @@ const revenueByMonth = [
   { month: "Tháng 6", revenue: 75 },
 ];
 
-const financeSummary = [
-  {
-    label: "Tổng doanh thu",
-    value: "720 Tr",
-    trend: "+8% so với quý trước",
-    color: "text-green-600",
-    icon: "📈",
-    bgColor: "from-green-500 to-emerald-600",
-  },
-  {
-    label: "Chi phí",
-    value: "185 Tr",
-    trend: "+5% so với quý trước",
-    color: "text-red-500",
-    icon: "📉",
-    bgColor: "from-red-500 to-rose-600",
-  },
-  {
-    label: "Lợi nhuận ròng",
-    value: "535 Tr",
-    trend: "+10% so với quý trước",
-    color: "text-green-600",
-    icon: "💎",
-    bgColor: "from-indigo-500 to-purple-600",
-  },
-];
-
-const financeChart = [
-  { month: "Tháng 1", revenue: 50, cost: 20 },
-  { month: "Tháng 2", revenue: 62, cost: 22 },
-  { month: "Tháng 3", revenue: 58, cost: 20 },
-  { month: "Tháng 4", revenue: 75, cost: 25 },
-  { month: "Tháng 5", revenue: 68, cost: 23 },
-  { month: "Tháng 6", revenue: 82, cost: 28 },
-];
+// Mock data này sẽ được thay thế bằng data thật từ API trong Tab Tài chính
+// financeSummary và financeChart đã bị xóa và thay bằng dữ liệu động
 
 const accounts = {
+
   students: [
     {
       name: "Nguyễn Văn A",
@@ -1770,6 +1740,11 @@ export default function AdminDashboard({
     fetchUsers,
     isLoading: usersLoading,
   } = useUsersStore();
+  const {
+    financeOverview,
+    fetchFinanceOverview,
+    isLoading: financeLoading,
+  } = usePaymentsStore();
 
   // State for add user modal
   const [addUserLoading, setAddUserLoading] = useState(false);
@@ -1777,6 +1752,7 @@ export default function AdminDashboard({
 
   // Kiểm tra xem user có phải admin không
   const isAdmin = user.role === "admin";
+
 
   // State for branch filter - Nếu không phải admin, mặc định là branchId của user
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
@@ -1829,6 +1805,22 @@ export default function AdminDashboard({
       console.log("Could not fetch classes - make sure backend is running");
     });
   }, [fetchBranches, fetchUsers, fetchClasses]);
+
+  // Fetch finance data when switching to finance tab
+  useEffect(() => {
+    if (activeTab === "finance") {
+      console.log("🔄 Fetching finance overview...");
+      fetchFinanceOverview()
+        .then(() => {
+          console.log("✅ Finance data loaded successfully");
+        })
+        .catch((err) => {
+          console.error("❌ Could not fetch finance data:", err);
+        });
+    }
+  }, [activeTab, fetchFinanceOverview]);
+
+
 
   // Handlers for branches
   const handleAddBranch = () => {
@@ -2948,183 +2940,233 @@ export default function AdminDashboard({
 
           {/* Tab Tài chính */}
           <TabsContent value="finance" className="mt-6">
-            {/* Finance Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
-              {financeSummary.map((item) => (
-                <Card
-                  key={item.label}
-                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${item.bgColor} opacity-90`}
-                  />
-                  <div className="relative p-5 text-white">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-white/80 text-sm font-medium">
-                          {item.label}
-                        </p>
-                        <p className="text-3xl font-bold mt-2">{item.value}</p>
-                        <p className="text-white/70 text-xs mt-1">
-                          {item.trend}
-                        </p>
+            {financeLoading ? (
+              <Card className="p-12 text-center bg-white border-0 shadow-lg">
+                <div className="text-6xl mb-4 animate-pulse">💰</div>
+                <p className="text-gray-500 text-lg font-medium">Đang tải dữ liệu tài chính...</p>
+              </Card>
+            ) : !financeOverview ? (
+              <Card className="p-12 text-center bg-white border-0 shadow-lg">
+                <div className="text-6xl mb-4">📊</div>
+                <p className="text-gray-500 text-lg font-medium mb-2">Chưa có dữ liệu tài chính</p>
+                <p className="text-gray-400 text-sm">Thử lại sau hoặc kiểm tra kết nối backend</p>
+              </Card>
+            ) : (
+              <>
+                {/* Finance Summary Cards */}
+                <div className="grid gap-4 md:grid-cols-3">
+                  {/* Tổng doanh thu */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">Tổng doanh thu</p>
+                          <p className="text-3xl font-bold mt-2">
+                            {(financeOverview.summary.totalRevenue / 1000000).toFixed(0)} Tr
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {financeOverview.summary.growthRate && financeOverview.summary.growthRate > 0
+                              ? `+${financeOverview.summary.growthRate.toFixed(1)}%`
+                              : financeOverview.summary.growthRate?.toFixed(1) + '%' || 'N/A'} so với kỳ trước
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">📈</span>
                       </div>
-                      <span className="text-4xl opacity-80">{item.icon}</span>
+                    </div>
+                  </Card>
+
+                  {/* VNPay Revenue */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">Thanh toán VNPay</p>
+                          <p className="text-3xl font-bold mt-2">
+                            {(financeOverview.summary.vnpayRevenue / 1000000).toFixed(0)} Tr
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {financeOverview.summary.totalRevenue > 0 
+                              ? ((financeOverview.summary.vnpayRevenue / financeOverview.summary.totalRevenue) * 100).toFixed(1) + '%'
+                              : '0%'} tổng doanh thu
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">💳</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Cash Revenue */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">Thanh toán tiền mặt</p>
+                          <p className="text-3xl font-bold mt-2">
+                            {(financeOverview.summary.cashRevenue / 1000000).toFixed(0)} Tr
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {financeOverview.summary.totalRevenue > 0
+                              ? ((financeOverview.summary.cashRevenue / financeOverview.summary.totalRevenue) * 100).toFixed(1) + '%'
+                              : '0%'} tổng doanh thu
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">💵</span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Finance Charts */}
+                <div className="grid gap-6 lg:grid-cols-2 mt-6">
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">📊</span>
+                      <div>
+                        <p className="font-bold text-gray-900">Doanh thu theo tháng</p>
+                        <p className="text-xs text-gray-500">{financeOverview.monthlyData.length} tháng gần nhất</p>
+
+                      </div>
+                    </div>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={financeOverview.monthlyData.map(m => ({
+                          month: m.month,
+                          revenue: m.revenue / 1000000, // Convert to millions
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fontSize: 11, fill: "#6b7280" }}
+                          />
+                          <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "white",
+                              border: "none",
+                              borderRadius: "12px",
+                              boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                            }}
+                            formatter={(value: number) => [`${value.toFixed(1)} Tr`, "Doanh thu"]}
+                          />
+                          <Bar
+                            dataKey="revenue"
+                            fill="#3b82f6"
+                            radius={[4, 4, 0, 0]}
+                            name="Doanh thu"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">🎯</span>
+                      <div>
+                        <p className="font-bold text-gray-900">Phân bổ theo phương thức</p>
+                        <p className="text-xs text-gray-500">Tỷ lệ thanh toán</p>
+                      </div>
+                    </div>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: "VNPay", value: financeOverview.byMethod.vnpay_test },
+                              { name: "Tiền mặt", value: financeOverview.byMethod.cash },
+                              { name: "Học bổng", value: financeOverview.byMethod.scholarship || 0 },
+                            ].filter(item => item.value > 0)}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            innerRadius={60}
+                            label={({ name, percent }) =>
+                              `${name} ${(percent * 100).toFixed(0)}%`
+                            }
+                          >
+                            {[
+                              financeOverview.byMethod.vnpay_test > 0 && "#3b82f6",
+                              financeOverview.byMethod.cash > 0 && "#f97316",
+                              (financeOverview.byMethod.scholarship || 0) > 0 && "#10b981",
+                            ].filter(Boolean).map((color, idx) => (
+                              <Cell key={idx} fill={color as string} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value: number) => `${(value / 1000000).toFixed(1)} Tr`}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Finance Table */}
+                <Card className="p-6 mt-6 bg-white border-0 shadow-lg">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">📋</span>
+                    <div>
+                      <p className="font-bold text-gray-900">Chi tiết doanh thu theo tháng</p>
+                      <p className="text-xs text-gray-500">
+                        Tổng {financeOverview.summary.totalPaymentsCount} giao dịch thành công
+                      </p>
                     </div>
                   </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* Finance Charts */}
-            <div className="grid gap-6 lg:grid-cols-2 mt-6">
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">📊</span>
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      Doanh thu vs Chi phí
-                    </p>
-                    <p className="text-xs text-gray-500">So sánh theo tháng</p>
-                  </div>
-                </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={financeChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="month"
-                        tick={{ fontSize: 11, fill: "#6b7280" }}
-                      />
-                      <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "white",
-                          border: "none",
-                          borderRadius: "12px",
-                          boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-                        }}
-                      />
-                      <Bar
-                        dataKey="revenue"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        name="Doanh thu"
-                      />
-                      <Bar
-                        dataKey="cost"
-                        fill="#ef4444"
-                        radius={[4, 4, 0, 0]}
-                        name="Chi phí"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">🎯</span>
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      Doanh thu theo khóa học
-                    </p>
-                    <p className="text-xs text-gray-500">Phân bổ tỷ lệ</p>
-                  </div>
-                </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        innerRadius={60}
-                        label={({ name, percent }) =>
-                          `${name} ${(percent * 100).toFixed(0)}%`
-                        }
-                      >
-                        {pieData.map((_, idx) => (
-                          <Cell key={idx} fill={pieColors[idx]} />
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-semibold text-gray-600">
+                            Tháng
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                            Doanh thu
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                            Giao dịch
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                            TB/giao dịch
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {financeOverview.monthlyData.map((row) => (
+                          <tr
+                            key={row.month}
+                            className="border-b border-gray-100 hover:bg-gray-50"
+                          >
+                            <td className="py-3 px-4 font-medium text-gray-900">
+                              {row.month}
+                            </td>
+                            <td className="py-3 px-4 text-right text-blue-600 font-semibold">
+                              {(row.revenue / 1000000).toFixed(1)} Tr
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-700">
+                              {row.count}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+                                {row.count > 0 
+                                  ? `${((row.revenue / row.count) / 1000000).toFixed(2)} Tr`
+                                  : 'N/A'}
+                              </span>
+                            </td>
+                          </tr>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-
-            {/* Finance Table */}
-            <Card className="p-6 mt-6 bg-white border-0 shadow-lg">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl">📋</span>
-                <div>
-                  <p className="font-bold text-gray-900">
-                    Chi tiết tài chính theo tháng
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Bảng phân tích doanh thu và chi phí
-                  </p>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">
-                        Tháng
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Doanh thu
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Chi phí
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Lợi nhuận
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Tỷ suất
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {financeChart.map((row) => (
-                      <tr
-                        key={row.month}
-                        className="border-b border-gray-100 hover:bg-gray-50"
-                      >
-                        <td className="py-3 px-4 font-medium text-gray-900">
-                          {row.month}
-                        </td>
-                        <td className="py-3 px-4 text-right text-blue-600 font-semibold">
-                          {row.revenue}T
-                        </td>
-                        <td className="py-3 px-4 text-right text-red-500 font-semibold">
-                          {row.cost}T
-                        </td>
-                        <td className="py-3 px-4 text-right text-emerald-600 font-semibold">
-                          {row.revenue - row.cost}T
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                            {Math.round(
-                              ((row.revenue - row.cost) / row.revenue) * 1000
-                            ) / 10}
-                            %
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </>
+            )}
           </TabsContent>
+
 
           {/* Tab Quản lý cơ sở */}
           <TabsContent value="branches" className="mt-6">
