@@ -4,11 +4,15 @@ import { Model, Types } from 'mongoose';
 import { Message, MessageDocument } from './schemas/message.schema';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UserDocument } from '../users/schemas/user.schema';
+import { UsersService } from '../users/users.service';
+import { ClassEntity } from '../classes/schemas/class.schema';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectModel(Message.name) private readonly model: Model<MessageDocument>,
+    @InjectModel(ClassEntity.name) private readonly classModel: any,
+    private readonly usersService: UsersService,
   ) {}
 
   async send(user: UserDocument, dto: SendMessageDto) {
@@ -74,7 +78,7 @@ export class ChatService {
               '$senderId',
             ],
           },
-          lastMessage: { $first: '$$ROOT' },
+          lastMessage: { $first: '$ROOT' },
           unreadCount: {
             $sum: {
               $cond: [
@@ -119,5 +123,100 @@ export class ChatService {
     ]);
 
     return conversations;
+  }
+
+  async getAvailableUsers(user: UserDocument) {
+    const userRole = (user as any).role;
+    let availableUsers: any[] = [];
+
+    console.log('getAvailableUsers - user:', user.name, 'role:', userRole);
+
+    if (userRole === 'student') {
+      // Student can chat with teachers of classes they're enrolled in
+      console.log('Finding classes for student:', (user as any)._id);
+      const classes = await this.classModel
+        .find({ studentIds: user._id })
+        .populate('teacherId', '_id name role')
+        .exec();
+
+      console.log('Found classes:', classes.length);
+      
+      availableUsers = classes
+        .map((cls: any) => cls.teacherId)
+        .filter((teacher: any) => teacher && teacher._id);
+
+      console.log('Available teachers:', availableUsers.length);
+
+      // Remove duplicates
+      availableUsers = Array.from(
+        new Map(availableUsers.map((u: any) => [u._id.toString(), u])).values()
+      );
+    } else if (userRole === 'parent') {
+      // Parent can chat with teachers of classes their children are enrolled in
+      console.log('Parent childEmail:', (user as any).childEmail);
+      
+      const childUser = await this.usersService.findByEmail((user as any).childEmail);
+      console.log('Found child user:', childUser?.name);
+      
+      if (childUser) {
+        console.log('Finding classes for child:', (childUser as any)._id);
+        const classes = await this.classModel
+          .find({ studentIds: (childUser as any)._id })
+          .populate('teacherId', '_id name role')
+          .exec();
+
+        console.log('Found classes for child:', classes.length);
+
+        availableUsers = classes
+          .map((cls: any) => cls.teacherId)
+          .filter((teacher: any) => teacher && teacher._id);
+
+        console.log('Available teachers for parent:', availableUsers.length);
+
+        // Remove duplicates
+        availableUsers = Array.from(
+          new Map(availableUsers.map((u: any) => [u._id.toString(), u])).values()
+        );
+      }
+    } else if (userRole === 'teacher') {
+      // Teacher can chat with students in their classes and their parents
+      console.log('Finding classes for teacher:', (user as any)._id);
+      const classes = await this.classModel
+        .find({ teacherId: user._id })
+        .populate('studentIds', '_id name role email')
+        .exec();
+
+      console.log('Found classes for teacher:', classes.length);
+
+      const studentMap = new Map<string, any>();
+      const parentEmails = new Set<string>();
+
+      // Add students and collect parent emails
+      classes.forEach((cls: any) => {
+        console.log('Class:', cls.name, 'students:', cls.studentIds.length);
+        cls.studentIds.forEach((student: any) => {
+          if (student._id) {
+            studentMap.set(student._id.toString(), student);
+            // Collect parent email if student has one
+            if (student.email) {
+              parentEmails.add(student.email);
+            }
+          }
+        });
+      });
+
+      availableUsers = Array.from(studentMap.values());
+      console.log('Available students for teacher:', availableUsers.length);
+
+      // Find parents by their childEmail matching student emails
+      if (parentEmails.size > 0) {
+        const parents = await this.usersService.findByEmails(Array.from(parentEmails));
+        console.log('Found parents:', parents.length);
+        availableUsers = [...availableUsers, ...parents];
+      }
+    }
+
+    console.log('Final availableUsers:', availableUsers.length);
+    return availableUsers;
   }
 }
