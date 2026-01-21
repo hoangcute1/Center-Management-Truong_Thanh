@@ -423,14 +423,15 @@ export default function AccountsManagementScreen() {
                     styles.modalAvatar,
                     { backgroundColor: getRoleBadge(selectedUser.role).bg },
                   ]}
-                  >
+                >
                   <Text
                     style={[
                       styles.modalAvatarText,
                       { color: getRoleBadge(selectedUser.role).color },
                     ]}
                   >
-                    {getDisplayName(selectedUser).charAt(0)?.toUpperCase() || "?"}
+                    {getDisplayName(selectedUser).charAt(0)?.toUpperCase() ||
+                      "?"}
                   </Text>
                 </View>
                 <Text style={styles.modalUserName}>

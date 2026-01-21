@@ -550,9 +550,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.welcomeText}>
               <Text style={styles.greeting}>Xin chào! 👋</Text>
-              <Text style={styles.userName}>
-                {getUserDisplayName(user)}
-              </Text>
+              <Text style={styles.userName}>{getUserDisplayName(user)}</Text>
               <View style={styles.roleBadge}>
                 <Ionicons
                   name={roleConfig.icon as any}

@@ -220,14 +220,21 @@ export default function AdminPaymentsScreen() {
             {payment.userId && (
               <View style={styles.userInfo}>
                 <Ionicons name="person-outline" size={14} color="#6B7280" />
-                <Text style={styles.userText}>{payment.userId.fullName || payment.userId.name || "Người dùng"}</Text>
+                <Text style={styles.userText}>
+                  {payment.userId.fullName ||
+                    payment.userId.name ||
+                    "Người dùng"}
+                </Text>
               </View>
             )}
             {payment.studentId && (
               <View style={styles.userInfo}>
                 <Ionicons name="school-outline" size={14} color="#6B7280" />
                 <Text style={styles.userText}>
-                  HS: {payment.studentId.fullName || payment.studentId.name || "Học sinh"}
+                  HS:{" "}
+                  {payment.studentId.fullName ||
+                    payment.studentId.name ||
+                    "Học sinh"}
                 </Text>
               </View>
             )}
@@ -418,7 +425,9 @@ export default function AdminPaymentsScreen() {
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Người thanh toán</Text>
                       <Text style={styles.infoValue}>
-                        {selectedPayment.userId.fullName || selectedPayment.userId.name || "Người dùng"}
+                        {selectedPayment.userId.fullName ||
+                          selectedPayment.userId.name ||
+                          "Người dùng"}
                       </Text>
                       {selectedPayment.userId.email && (
                         <Text style={styles.infoSubValue}>
@@ -435,7 +444,9 @@ export default function AdminPaymentsScreen() {
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Học sinh</Text>
                       <Text style={styles.infoValue}>
-                        {selectedPayment.studentId.fullName || selectedPayment.studentId.name || "Học sinh"}
+                        {selectedPayment.studentId.fullName ||
+                          selectedPayment.studentId.name ||
+                          "Học sinh"}
                       </Text>
                     </View>
                   </View>

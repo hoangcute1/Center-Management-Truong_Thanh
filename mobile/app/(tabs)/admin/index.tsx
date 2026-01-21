@@ -334,9 +334,7 @@ export default function AdminDashboardScreen() {
           <View style={styles.welcomeContent}>
             <View style={styles.welcomeLeft}>
               <Text style={styles.welcomeGreeting}>Xin chào Admin 👋</Text>
-              <Text style={styles.welcomeName}>
-                {getUserDisplayName(user)}
-              </Text>
+              <Text style={styles.welcomeName}>{getUserDisplayName(user)}</Text>
               <Text style={styles.welcomeSubtitle}>
                 Chào mừng bạn quay trở lại bảng điều khiển!
               </Text>

@@ -261,7 +261,11 @@ export default function ClassesScreen() {
       typeof classItem.teacherId === "object" &&
       (classItem.teacherId?.fullName || classItem.teacherId?.name)
     ) {
-      return classItem.teacherId.fullName || classItem.teacherId.name || "Chưa phân công";
+      return (
+        classItem.teacherId.fullName ||
+        classItem.teacherId.name ||
+        "Chưa phân công"
+      );
     }
     if (classItem.teacher?.name) return classItem.teacher.name;
     return "Chưa phân công";
@@ -872,9 +876,10 @@ export default function ClassesScreen() {
                     }
                   >
                     {createForm.teacherId
-                      ? (teachers.find((t) => t._id === createForm.teacherId)
-                          ?.fullName || teachers.find((t) => t._id === createForm.teacherId)
-                          ?.name)
+                      ? teachers.find((t) => t._id === createForm.teacherId)
+                          ?.fullName ||
+                        teachers.find((t) => t._id === createForm.teacherId)
+                          ?.name
                       : "Chọn giáo viên"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
