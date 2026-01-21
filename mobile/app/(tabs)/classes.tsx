@@ -259,9 +259,9 @@ export default function ClassesScreen() {
   const getTeacherName = (classItem: Class): string => {
     if (
       typeof classItem.teacherId === "object" &&
-      classItem.teacherId?.fullName
+      (classItem.teacherId?.fullName || classItem.teacherId?.name)
     ) {
-      return classItem.teacherId.fullName;
+      return classItem.teacherId.fullName || classItem.teacherId.name || "Chưa phân công";
     }
     if (classItem.teacher?.name) return classItem.teacher.name;
     return "Chưa phân công";
@@ -872,8 +872,9 @@ export default function ClassesScreen() {
                     }
                   >
                     {createForm.teacherId
-                      ? teachers.find((t) => t._id === createForm.teacherId)
-                          ?.fullName
+                      ? (teachers.find((t) => t._id === createForm.teacherId)
+                          ?.fullName || teachers.find((t) => t._id === createForm.teacherId)
+                          ?.name)
                       : "Chọn giáo viên"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -1196,7 +1197,7 @@ export default function ClassesScreen() {
                           styles.pickerItemTextActive,
                       ]}
                     >
-                      {item.fullName}
+                      {item.fullName || item.name || "Giáo viên"}
                     </Text>
                     <Text style={styles.pickerItemSubtext}>{item.email}</Text>
                   </View>

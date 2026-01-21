@@ -116,7 +116,7 @@ export const getIncidentStatusLabel = (status: IncidentStatus): string => {
 };
 
 export const getIncidentStatusColor = (
-  status: IncidentStatus
+  status: IncidentStatus,
 ): { bg: string; text: string } => {
   const colors: Record<IncidentStatus, { bg: string; text: string }> = {
     pending: { bg: "#FEF3C7", text: "#D97706" },
@@ -153,7 +153,7 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
   fetchMyIncidents: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get("/incidents/my");
+      const response = await api.get("/incidents/my-incidents");
       set({
         myIncidents: response.data.map((i: Incident) => ({ ...i, id: i._id })),
         isLoading: false,
@@ -172,7 +172,7 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
       return incident;
     } catch (error: any) {
       throw new Error(
-        error.response?.data?.message || "Lỗi tải chi tiết sự cố"
+        error.response?.data?.message || "Lỗi tải chi tiết sự cố",
       );
     }
   },
@@ -207,10 +207,10 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
 
       set((state) => ({
         incidents: state.incidents.map((i) =>
-          i._id === id ? updatedIncident : i
+          i._id === id ? updatedIncident : i,
         ),
         myIncidents: state.myIncidents.map((i) =>
-          i._id === id ? updatedIncident : i
+          i._id === id ? updatedIncident : i,
         ),
         selectedIncident:
           state.selectedIncident?._id === id

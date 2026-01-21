@@ -231,7 +231,10 @@ export default function ScheduleScreen() {
     if (user.role === "teacher" || user.role === "admin") {
       // Fetch classes for teacher/admin to build timetable
       await fetchClasses();
-    } else if (user.role === "student") {
+    } else if (user.role === "student" || user.role === "parent") {
+      // Fetch classes to get schedule for student/parent
+      await fetchClasses();
+      // Also fetch sessions for attendance status
       const { startDate, endDate } = getWeekRange(currentWeekStart);
       await fetchStudentSchedule(user._id, startDate, endDate);
     }
@@ -535,6 +538,98 @@ export default function ScheduleScreen() {
     });
   }, [sessions, selectedDate, user]);
 
+  // Build timetable for student from class schedules (when no sessions available)
+  const studentTimetable = useMemo((): (TimetableItem & {
+    attendanceStatus?: string;
+  })[] => {
+    if (user?.role !== "student" && user?.role !== "parent") return [];
+
+    const dayIndex = selectedDate.getDay();
+    const timetable: (TimetableItem & { attendanceStatus?: string })[] = [];
+
+    // Filter classes where student is enrolled
+    const studentClasses = classes.filter((cls) => {
+      // Check if user is in studentIds
+      if (cls.studentIds && cls.studentIds.includes(user._id)) return true;
+      // Check if user is in students array
+      if (cls.students && cls.students.some((s) => s._id === user._id))
+        return true;
+      return false;
+    });
+
+    studentClasses.forEach((cls, classIndex) => {
+      const teacherName =
+        typeof cls.teacherId === "object" && cls.teacherId
+          ? (cls.teacherId as any).fullName ||
+            (cls.teacherId as any).name ||
+            "Giáo viên"
+          : "Giáo viên";
+
+      if (cls.schedule && cls.schedule.length > 0) {
+        cls.schedule.forEach((sch) => {
+          if (sch.dayOfWeek === dayIndex) {
+            // Check if there's attendance for this class and date
+            let attendanceStatus: string | undefined = undefined;
+            const session = sessions.find((s) => {
+              const sessionClassId =
+                typeof s.classId === "object"
+                  ? (s.classId as any)._id
+                  : s.classId;
+              const sessionDate = new Date(s.startTime);
+              return (
+                sessionClassId === cls._id &&
+                sessionDate.getDate() === selectedDate.getDate() &&
+                sessionDate.getMonth() === selectedDate.getMonth() &&
+                sessionDate.getFullYear() === selectedDate.getFullYear()
+              );
+            });
+            if (session) {
+              attendanceStatus = session.status;
+            }
+
+            timetable.push({
+              classId: cls._id,
+              className: cls.name,
+              subject: cls.subject || "Chưa xác định",
+              startTime: sch.startTime,
+              endTime: sch.endTime,
+              room: sch.room,
+              teacherName,
+              colorIndex: classIndex % CLASS_COLORS.length,
+              attendanceStatus,
+            });
+          }
+        });
+      }
+    });
+
+    // Sort by start time
+    timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return timetable;
+  }, [classes, selectedDate, user, sessions]);
+
+  // Check if day has classes for student
+  const studentHasClassesOnDate = useCallback(
+    (date: Date) => {
+      if (user?.role !== "student" && user?.role !== "parent") return false;
+
+      const dayIndex = date.getDay();
+      const studentClasses = classes.filter((cls) => {
+        if (cls.studentIds && cls.studentIds.includes(user._id)) return true;
+        if (cls.students && cls.students.some((s) => s._id === user._id))
+          return true;
+        return false;
+      });
+
+      return studentClasses.some(
+        (cls) =>
+          cls.schedule &&
+          cls.schedule.some((sch) => sch.dayOfWeek === dayIndex),
+      );
+    },
+    [classes, user],
+  );
+
   // Get class name from session
   const getClassName = (session: any) => {
     if (typeof session.classId === "object" && session.classId?.name) {
@@ -542,8 +637,8 @@ export default function ScheduleScreen() {
     }
     // Try to find in classes store
     if (typeof session.classId === "string") {
-       const cls = classes.find(c => c._id === session.classId);
-       if (cls) return cls.name;
+      const cls = classes.find((c) => c._id === session.classId);
+      if (cls) return cls.name;
     }
     return "Chưa xác định";
   };
@@ -553,10 +648,10 @@ export default function ScheduleScreen() {
     if (typeof session.classId === "object" && session.classId?.subject) {
       return session.classId.subject;
     }
-     // Try to find in classes store
+    // Try to find in classes store
     if (typeof session.classId === "string") {
-       const cls = classes.find(c => c._id === session.classId);
-       if (cls && cls.subject) return cls.subject;
+      const cls = classes.find((c) => c._id === session.classId);
+      if (cls && cls.subject) return cls.subject;
     }
     return session.subject || "";
   };
@@ -2052,14 +2147,9 @@ export default function ScheduleScreen() {
           {weekDates.map((date, index) => {
             const selected = isSelected(date);
             const today = isToday(date);
-            
-            // Check if there are any sessions for this date
-            const hasSessions = sessions.some(s => {
-                const sDate = new Date(s.startTime);
-                return sDate.getDate() === date.getDate() && 
-                       sDate.getMonth() === date.getMonth() && 
-                       sDate.getFullYear() === date.getFullYear();
-            });
+
+            // Check if there are any classes for this date (from class schedule)
+            const hasClasses = studentHasClassesOnDate(date);
 
             return (
               <TouchableOpacity
@@ -2094,14 +2184,18 @@ export default function ScheduleScreen() {
                     {formatDate(date)}
                   </Text>
                 </View>
-                {/* Session Indicator Dot */}
-                {hasSessions && (
-                    <View style={[
-                        styles.sessionDot, 
-                        selected ? { backgroundColor: "#FFFFFF" } : 
-                        today ? { backgroundColor: "#3B82F6" } : 
-                        { backgroundColor: "#10B981" }
-                    ]} />
+                {/* Class Indicator Dot */}
+                {hasClasses && (
+                  <View
+                    style={[
+                      styles.sessionDot,
+                      selected
+                        ? { backgroundColor: "#FFFFFF" }
+                        : today
+                          ? { backgroundColor: "#3B82F6" }
+                          : { backgroundColor: "#10B981" },
+                    ]}
+                  />
                 )}
               </TouchableOpacity>
             );
@@ -2125,7 +2219,7 @@ export default function ScheduleScreen() {
         </View>
         <View style={styles.sessionCount}>
           <Text style={styles.sessionCountText}>
-            {filteredSessions.length} buổi học
+            {studentTimetable.length} buổi học
           </Text>
         </View>
       </View>
@@ -2139,7 +2233,7 @@ export default function ScheduleScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {filteredSessions.length === 0 ? (
+        {studentTimetable.length === 0 ? (
           <View style={styles.emptyContainer}>
             <LinearGradient
               colors={["#F3F4F6", "#E5E7EB"]}
@@ -2153,23 +2247,53 @@ export default function ScheduleScreen() {
             </Text>
           </View>
         ) : (
-          filteredSessions.map((session, index) => {
-            const statusConfig = getStatusConfig(session.status);
-            const className = getClassName(session);
-            const subject = getSubject(session);
+          studentTimetable.map((item, index) => {
+            const colors = CLASS_COLORS[item.colorIndex || 0];
+            // Determine attendance status display
+            const getAttendanceConfig = (status?: string) => {
+              switch (status) {
+                case "present":
+                  return {
+                    colors: ["#10B981", "#059669"],
+                    icon: "checkmark-circle",
+                    label: "Có mặt",
+                  };
+                case "absent":
+                  return {
+                    colors: ["#EF4444", "#DC2626"],
+                    icon: "close-circle",
+                    label: "Vắng",
+                  };
+                case "late":
+                  return {
+                    colors: ["#F59E0B", "#D97706"],
+                    icon: "time",
+                    label: "Đi trễ",
+                  };
+                case "excused":
+                  return {
+                    colors: ["#8B5CF6", "#7C3AED"],
+                    icon: "document-text",
+                    label: "Có phép",
+                  };
+                default:
+                  return { colors: colors, icon: "calendar", label: "Sắp tới" };
+              }
+            };
+            const attendanceConfig = getAttendanceConfig(item.attendanceStatus);
+
             return (
-              <View key={session._id || index} style={styles.scheduleCard}>
+              <View
+                key={`${item.classId}-${index}`}
+                style={styles.scheduleCard}
+              >
                 <View style={styles.timeColumn}>
                   <LinearGradient
-                    colors={statusConfig.colors as [string, string]}
+                    colors={attendanceConfig.colors as [string, string]}
                     style={styles.timeIndicator}
                   />
-                  <Text style={styles.startTime}>
-                    {formatTime(session.startTime)}
-                  </Text>
-                  <Text style={styles.endTime}>
-                    {formatTime(session.endTime)}
-                  </Text>
+                  <Text style={styles.startTime}>{item.startTime}</Text>
+                  <Text style={styles.endTime}>{item.endTime}</Text>
                 </View>
                 <View style={styles.scheduleInfo}>
                   <View style={styles.scheduleHeader}>
@@ -2178,38 +2302,36 @@ export default function ScheduleScreen() {
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {className}
+                      {item.className}
                     </Text>
                     <View
                       style={[
                         styles.statusBadge,
-                        { backgroundColor: `${statusConfig.colors[0]}20` },
+                        { backgroundColor: `${attendanceConfig.colors[0]}20` },
                       ]}
                     >
                       <Ionicons
-                        name={statusConfig.icon as any}
+                        name={attendanceConfig.icon as any}
                         size={10}
-                        color={statusConfig.colors[0]}
+                        color={attendanceConfig.colors[0]}
                       />
                       <Text
                         style={[
                           styles.statusText,
-                          { color: statusConfig.colors[0] },
+                          { color: attendanceConfig.colors[0] },
                         ]}
                       >
-                        {statusConfig.label}
+                        {attendanceConfig.label}
                       </Text>
                     </View>
                   </View>
-                  {subject && (
-                    <Text
-                      style={styles.subject}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {subject}
-                    </Text>
-                  )}
+                  <Text
+                    style={styles.subject}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.subject}
+                  </Text>
                   <View style={styles.scheduleDetails}>
                     <View style={styles.detailItem}>
                       <Ionicons
@@ -2222,10 +2344,10 @@ export default function ScheduleScreen() {
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        Giáo viên
+                        {item.teacherName || "Giáo viên"}
                       </Text>
                     </View>
-                    {session.note && (
+                    {item.room && (
                       <View style={styles.detailItem}>
                         <Ionicons
                           name="location-outline"
@@ -2237,7 +2359,7 @@ export default function ScheduleScreen() {
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
-                          {session.note}
+                          {item.room}
                         </Text>
                       </View>
                     )}
@@ -2341,11 +2463,11 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
   },
   sessionDot: {
-      width: 4,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: "#10B981",
-      marginTop: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#10B981",
+    marginTop: 4,
   },
   selectedDateHeader: {
     flexDirection: "row",
