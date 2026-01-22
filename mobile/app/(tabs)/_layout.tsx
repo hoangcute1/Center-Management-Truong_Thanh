@@ -29,9 +29,9 @@ export default function TabsLayout() {
   };
 
   // Check if tab should be visible based on role
-  const shouldShowPayments = role === "student" || role === "parent";
-  const shouldShowIncidents =
-    role === "student" || role === "parent" || role === "teacher";
+  const shouldShowPayments = role === "parent"; // Hidden for student
+  const shouldShowIncidents = role === "parent" || role === "teacher"; // Hidden for student
+  const shouldShowContact = role === "student"; // New for student
   const shouldShowSchedule =
     role === "student" ||
     role === "teacher" ||
@@ -90,6 +90,9 @@ export default function TabsLayout() {
           fontSize: 18,
         },
         headerTitleAlign: "center",
+        sceneContainerStyle: {
+          backgroundColor: "#FFFFFF",
+        },
       }}
     >
       {/* Home - visible for all */}
@@ -152,7 +155,26 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Payments - visible for student, parent only */}
+       {/* Contact - visible for student ONLY */}
+      <Tabs.Screen
+        name="contact"
+        options={{
+          title: "Liên hệ",
+          headerTitle: "Liên hệ",
+          href: shouldShowContact ? "/(tabs)/contact" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "chatbubbles" : "chatbubbles-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Payments - visible for parent only (removed for student) */}
       <Tabs.Screen
         name="payments"
         options={{
@@ -171,17 +193,25 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Incidents - visible for student, parent, teacher */}
+      {/* Incidents/Contact - visible for parent, teacher (removed for student) */}
       <Tabs.Screen
         name="incidents"
         options={{
-          title: "Sự cố",
-          headerTitle: "Báo cáo sự cố",
+          title: role === "teacher" ? "Liên hệ" : "Sự cố",
+          headerTitle: role === "teacher" ? "Liên hệ hỗ trợ" : "Báo cáo sự cố",
           href: shouldShowIncidents ? "/(tabs)/incidents" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
-                name={focused ? "warning" : "warning-outline"}
+                name={
+                  role === "teacher"
+                    ? focused
+                      ? "chatbubbles"
+                      : "chatbubbles-outline"
+                    : focused
+                      ? "warning"
+                      : "warning-outline"
+                }
                 size={24}
                 color={color}
               />

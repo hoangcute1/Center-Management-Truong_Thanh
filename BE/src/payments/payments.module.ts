@@ -9,12 +9,16 @@ import {
   PaymentTransactionSchema,
 } from './schemas/payment-transaction.schema';
 import { PaymentRequestsModule } from '../payment-requests/payment-requests.module';
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { Branch, BranchSchema } from '../branches/schemas/branch.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Payment.name, schema: PaymentSchema },
       { name: PaymentTransaction.name, schema: PaymentTransactionSchema },
+      { name: User.name, schema: UserSchema },
+      { name: Branch.name, schema: BranchSchema },
     ]),
     PaymentRequestsModule,
   ],

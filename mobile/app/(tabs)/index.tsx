@@ -17,10 +17,105 @@ import {
   useClassesStore,
   usePaymentRequestsStore,
   useIncidentsStore,
+  getUserDisplayName,
 } from "@/lib/stores";
 import { router } from "expo-router";
 
 const { width } = Dimensions.get("window");
+
+// Mock data for teaching documents
+const teachingDocuments = [
+  {
+    id: "doc1",
+    name: "Tài liệu Toán 10 - Chương 1",
+    type: "PDF",
+    size: "2.4 MB",
+    uploadDate: "05/01/2025",
+    className: "Toán 10A",
+    downloads: 24,
+  },
+  {
+    id: "doc2",
+    name: "Bài tập Toán 10 - Tuần 2",
+    type: "DOCX",
+    size: "1.1 MB",
+    uploadDate: "08/01/2025",
+    className: "Toán 10A",
+    downloads: 18,
+  },
+  {
+    id: "doc3",
+    name: "Tài liệu Toán 10B - Đại số",
+    type: "PDF",
+    size: "3.2 MB",
+    uploadDate: "09/01/2025",
+    className: "Toán 10B",
+    downloads: 32,
+  },
+  {
+    id: "doc4",
+    name: "Slide bài giảng - Hình học",
+    type: "PPTX",
+    size: "5.8 MB",
+    uploadDate: "10/01/2025",
+    className: "Toán 10A",
+    downloads: 15,
+  },
+];
+
+// Mock data for student learning materials
+const studentLearningMaterials = [
+  {
+    id: "mat1",
+    name: "Bài tập Toán 10 - Hàm số",
+    type: "PDF",
+    size: "1.8 MB",
+    uploadDate: "15/01/2026",
+    subject: "Toán học",
+    category: "Bài tập",
+    description: "Bài tập thực hành về hàm số bậc hai",
+  },
+  {
+    id: "mat2",
+    name: "Đề cương ôn tập Vật lý",
+    type: "DOCX",
+    size: "2.1 MB",
+    uploadDate: "14/01/2026",
+    subject: "Vật lý",
+    category: "Đề cương",
+    description: "Đề cương ôn tập học kỳ 1",
+  },
+  {
+    id: "mat3",
+    name: "Video bài giảng Hóa học",
+    type: "MP4",
+    size: "45.2 MB",
+    uploadDate: "12/01/2026",
+    subject: "Hóa học",
+    category: "Video",
+    description: "Cân bằng phương trình hóa học",
+  },
+  {
+    id: "mat4",
+    name: "Từ vựng Tiếng Anh Unit 5",
+    type: "PDF",
+    size: "0.8 MB",
+    uploadDate: "10/01/2026",
+    subject: "Tiếng Anh",
+    category: "Từ vựng",
+    description: "Danh sách từ vựng quan trọng",
+  },
+  {
+    id: "mat5",
+    name: "Bài đọc hiểu Ngữ văn",
+    type: "PDF",
+    size: "1.5 MB",
+    uploadDate: "08/01/2026",
+    subject: "Ngữ văn",
+    category: "Bài tập",
+    description: "Bài đọc hiểu văn bản nghị luận",
+  },
+];
 
 const getRoleConfig = (role: string) => {
   switch (role) {
@@ -208,6 +303,7 @@ const getQuickActions = (
         label: "Lịch học",
         subtitle: "Xem lịch tuần",
         colors: ["#3B82F6", "#2563EB"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -215,6 +311,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -229,13 +326,6 @@ const getQuickActions = (
         badge: pendingPayments,
         onPress: () => router.push("/(tabs)/payments"),
       },
-      {
-        icon: "warning" as const,
-        label: "Sự cố",
-        subtitle: "Báo cáo vấn đề",
-        colors: ["#8B5CF6", "#7C3AED"],
-        onPress: () => router.push("/(tabs)/incidents"),
-      },
     ],
     parent: [
       {
@@ -243,6 +333,7 @@ const getQuickActions = (
         label: "Lịch học con",
         subtitle: "Xem lịch học",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -250,6 +341,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Theo dõi lớp",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -269,6 +361,7 @@ const getQuickActions = (
         label: "Sự cố",
         subtitle: "Phản ánh vấn đề",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/incidents"),
       },
     ],
@@ -278,6 +371,7 @@ const getQuickActions = (
         label: "Lịch dạy",
         subtitle: "Xem lịch tuần",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -285,21 +379,23 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#3B82F6", "#2563EB"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
-        icon: "notifications" as const,
-        label: "Thông báo",
-        subtitle: unreadCount > 0 ? `${unreadCount} chưa đọc` : "Cập nhật",
+        icon: "document-text" as const,
+        label: "Tài liệu",
+        subtitle: "Tài liệu giảng dạy",
         colors: ["#F59E0B", "#D97706"],
-        badge: unreadCount,
-        onPress: () => router.push("/(tabs)/notifications"),
+        badge: 0,
+        onPress: () => {}, // Disabled navigation, content is now on Home
       },
       {
-        icon: "warning" as const,
-        label: "Sự cố",
-        subtitle: "Báo cáo vấn đề",
+        icon: "star" as const,
+        label: "Đánh giá",
+        subtitle: "Xem đánh giá",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/incidents"),
       },
     ],
@@ -309,6 +405,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -324,6 +421,7 @@ const getQuickActions = (
         label: "Tài khoản",
         subtitle: "Quản lý",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/admin/accounts"),
       },
       {
@@ -331,6 +429,7 @@ const getQuickActions = (
         label: "Quản lý",
         subtitle: "Dashboard",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/admin"),
       },
     ],
@@ -451,9 +550,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.welcomeText}>
               <Text style={styles.greeting}>Xin chào! 👋</Text>
-              <Text style={styles.userName}>
-                {user?.fullName || "Người dùng"}
-              </Text>
+              <Text style={styles.userName}>{getUserDisplayName(user)}</Text>
               <View style={styles.roleBadge}>
                 <Ionicons
                   name={roleConfig.icon as any}
@@ -489,10 +586,91 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Streak Card - Gamification Element (Student only) */}
+        {role === "student" && (
+          <>
+            <View style={styles.section}>
+              <View style={styles.streakCard}>
+                <LinearGradient
+                  colors={["#FEF3C7", "#FDE68A"]}
+                  style={styles.streakGradient}
+                >
+                  <View style={styles.streakContent}>
+                    <Text style={styles.streakIcon}>🔥</Text>
+                    <View style={styles.streakInfo}>
+                      <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
+                      <Text style={styles.streakValue}>12 ngày liên tục</Text>
+                    </View>
+                    <View style={styles.streakBadge}>
+                      <Ionicons name="flame" size={16} color="#D97706" />
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+            </View>
+          </>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Truy cập nhanh</Text>
           <View style={styles.quickActionsGrid}>
+            {/* Student Specific Extra Actions - Leaderboard, Grades & Documents */}
+            {role === "student" && (
+              <>
+                <TouchableOpacity
+                  style={styles.quickActionCard}
+                  onPress={() => router.push("/grades")}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={["#F59E0B", "#D97706"]}
+                    style={styles.quickActionGradient}
+                  >
+                    <Ionicons name="ribbon" size={28} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionLabel}>Điểm số</Text>
+                  <Text style={styles.quickActionSubtitle}>
+                    Kết quả học tập
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.quickActionCard}
+                  onPress={() => router.push("/leaderboard")}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={["#8B5CF6", "#7C3AED"]}
+                    style={styles.quickActionGradient}
+                  >
+                    <Ionicons name="trophy" size={28} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionLabel}>Bảng xếp hạng</Text>
+                  <Text style={styles.quickActionSubtitle}>
+                    Thành tích thi đua
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.quickActionCard}
+                  onPress={() => {}}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={["#EC4899", "#DB2777"]}
+                    style={styles.quickActionGradient}
+                  >
+                    <Ionicons name="document-text" size={28} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.quickActionLabel}>Tài liệu</Text>
+                  <Text style={styles.quickActionSubtitle}>
+                    Học tập & ôn luyện
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
             {quickActions.map((action, index) => (
               <TouchableOpacity
                 key={index}
@@ -505,10 +683,13 @@ export default function HomeScreen() {
                   style={styles.quickActionGradient}
                 >
                   <Ionicons name={action.icon} size={28} color="#FFFFFF" />
-                  {action.badge && action.badge > 0 ? (
+                  {/* Safely check for badge */}
+                  {(action as any).badge && (action as any).badge > 0 ? (
                     <View style={styles.actionBadge}>
                       <Text style={styles.actionBadgeText}>
-                        {action.badge > 9 ? "9+" : action.badge}
+                        {(action as any).badge > 9
+                          ? "9+"
+                          : (action as any).badge}
                       </Text>
                     </View>
                   ) : null}
@@ -619,26 +800,66 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Streak Card - Gamification Element (Student only) */}
-        {role === "student" && (
+        {/* Teacher Documents Section */}
+        {role === "teacher" && (
           <View style={styles.section}>
-            <View style={styles.streakCard}>
-              <LinearGradient
-                colors={["#FEF3C7", "#FDE68A"]}
-                style={styles.streakGradient}
-              >
-                <View style={styles.streakContent}>
-                  <Text style={styles.streakIcon}>🔥</Text>
-                  <View style={styles.streakInfo}>
-                    <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
-                    <Text style={styles.streakValue}>12 ngày liên tục</Text>
-                  </View>
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={16} color="#D97706" />
-                  </View>
-                </View>
-              </LinearGradient>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Tài liệu học tập</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAll}>Xem tất cả</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+              </TouchableOpacity>
             </View>
+
+            {teachingDocuments.map((doc) => (
+              <TouchableOpacity
+                key={doc.id}
+                style={styles.documentCard}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.documentIcon,
+                    {
+                      backgroundColor:
+                        doc.type === "PDF"
+                          ? "#FEE2E2"
+                          : doc.type === "DOCX"
+                            ? "#DBEAFE"
+                            : "#FEF3C7",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.documentIconText,
+                      {
+                        color:
+                          doc.type === "PDF"
+                            ? "#DC2626"
+                            : doc.type === "DOCX"
+                              ? "#2563EB"
+                              : "#D97706",
+                      },
+                    ]}
+                  >
+                    {doc.type}
+                  </Text>
+                </View>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName} numberOfLines={1}>
+                    {doc.name}
+                  </Text>
+                  <Text style={styles.documentMeta}>
+                    {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
+                  </Text>
+                  <Text style={styles.documentClass}>{doc.className}</Text>
+                </View>
+                <TouchableOpacity style={styles.downloadButton}>
+                  <Ionicons name="download-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -680,6 +901,69 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Teacher Documents Section */}
+        {role === "teacher" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Tài liệu học tập</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAll}>Xem tất cả</Text>
+                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
+              </TouchableOpacity>
+            </View>
+
+            {teachingDocuments.map((doc) => (
+              <TouchableOpacity
+                key={doc.id}
+                style={styles.documentCard}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.documentIcon,
+                    {
+                      backgroundColor:
+                        doc.type === "PDF"
+                          ? "#FEE2E2"
+                          : doc.type === "DOCX"
+                            ? "#DBEAFE"
+                            : "#FEF3C7",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.documentIconText,
+                      {
+                        color:
+                          doc.type === "PDF"
+                            ? "#DC2626"
+                            : doc.type === "DOCX"
+                              ? "#2563EB"
+                              : "#D97706",
+                      },
+                    ]}
+                  >
+                    {doc.type}
+                  </Text>
+                </View>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName} numberOfLines={1}>
+                    {doc.name}
+                  </Text>
+                  <Text style={styles.documentMeta}>
+                    {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
+                  </Text>
+                  <Text style={styles.documentClass}>{doc.className}</Text>
+                </View>
+                <TouchableOpacity style={styles.downloadButton}>
+                  <Ionicons name="download-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -820,7 +1104,57 @@ const styles = StyleSheet.create({
   },
   overviewScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  documentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  documentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  documentIconText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  documentInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  documentName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  documentMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  documentClass: {
+    fontSize: 12,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+  downloadButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
   },
   overviewCard: {
     backgroundColor: "#FFFFFF",
@@ -1162,5 +1496,90 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6B7280",
     textAlign: "right",
+  },
+  // Student Learning Materials
+  categoryScroll: {
+    marginBottom: 12,
+  },
+  categoryContainer: {
+    paddingRight: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: "#3B82F6",
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6B7280",
+  },
+  categoryChipTextActive: {
+    color: "#FFFFFF",
+  },
+  materialCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  materialIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  materialIconText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  materialInfo: {
+    flex: 1,
+  },
+  materialName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  materialDescription: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 6,
+  },
+  materialMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  materialTag: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  materialTagText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#3B82F6",
+  },
+  materialSize: {
+    fontSize: 12,
+    color: "#9CA3AF",
   },
 });

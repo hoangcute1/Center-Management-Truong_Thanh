@@ -89,6 +89,19 @@ export class PaymentsController {
     return this.paymentsService.getAllPayments();
   }
 
+  @Get('admin/finance-overview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  async getFinanceOverview(
+    @Query('from') fromDate?: string,
+    @Query('to') toDate?: string,
+  ) {
+    const from = fromDate ? new Date(fromDate) : undefined;
+    const to = toDate ? new Date(toDate) : undefined;
+    return this.paymentsService.getFinanceOverview(from, to);
+  }
+
+
   // ==================== COMMON ====================
 
   @Get('my')

@@ -22,12 +22,18 @@ type UserRole = "student" | "parent" | "teacher" | "admin";
 interface User {
   _id: string;
   email: string;
-  fullName: string;
+  name?: string;
+  fullName?: string;
   role: UserRole;
   phone?: string;
   isActive?: boolean;
   createdAt?: string;
 }
+
+// Helper function to get display name
+const getDisplayName = (user: User): string => {
+  return user.fullName || user.name || "Chưa có tên";
+};
 
 const roleTabs: {
   key: UserRole | "all";
@@ -133,7 +139,7 @@ export default function AccountsManagementScreen() {
 
   const filteredUsers = users.filter(
     (user) =>
-      user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      getDisplayName(user).toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.phone?.includes(searchQuery),
   );
@@ -215,12 +221,12 @@ export default function AccountsManagementScreen() {
       >
         <View style={[styles.userAvatar, { backgroundColor: badge.bg }]}>
           <Text style={[styles.userAvatarText, { color: badge.color }]}>
-            {user.fullName?.charAt(0)?.toUpperCase() || "?"}
+            {getDisplayName(user).charAt(0)?.toUpperCase() || "?"}
           </Text>
         </View>
 
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.fullName || "Chưa có tên"}</Text>
+          <Text style={styles.userName}>{getDisplayName(user)}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
           {user.phone && <Text style={styles.userPhone}>📞 {user.phone}</Text>}
         </View>
@@ -424,11 +430,12 @@ export default function AccountsManagementScreen() {
                       { color: getRoleBadge(selectedUser.role).color },
                     ]}
                   >
-                    {selectedUser.fullName?.charAt(0)?.toUpperCase() || "?"}
+                    {getDisplayName(selectedUser).charAt(0)?.toUpperCase() ||
+                      "?"}
                   </Text>
                 </View>
                 <Text style={styles.modalUserName}>
-                  {selectedUser.fullName}
+                  {getDisplayName(selectedUser)}
                 </Text>
                 <View
                   style={[
