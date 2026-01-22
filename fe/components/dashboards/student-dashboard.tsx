@@ -152,7 +152,8 @@ interface StudentDashboardProps {
     name: string;
     email: string;
     phone?: string;
-    role: string
+    role: string;
+    studentCode: string;
   };
   onLogout: () => void;
 }
@@ -699,7 +700,10 @@ function SettingsModal({
   user: {
     name: string;
     email: string;
-    phone: string
+    phone?: string;
+    studentCode: string;
+    parentName: string;
+    parentPhone: string;
   };
   onClose: () => void;
 }) {
@@ -797,13 +801,41 @@ function SettingsModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Số điện thoại</label>
+              <label className="text-gray-700 font-medium">Giới tính</label>
               <input
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={user.phone || "?"}
+                defaultValue={user.phone || "Nam"}
                 readOnly
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Ngày sinh</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={"11/11/2011"}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Mã số học sinh</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={user.studentCode || "HS11111"}
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Số điện thoại</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              defaultValue={user.phone || "Chưa có"}
+              readOnly
+            />
           </div>
 
           <div className="space-y-2">
@@ -815,13 +847,23 @@ function SettingsModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Địa chỉ</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              defaultValue="123 Đường ABC, Quận 1, TPHCM"
-              readOnly
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Họ và tên phụ huynh</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={user.parentName || "Chưa có"}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Số điện thoại phụ huynh</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                defaultValue={user.phone || "Chưa có"}
+                readOnly
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -1170,6 +1212,7 @@ export default function StudentDashboard({
       // Fetch attendance records for this student
       fetchAttendance({ studentId }).catch(console.error);
     }
+    console.log("studentId: ", studentId);
   }, [authUser, user.id, fetchDashboardData, fetchAttendance]);
 
   // Compute dynamic overview cards based on real data
@@ -1317,7 +1360,7 @@ export default function StudentDashboard({
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {pendingPayments.length > 0 && (
-          <div 
+          <div
             onClick={() => window.location.href = '/payment'}
             className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
           >
@@ -1327,7 +1370,7 @@ export default function StudentDashboard({
                 <div>
                   <p className="text-sm font-bold text-red-700">Thông báo học phí</p>
                   <p className="text-sm text-red-600">
-                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán. 
+                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán.
                     Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
                   </p>
                 </div>
@@ -1453,41 +1496,41 @@ export default function StudentDashboard({
 
             {/* Financial Summary Card */}
             <Card className="rounded-2xl shadow-sm border border-gray-100 p-6 bg-white mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    💰 Thông tin học phí
-                  </h2>
-                  <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
-                    Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  💰 Thông tin học phí
+                </h2>
+                <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
+                  Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm text-gray-600">Cần thanh toán</p>
+                    <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                      {pendingPayments.length} khoản
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-red-600 truncate">
+                    {totalPendingAmount.toLocaleString('vi-VN')} đ
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-red-50 border border-red-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-600">Cần thanh toán</p>
-                      <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
-                        {pendingPayments.length} khoản
-                      </span>
-                    </div>
-                    <p className="text-2xl font-bold text-red-600 truncate">
-                      {totalPendingAmount.toLocaleString('vi-VN')} đ
-                    </p>
+                <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm text-gray-600">Đã thanh toán</p>
+                    <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                      {paidPayments.length} khoản
+                    </span>
                   </div>
-
-                  <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-600">Đã thanh toán</p>
-                      <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                        {paidPayments.length} khoản
-                      </span>
-                    </div>
-                    <p className="text-2xl font-bold text-green-600 truncate">
-                      {totalPaidAmount.toLocaleString('vi-VN')} đ
-                    </p>
-                  </div>
+                  <p className="text-2xl font-bold text-green-600 truncate">
+                    {totalPaidAmount.toLocaleString('vi-VN')} đ
+                  </p>
                 </div>
-              </Card>
+              </div>
+            </Card>
 
             {/* Streak Cards cải tiến */}
             <div className="mt-6 grid gap-4 md:grid-cols-3">

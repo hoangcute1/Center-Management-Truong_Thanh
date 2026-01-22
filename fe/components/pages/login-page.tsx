@@ -10,16 +10,21 @@ import {
   validateLogin,
 } from "@/lib/stores/auth-store";
 import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
-import { toast } from "@/components/ui/toast"
+import { toasts } from "@/components/ui/toast"
+import { Bounce, ToastContainer, toast } from "react-toastify";
 
 interface LoginPageProps {
   onLogin?: (user: {
     id: string;
     name: string;
     email: string;
+    phone?: string;
     role: "student" | "teacher" | "parent" | "admin";
     branchId?: string;
     branchName?: string;
+    studentCode: string;
+    dateOfBirth: Date;
+    gender: string;
   }) => void;
 }
 
@@ -180,7 +185,17 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           `Vai trò không đúng. Tài khoản này có vai trò "${ROLE_CONFIG[userData.role as Role]?.label || userData.role
           }".`
         );
-        toast.error("Vai trò không đúng!");
+        toast.error("Vai trò không đúng!", {
+          position: "top-right",
+          autoClose: 1000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: false,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
         setIsLoading(false);
         return;
       }
@@ -193,13 +208,33 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         userData.branchId !== branchId
       ) {
         setError("Cơ sở không đúng. Vui lòng chọn đúng cơ sở của bạn.");
-        toast.error("Cơ sở không đúng!");
+        toast.error("Cơ sở không đúng!", {
+          position: "top-right",
+          autoClose: 1000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: false,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
         setIsLoading(false);
         return;
       }
 
       // Show success toast
-      toast.success(`Chào mừng ${userData.name}! 🎉`);
+      toast.success(`Chào mừng ${userData.name}!`, {
+        position: "top-right",
+        autoClose: 1000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
 
       // If onLogin callback exists (for backward compatibility)
       if (onLogin && userData) {
@@ -208,9 +243,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           id: userData._id || userData.id || "",
           name: userData.name,
           email: userData.email,
+          phone: userData.phone,
           role: userData.role as Role,
           branchId: userData.branchId,
           branchName: branch?.name,
+          studentCode: userData.studentCode,
+          dateOfBirth: userData.dateOfBirth,
+          gender: userData.gender,
         });
       }
     } catch (err: any) {
