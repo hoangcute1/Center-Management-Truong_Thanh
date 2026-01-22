@@ -177,6 +177,10 @@ export class UsersService {
     return this.userModel.findOne({ email }).exec();
   }
 
+  async findByEmails(emails: string[]): Promise<UserDocument[]> {
+    return this.userModel.find({ childEmail: { $in: emails } }).exec();
+  }
+
   async update(id: string, dto: UpdateUserDto): Promise<User> {
     if (dto.password) {
       const passwordHash = await bcrypt.hash(dto.password, 10);
