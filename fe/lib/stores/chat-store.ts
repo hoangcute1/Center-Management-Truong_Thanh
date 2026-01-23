@@ -141,7 +141,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchAvailableUsers: async () => {
     try {
       set({ isLoading: true, error: null });
-      const response = await api.get('/users');
+      const response = await api.get('/chat/available-users');
       const users = response.data.map((user: any) => ({
         ...user,
         isOnline: get().onlineUsers.includes(user._id),
