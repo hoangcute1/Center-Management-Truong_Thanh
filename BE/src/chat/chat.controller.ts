@@ -29,6 +29,11 @@ export class ChatController {
     return this.chatService.getConversations(user);
   }
 
+  @Get('available-users')
+  getAvailableUsers(@CurrentUser() user: UserDocument) {
+    return this.chatService.getAvailableUsers(user);
+  }
+
   @Post('test-message')
   async createTestMessage(@CurrentUser() user: UserDocument, @Body() body: { receiverId: string; content: string }) {
     console.log('Creating test message from', user.name, 'to', body.receiverId, ':', body.content);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useAuthStore } from "@/lib/stores";
+import { useAuthStore, getUserDisplayName } from "@/lib/stores";
 import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
@@ -64,9 +64,19 @@ export default function ProfileScreen() {
 
   // Profile form
   const [profileForm, setProfileForm] = useState({
-    fullName: user?.fullName || "",
+    fullName: user?.fullName || user?.name || "",
     phone: user?.phone || "",
   });
+
+  // Sync profile form when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        fullName: user.fullName || user.name || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
 
   // Password form
   const [passwordForm, setPasswordForm] = useState({
@@ -101,7 +111,7 @@ export default function ProfileScreen() {
     setIsUpdating(true);
     try {
       await api.patch(`/users/${user?._id}`, {
-        fullName: profileForm.fullName.trim(),
+        name: profileForm.fullName.trim(),
         phone: profileForm.phone.trim() || undefined,
       });
 
@@ -109,6 +119,7 @@ export default function ProfileScreen() {
       if (updateUser) {
         updateUser({
           ...user!,
+          name: profileForm.fullName.trim(),
           fullName: profileForm.fullName.trim(),
           phone: profileForm.phone.trim(),
         });
@@ -174,7 +185,7 @@ export default function ProfileScreen() {
           color: "#3B82F6",
           onPress: () => {
             setProfileForm({
-              fullName: user?.fullName || "",
+              fullName: user?.fullName || user?.name || "",
               phone: user?.phone || "",
             });
             setShowProfileModal(true);
@@ -251,7 +262,7 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.userName}>{user?.fullName || "Người dùng"}</Text>
+          <Text style={styles.userName}>{getUserDisplayName(user)}</Text>
           <Text style={styles.userEmail}>{user?.email || ""}</Text>
           <View style={styles.roleBadge}>
             <Ionicons name={roleConfig.icon as any} size={12} color="#FFFFFF" />
@@ -574,11 +585,6 @@ export default function ProfileScreen() {
                 {isDarkMode && <View style={styles.themeRadioInner} />}
               </TouchableOpacity>
             </View>
-
-            <Text style={styles.themeNote}>
-              * Chức năng đang được phát triển. Sẽ sớm có mặt trong các phiên
-              bản tiếp theo.
-            </Text>
           </View>
         </SafeAreaView>
       </Modal>

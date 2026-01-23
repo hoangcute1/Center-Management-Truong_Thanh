@@ -6,11 +6,15 @@ import { ChatController } from './chat.controller';
 import { ChatGateway } from './chat.gateway';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { UsersModule } from '../users/users.module';
+import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
 import { jwtConfig } from '../config/jwt.config';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
+    MongooseModule.forFeature([
+      { name: Message.name, schema: MessageSchema },
+      { name: ClassEntity.name, schema: ClassSchema },
+    ]),
     JwtModule.register(jwtConfig),
     UsersModule,
   ],

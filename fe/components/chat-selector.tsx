@@ -37,15 +37,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
   );
 
   const filteredUsers = availableUsers.filter(user => 
-    user._id !== currentUser?._id && // Exclude current user
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    // Filter by role based on current user's role
-    (
-      (currentUser?.role === 'teacher' && ['student', 'parent'].includes(user.role)) ||
-      (currentUser?.role === 'parent' && user.role === 'teacher') ||
-      (currentUser?.role === 'student' && user.role === 'teacher') ||
-      currentUser?.role === 'admin' // Admin can chat with everyone
-    )
+    user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSelectConversation = (conversation: any) => {
@@ -152,7 +144,7 @@ export default function ChatSelector({ onSelectUser, onClose }: ChatSelectorProp
                         {conversation.otherUser.role}
                       </p>
                       <p className="text-xs text-gray-400 truncate">
-                        {conversation.lastMessage.content}
+                        {conversation.lastMessage?.content || 'Không có tin nhắn'}
                       </p>
                     </div>
                   </div>
