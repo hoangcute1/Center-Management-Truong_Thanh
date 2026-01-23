@@ -7,6 +7,7 @@ import { ActivityIndicator } from "react-native";
 
 export default function TabsLayout() {
   const { isAuthenticated, user, isLoading } = useAuthStore();
+  const { theme } = useUiStore();
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
@@ -21,7 +22,6 @@ export default function TabsLayout() {
   }
 
   const role = user?.role;
-  const { theme } = useUiStore();
   const colorScheme = theme === "system" ? Appearance.getColorScheme() : theme;
   const isDark = colorScheme === "dark";
 
