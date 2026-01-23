@@ -93,6 +93,8 @@ export interface User {
   studentIds?: string[];
   avatarUrl?: string;
   isActive: boolean;
+  childEmail?: string; // Email của con (dành cho phụ huynh)
+  childId?: string; // ID của con (dành cho phụ huynh)
 }
 
 // Helper to get display name from user

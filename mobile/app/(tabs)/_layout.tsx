@@ -43,7 +43,7 @@ export default function TabsLayout() {
 
   // Check if tab should be visible based on role
   const shouldShowPayments = role === "parent"; // Hidden for student
-  const shouldShowIncidents = role === "parent" || role === "teacher"; // Hidden for student
+  const shouldShowIncidents = role === "teacher"; // Only for teacher, removed for parent
   const shouldShowContact = role === "student"; // New for student
   const shouldShowSchedule =
     role === "student" ||
@@ -178,7 +178,7 @@ export default function TabsLayout() {
         }}
       />
 
-       {/* Contact - visible for student ONLY */}
+      {/* Contact - visible for student ONLY */}
       <Tabs.Screen
         name="contact"
         options={{
