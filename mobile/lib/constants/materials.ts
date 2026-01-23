@@ -1,0 +1,38 @@
+export const teachingDocuments = [
+  {
+    id: "doc1",
+    name: "Tài liệu Toán 10 - Chương 1",
+    type: "PDF",
+    size: "2.4 MB",
+    uploadDate: "05/01/2025",
+    className: "Toán 10A",
+    downloads: 24,
+  },
+  {
+    id: "doc2",
+    name: "Bài tập Toán 10 - Tuần 2",
+    type: "DOCX",
+    size: "1.1 MB",
+    uploadDate: "08/01/2025",
+    className: "Toán 10A",
+    downloads: 18,
+  },
+  {
+    id: "doc3",
+    name: "Tài liệu Toán 10B - Đại số",
+    type: "PDF",
+    size: "3.2 MB",
+    uploadDate: "09/01/2025",
+    className: "Toán 10B",
+    downloads: 32,
+  },
+  {
+    id: "doc4",
+    name: "Slide bài giảng - Hình học",
+    type: "PPTX",
+    size: "5.8 MB",
+    uploadDate: "10/01/2025",
+    className: "Toán 10A",
+    downloads: 15,
+  },
+];

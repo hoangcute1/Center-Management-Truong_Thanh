@@ -831,18 +831,25 @@ export default function ScheduleScreen() {
 
     setIsSavingAttendance(true);
     try {
-      // Save each attendance record using attendanceDate
-      for (const record of attendanceRecords) {
-        if (record.status) {
-          await api.post("/attendance", {
-            classId: attendanceClassId,
-            studentId: record.studentId,
-            status: record.status,
-            date: attendanceDate.toISOString(),
-            notes: attendanceNote,
-          });
-        }
+      const payloadRecords = attendanceRecords
+        .filter((record) => record.status)
+        .map((record) => ({
+          studentId: record.studentId,
+          status: record.status!,
+        }));
+
+      if (payloadRecords.length === 0) {
+        Alert.alert("Thông báo", "Vui lòng chọn trạng thái điểm danh");
+        setIsSavingAttendance(false);
+        return;
       }
+
+      await api.post("/attendance/timetable", {
+        classId: attendanceClassId,
+        date: attendanceDate.toISOString(),
+        records: payloadRecords,
+        note: attendanceNote || undefined,
+      });
 
       Alert.alert("Thành công", "Đã lưu điểm danh thành công");
       setShowAttendanceModal(false);
@@ -850,7 +857,9 @@ export default function ScheduleScreen() {
       console.error("Error saving attendance:", error);
       Alert.alert(
         "Lỗi",
-        error.message || "Không thể lưu điểm danh. Vui lòng thử lại.",
+        error?.response?.data?.message ||
+          error.message ||
+          "Không thể lưu điểm danh. Vui lòng thử lại.",
       );
     } finally {
       setIsSavingAttendance(false);

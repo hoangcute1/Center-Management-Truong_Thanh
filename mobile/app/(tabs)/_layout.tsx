@@ -1,16 +1,29 @@
 import { Redirect, Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/lib/stores";
-import { View, Platform, TouchableOpacity } from "react-native";
+import { useUiStore } from "@/lib/stores/ui-store";
+import { View, Platform, TouchableOpacity, Appearance } from "react-native";
+import { ActivityIndicator } from "react-native";
 
 export default function TabsLayout() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAuthStore();
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
   }
 
+  if (isLoading || !user) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
   const role = user?.role;
+  const { theme } = useUiStore();
+  const colorScheme = theme === "system" ? Appearance.getColorScheme() : theme;
+  const isDark = colorScheme === "dark";
 
   // Get role-based header color
   const getHeaderColor = () => {
@@ -58,9 +71,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: getHeaderColor(),
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarInactiveTintColor: isDark ? "#9CA3AF" : "#9CA3AF",
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: isDark ? "#111827" : "#FFFFFF",
           borderTopWidth: 0,
           paddingBottom: Platform.OS === "ios" ? 24 : 12,
           paddingTop: 12,
@@ -91,7 +104,7 @@ export default function TabsLayout() {
         },
         headerTitleAlign: "center",
         sceneContainerStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: isDark ? "#0B1220" : "#FFFFFF",
         },
       }}
     >
@@ -152,6 +165,16 @@ export default function TabsLayout() {
               />
             </View>
           ),
+        }}
+      />
+
+      {/* Materials - teacher only, hidden from tab bar */}
+      <Tabs.Screen
+        name="materials"
+        options={{
+          title: "Tài liệu",
+          headerTitle: "Tài liệu học tập",
+          href: null,
         }}
       />
 

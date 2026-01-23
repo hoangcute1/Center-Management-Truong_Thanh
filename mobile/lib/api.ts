@@ -3,40 +3,40 @@ import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-// For Android emulator, localhost should be 10.0.2.2
-// For iOS simulator, localhost works
-// For real devices, need to use actual IP address of your computer
+// Resolve API base URL depending on where the app runs.
+// Prefers explicit config/env, then auto-detects the dev host (works when IP changes).
 const getBaseUrl = () => {
-  const configUrl = Constants.expoConfig?.extra?.apiUrl;
+  const envUrl =
+    process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl;
 
-  // If a non-localhost URL is configured, use it
+  // If a non-localhost URL is configured, use it as-is
   if (
-    configUrl &&
-    !configUrl.includes("localhost") &&
-    !configUrl.includes("10.0.2.2")
+    envUrl &&
+    !envUrl.includes("localhost") &&
+    !envUrl.includes("10.0.2.2")
   ) {
-    return configUrl;
+    return envUrl;
   }
 
-  // Default development URLs
+  // In dev, try to derive the machine IP that Metro shows (handles changing Wi‑Fi IPs)
   if (__DEV__) {
-    // Check if running on real device (not emulator/simulator)
-    // For real devices, you need to use your computer's local IP
-    // You can set this in app.json extra.apiUrl or change the IP below
+    const manifestHost = Constants.expoConfig?.hostUri?.split(":")?.[0];
+    if (manifestHost && manifestHost !== "localhost") {
+      return `http://${manifestHost}:3000`;
+    }
+
     const realDeviceIP = Constants.expoConfig?.extra?.localIP;
     if (realDeviceIP) {
       return `http://${realDeviceIP}:3000`;
     }
 
     if (Platform.OS === "android") {
-      // Check if running on Android emulator or real device
-      // For emulator use 10.0.2.2, for real device use computer's IP
       return "http://10.0.2.2:3000"; // Android emulator
     }
     return "http://localhost:3000"; // iOS simulator
   }
 
-  return configUrl || "http://localhost:3000";
+  return envUrl || "http://localhost:3000";
 };
 
 const API_BASE_URL = getBaseUrl();
@@ -47,7 +47,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 15000,
+  timeout: 30000,
 });
 
 // Helper functions for SecureStore
