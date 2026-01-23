@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { GoalsService } from './goals.service';
 import { CreateGoalDto } from './dto/create-goal.dto';
 import { UpdateGoalDto } from './dto/update-goal.dto';
@@ -17,10 +18,12 @@ import type { UserDocument } from '../users/schemas/user.schema';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 
+@ApiTags('Goals')
+@ApiBearerAuth()
 @Controller('goals')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class GoalsController {
-  constructor(private readonly goalsService: GoalsService) {}
+  constructor(private readonly goalsService: GoalsService) { }
 
   @Post()
   @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Student)

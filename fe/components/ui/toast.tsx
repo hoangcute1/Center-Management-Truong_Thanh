@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { create } from "zustand";
+import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -54,18 +54,27 @@ export const toast = {
     useToastStore.getState().addToast("info", message, duration),
 };
 
-const TOAST_ICONS = {
-  success: "✅",
-  error: "❌",
-  warning: "⚠️",
-  info: "ℹ️",
-};
-
-const TOAST_STYLES = {
-  success: "bg-emerald-50 border-emerald-200 text-emerald-800",
-  error: "bg-red-50 border-red-200 text-red-800",
-  warning: "bg-amber-50 border-amber-200 text-amber-800",
-  info: "bg-blue-50 border-blue-200 text-blue-800",
+const TOAST_VARIANTS = {
+  success: {
+    container: "bg-green-600 text-white border-green-700 shadow-green-900/20",
+    icon: CheckCircle2,
+    title: "Thành công",
+  },
+  error: {
+    container: "bg-red-600 text-white border-red-700 shadow-red-900/20",
+    icon: XCircle,
+    title: "Lỗi",
+  },
+  warning: {
+    container: "bg-amber-500 text-white border-amber-600 shadow-amber-900/20",
+    icon: AlertTriangle,
+    title: "Chú ý",
+  },
+  info: {
+    container: "bg-blue-600 text-white border-blue-700 shadow-blue-900/20",
+    icon: Info,
+    title: "Thông tin",
+  },
 };
 
 // Toast Container Component
@@ -75,26 +84,44 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map((toastItem) => (
-        <div
-          key={toastItem.id}
-          className={`
-            flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg
-            animate-in slide-in-from-right duration-300
-            ${TOAST_STYLES[toastItem.type]}
-          `}
-        >
-          <span className="text-lg">{TOAST_ICONS[toastItem.type]}</span>
-          <p className="flex-1 text-sm font-medium">{toastItem.message}</p>
-          <button
-            onClick={() => removeToast(toastItem.id)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+    <div className="fixed top-5 right-5 z-[9999] flex flex-col gap-3 w-full max-w-[400px] pointer-events-none">
+      {toasts.map((toastItem) => {
+        const variant = TOAST_VARIANTS[toastItem.type];
+        const Icon = variant.icon;
+
+        return (
+          <div
+            key={toastItem.id}
+            className={`
+              pointer-events-auto
+              flex items-start gap-4 px-5 py-4 rounded-xl border shadow-2xl
+              transform transition-all duration-300 ease-out hover:scale-[1.02]
+              animate-in slide-in-from-right-full fade-in zoom-in-95
+              ${variant.container}
+            `}
           >
-            ✕
-          </button>
-        </div>
-      ))}
+            <div className="mt-1 flex-shrink-0">
+              <Icon className="w-6 h-6" strokeWidth={2.5} />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-base leading-none mb-1">
+                {variant.title}
+              </h4>
+              <p className="text-sm font-medium opacity-90 leading-relaxed break-words">
+                {toastItem.message}
+              </p>
+            </div>
+
+            <button
+              onClick={() => removeToast(toastItem.id)}
+              className="flex-shrink-0 mt-1 opacity-70 hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/20"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

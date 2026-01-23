@@ -22,6 +22,7 @@ import {
   FileText,
 } from "lucide-react";
 import api from "@/lib/api";
+import { notify } from "@/lib/notify";
 
 interface ClassInfo {
   _id: string;
@@ -96,7 +97,9 @@ export default function AdminPaymentRequestsPage() {
 
   const handleCreateRequest = async () => {
     if (!selectedClassId || !title) {
-      setError("Vui lòng chọn lớp và nhập tiêu đề");
+      const msg = "Vui lòng chọn lớp và nhập tiêu đề";
+      setError(msg);
+      notify.warning(msg);
       return;
     }
 
@@ -110,7 +113,7 @@ export default function AdminPaymentRequestsPage() {
         dueDate: dueDate || undefined,
       });
 
-      alert(
+      notify.success(
         `Đã tạo yêu cầu đóng tiền cho ${result.studentCount} học sinh!`
       );
       setShowCreateForm(false);
@@ -118,6 +121,7 @@ export default function AdminPaymentRequestsPage() {
       fetchClassRequests();
     } catch (err: any) {
       setError(err.message);
+      notify.error(err.message);
     }
   };
 
@@ -135,7 +139,7 @@ export default function AdminPaymentRequestsPage() {
       setStudentsData(data);
       setViewingRequest(requestId);
     } catch (err: any) {
-      alert(err.message);
+      notify.error(err.message);
     }
   };
 
@@ -146,10 +150,10 @@ export default function AdminPaymentRequestsPage() {
 
     try {
       await cancelClassRequest(id);
-      alert("Đã hủy yêu cầu thành công");
+      notify.success("Đã hủy yêu cầu thành công");
       fetchClassRequests();
     } catch (err: any) {
-      alert(err.message);
+      notify.error(err.message);
     }
   };
 
@@ -158,10 +162,10 @@ export default function AdminPaymentRequestsPage() {
 
     try {
       await confirmCashPayment(paymentId);
-      alert("Đã xác nhận thành công!");
+      notify.success("Đã xác nhận thành công!");
       fetchPendingCashPayments();
     } catch (err: any) {
-      alert(err.message);
+      notify.error(err.message);
     }
   };
 
@@ -205,8 +209,8 @@ export default function AdminPaymentRequestsPage() {
         <div className="flex border-b">
           <button
             className={`px-4 py-2 font-medium ${activeTab === "requests"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-500"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500"
               }`}
             onClick={() => setActiveTab("requests")}
           >
@@ -214,8 +218,8 @@ export default function AdminPaymentRequestsPage() {
           </button>
           <button
             className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === "cash"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-500"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500"
               }`}
             onClick={() => setActiveTab("cash")}
           >
@@ -228,8 +232,8 @@ export default function AdminPaymentRequestsPage() {
           </button>
           <button
             className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === "history"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-500"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500"
               }`}
             onClick={() => setActiveTab("history")}
           >
@@ -330,9 +334,9 @@ export default function AdminPaymentRequestsPage() {
                                 className="h-full bg-green-500"
                                 style={{
                                   width: `${req.totalStudents > 0
-                                      ? (req.paidCount / req.totalStudents) *
-                                      100
-                                      : 0
+                                    ? (req.paidCount / req.totalStudents) *
+                                    100
+                                    : 0
                                     }%`,
                                 }}
                               />

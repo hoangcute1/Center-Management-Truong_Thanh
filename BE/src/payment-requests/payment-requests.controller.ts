@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaymentRequestsService } from './payment-requests.service';
 import { CreateClassPaymentRequestDto } from './dto/create-class-payment-request.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,10 +18,12 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 import { StudentPaymentRequestStatus } from './schemas/student-payment-request.schema';
 
+@ApiTags('Payment Requests')
+@ApiBearerAuth()
 @Controller('payment-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentRequestsController {
-  constructor(private readonly service: PaymentRequestsService) {}
+  constructor(private readonly service: PaymentRequestsService) { }
 
   // ==================== ADMIN ENDPOINTS ====================
 

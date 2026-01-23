@@ -907,7 +907,7 @@ export default function StudentDashboard({
     });
     setTimeout(() => {
       onLogout();
-    }, 1500);
+    }, 1000);
   };
 
   //Dropdown Profile
