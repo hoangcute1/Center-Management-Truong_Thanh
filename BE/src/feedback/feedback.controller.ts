@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FeedbackService } from './feedback.service';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -8,10 +16,12 @@ import { UserRole } from '../common/enums/role.enum';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserDocument } from '../users/schemas/user.schema';
 
+@ApiTags('Feedback')
+@ApiBearerAuth()
 @Controller('feedback')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class FeedbackController {
-  constructor(private readonly feedbackService: FeedbackService) {}
+  constructor(private readonly feedbackService: FeedbackService) { }
 
   @Post()
   @Roles(UserRole.Student, UserRole.Admin)

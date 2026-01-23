@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TuitionService } from './tuition.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
@@ -17,10 +18,12 @@ import { UserRole } from '../common/enums/role.enum';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserDocument } from '../users/schemas/user.schema';
 
+@ApiTags('Tuition')
+@ApiBearerAuth()
 @Controller('tuition')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TuitionController {
-  constructor(private readonly tuitionService: TuitionService) {}
+  constructor(private readonly tuitionService: TuitionService) { }
 
   @Post()
   @Roles(UserRole.Admin)

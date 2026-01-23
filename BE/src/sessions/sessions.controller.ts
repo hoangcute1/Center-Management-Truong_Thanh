@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
@@ -25,10 +26,12 @@ import { UserRole } from '../common/enums/role.enum';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { UserDocument } from '../users/schemas/user.schema';
 
+@ApiTags('Sessions')
+@ApiBearerAuth()
 @Controller('sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SessionsController {
-  constructor(private readonly sessionsService: SessionsService) {}
+  constructor(private readonly sessionsService: SessionsService) { }
 
   @Post()
   @Roles(UserRole.Admin, UserRole.Teacher)

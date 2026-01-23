@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto, GetExpensesQueryDto } from './dto/expense.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -6,11 +17,13 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 
+@ApiTags('Finance')
+@ApiBearerAuth()
 @Controller('admin/finance/expenses')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.Admin)
 export class ExpensesController {
-  constructor(private readonly expensesService: ExpensesService) {}
+  constructor(private readonly expensesService: ExpensesService) { }
 
   @Post()
   async create(@Request() req, @Body() dto: CreateExpenseDto) {

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { IncidentsService } from './incidents.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
@@ -20,10 +21,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { UserDocument } from '../users/schemas/user.schema';
 import { IncidentStatus } from './schemas/incident.schema';
 
+@ApiTags('Incidents')
+@ApiBearerAuth()
 @Controller('incidents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class IncidentsController {
-  constructor(private readonly incidentsService: IncidentsService) {}
+  constructor(private readonly incidentsService: IncidentsService) { }
 
   // Tạo báo cáo sự cố (tất cả user đều có thể)
   @Post()

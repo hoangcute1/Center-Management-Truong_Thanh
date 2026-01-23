@@ -10,6 +10,7 @@ import {
   Res,
   Ip,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto, ConfirmCashPaymentDto } from './dto/payment.dto';
@@ -18,9 +19,11 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 
+@ApiTags('Payments')
+@ApiBearerAuth()
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) { }
 
   // ==================== CREATE PAYMENT ====================
 
@@ -100,7 +103,6 @@ export class PaymentsController {
     const to = toDate ? new Date(toDate) : undefined;
     return this.paymentsService.getFinanceOverview(from, to);
   }
-
 
   // ==================== COMMON ====================
 
