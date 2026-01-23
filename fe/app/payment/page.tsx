@@ -23,6 +23,7 @@ import {
   Gift,
   User,
 } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -34,12 +35,12 @@ export default function PaymentPage() {
     fetchChildrenRequests,
     isLoading: requestsLoading,
   } = usePaymentRequestsStore();
-  
-  const { 
-    payments, 
-    fetchMyPayments, 
-    createPayment, 
-    isLoading: paymentLoading 
+
+  const {
+    payments,
+    fetchMyPayments,
+    createPayment,
+    isLoading: paymentLoading
   } = usePaymentsStore();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -126,7 +127,9 @@ export default function PaymentPage() {
 
   const handlePayment = async (method: "vnpay_test" | "cash") => {
     if (selectedIds.length === 0) {
-      setError("Vui lòng chọn ít nhất 1 yêu cầu");
+      const msg = "Vui lòng chọn ít nhất 1 yêu cầu";
+      setError(msg);
+      notify.warning(msg);
       return;
     }
 
@@ -148,9 +151,9 @@ export default function PaymentPage() {
       if (method === "vnpay_test" && result.paymentUrl) {
         window.location.href = result.paymentUrl;
       } else {
-        alert(
+        notify.success(
           result.message ||
-            "Đã tạo yêu cầu thanh toán. Vui lòng đến quầy thu ngân."
+          "Đã tạo yêu cầu thanh toán. Vui lòng đến quầy thu ngân."
         );
         // Refresh
         if (user?.role === "student") {
@@ -164,6 +167,7 @@ export default function PaymentPage() {
       }
     } catch (err: any) {
       setError(err.message);
+      notify.error(err.message);
     }
   };
 
@@ -248,12 +252,11 @@ export default function PaymentPage() {
                     setSelectedChildId(child.studentId);
                     setSelectedIds([]);
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
-                    (selectedChildId || childrenRequests[0]?.studentId) ===
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${(selectedChildId || childrenRequests[0]?.studentId) ===
                     child.studentId
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300"
+                    }`}
                 >
                   <User className="w-4 h-4" />
                   {child.studentName}
@@ -347,11 +350,10 @@ export default function PaymentPage() {
                       {pendingRequests.map((req) => (
                         <label
                           key={req._id}
-                          className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedIds.includes(req._id)
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
+                          className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedIds.includes(req._id)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
+                            }`}
                         >
                           <input
                             type="checkbox"
@@ -535,7 +537,7 @@ export default function PaymentPage() {
               <h2 className="font-semibold text-gray-800 mb-4">
                 📜 Lịch sử giao dịch
               </h2>
-              
+
               {payments.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Clock className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -544,7 +546,7 @@ export default function PaymentPage() {
               ) : (
                 <div className="space-y-4">
                   {payments.map((payment) => (
-                    <div 
+                    <div
                       key={payment._id}
                       className="border rounded-xl p-4 hover:bg-gray-50 transition-colors"
                     >
@@ -555,14 +557,14 @@ export default function PaymentPage() {
                               {payment.amount.toLocaleString('vi-VN')} đ
                             </p>
                             <Badge variant={
-                              payment.status === 'success' ? 'default' : 
-                              payment.status === 'pending' ? 'outline' : 'destructive'
+                              payment.status === 'success' ? 'default' :
+                                payment.status === 'pending' ? 'outline' : 'destructive'
                             } className={
-                              payment.status === 'success' ? 'bg-green-600 hover:bg-green-600' : 
-                              payment.status === 'pending' ? 'text-yellow-600 border-yellow-600' : ''
+                              payment.status === 'success' ? 'bg-green-600 hover:bg-green-600' :
+                                payment.status === 'pending' ? 'text-yellow-600 border-yellow-600' : ''
                             }>
-                              {payment.status === 'success' ? 'Thành công' : 
-                               payment.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
+                              {payment.status === 'success' ? 'Thành công' :
+                                payment.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}
                             </Badge>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
@@ -578,7 +580,7 @@ export default function PaymentPage() {
                           </p>
                         </div>
                       </div>
-                      
+
                       <p className="text-xs text-gray-400">
                         Thanh toán cho {payment.requestIds.length} khoản thu
                       </p>
