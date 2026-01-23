@@ -23,100 +23,6 @@ import { router } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
-// Mock data for teaching documents
-const teachingDocuments = [
-  {
-    id: "doc1",
-    name: "Tài liệu Toán 10 - Chương 1",
-    type: "PDF",
-    size: "2.4 MB",
-    uploadDate: "05/01/2025",
-    className: "Toán 10A",
-    downloads: 24,
-  },
-  {
-    id: "doc2",
-    name: "Bài tập Toán 10 - Tuần 2",
-    type: "DOCX",
-    size: "1.1 MB",
-    uploadDate: "08/01/2025",
-    className: "Toán 10A",
-    downloads: 18,
-  },
-  {
-    id: "doc3",
-    name: "Tài liệu Toán 10B - Đại số",
-    type: "PDF",
-    size: "3.2 MB",
-    uploadDate: "09/01/2025",
-    className: "Toán 10B",
-    downloads: 32,
-  },
-  {
-    id: "doc4",
-    name: "Slide bài giảng - Hình học",
-    type: "PPTX",
-    size: "5.8 MB",
-    uploadDate: "10/01/2025",
-    className: "Toán 10A",
-    downloads: 15,
-  },
-];
-
-// Mock data for student learning materials
-const studentLearningMaterials = [
-  {
-    id: "mat1",
-    name: "Bài tập Toán 10 - Hàm số",
-    type: "PDF",
-    size: "1.8 MB",
-    uploadDate: "15/01/2026",
-    subject: "Toán học",
-    category: "Bài tập",
-    description: "Bài tập thực hành về hàm số bậc hai",
-  },
-  {
-    id: "mat2",
-    name: "Đề cương ôn tập Vật lý",
-    type: "DOCX",
-    size: "2.1 MB",
-    uploadDate: "14/01/2026",
-    subject: "Vật lý",
-    category: "Đề cương",
-    description: "Đề cương ôn tập học kỳ 1",
-  },
-  {
-    id: "mat3",
-    name: "Video bài giảng Hóa học",
-    type: "MP4",
-    size: "45.2 MB",
-    uploadDate: "12/01/2026",
-    subject: "Hóa học",
-    category: "Video",
-    description: "Cân bằng phương trình hóa học",
-  },
-  {
-    id: "mat4",
-    name: "Từ vựng Tiếng Anh Unit 5",
-    type: "PDF",
-    size: "0.8 MB",
-    uploadDate: "10/01/2026",
-    subject: "Tiếng Anh",
-    category: "Từ vựng",
-    description: "Danh sách từ vựng quan trọng",
-  },
-  {
-    id: "mat5",
-    name: "Bài đọc hiểu Ngữ văn",
-    type: "PDF",
-    size: "1.5 MB",
-    uploadDate: "08/01/2026",
-    subject: "Ngữ văn",
-    category: "Bài tập",
-    description: "Bài đọc hiểu văn bản nghị luận",
-  },
-];
-
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
@@ -388,7 +294,7 @@ const getQuickActions = (
         subtitle: "Tài liệu giảng dạy",
         colors: ["#F59E0B", "#D97706"],
         badge: 0,
-        onPress: () => {}, // Disabled navigation, content is now on Home
+        onPress: () => router.push("/(tabs)/materials"),
       },
       {
         icon: "star" as const,
@@ -800,69 +706,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Teacher Documents Section */}
-        {role === "teacher" && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Tài liệu học tập</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAll}>Xem tất cả</Text>
-                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
-              </TouchableOpacity>
-            </View>
-
-            {teachingDocuments.map((doc) => (
-              <TouchableOpacity
-                key={doc.id}
-                style={styles.documentCard}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.documentIcon,
-                    {
-                      backgroundColor:
-                        doc.type === "PDF"
-                          ? "#FEE2E2"
-                          : doc.type === "DOCX"
-                            ? "#DBEAFE"
-                            : "#FEF3C7",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.documentIconText,
-                      {
-                        color:
-                          doc.type === "PDF"
-                            ? "#DC2626"
-                            : doc.type === "DOCX"
-                              ? "#2563EB"
-                              : "#D97706",
-                      },
-                    ]}
-                  >
-                    {doc.type}
-                  </Text>
-                </View>
-                <View style={styles.documentInfo}>
-                  <Text style={styles.documentName} numberOfLines={1}>
-                    {doc.name}
-                  </Text>
-                  <Text style={styles.documentMeta}>
-                    {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
-                  </Text>
-                  <Text style={styles.documentClass}>{doc.className}</Text>
-                </View>
-                <TouchableOpacity style={styles.downloadButton}>
-                  <Ionicons name="download-outline" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
         {/* Teacher Stats Card */}
         {role === "teacher" && (
           <View style={styles.section}>
@@ -901,69 +744,6 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
-          </View>
-        )}
-
-        {/* Teacher Documents Section */}
-        {role === "teacher" && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Tài liệu học tập</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAll}>Xem tất cả</Text>
-                <Ionicons name="chevron-forward" size={16} color="#3B82F6" />
-              </TouchableOpacity>
-            </View>
-
-            {teachingDocuments.map((doc) => (
-              <TouchableOpacity
-                key={doc.id}
-                style={styles.documentCard}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.documentIcon,
-                    {
-                      backgroundColor:
-                        doc.type === "PDF"
-                          ? "#FEE2E2"
-                          : doc.type === "DOCX"
-                            ? "#DBEAFE"
-                            : "#FEF3C7",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.documentIconText,
-                      {
-                        color:
-                          doc.type === "PDF"
-                            ? "#DC2626"
-                            : doc.type === "DOCX"
-                              ? "#2563EB"
-                              : "#D97706",
-                      },
-                    ]}
-                  >
-                    {doc.type}
-                  </Text>
-                </View>
-                <View style={styles.documentInfo}>
-                  <Text style={styles.documentName} numberOfLines={1}>
-                    {doc.name}
-                  </Text>
-                  <Text style={styles.documentMeta}>
-                    {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
-                  </Text>
-                  <Text style={styles.documentClass}>{doc.className}</Text>
-                </View>
-                <TouchableOpacity style={styles.downloadButton}>
-                  <Ionicons name="download-outline" size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
           </View>
         )}
 
