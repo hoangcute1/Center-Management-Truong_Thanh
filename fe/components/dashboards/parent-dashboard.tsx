@@ -22,6 +22,7 @@ import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import api from "@/lib/api";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Day names for schedule
 const dayNames = [
@@ -263,11 +264,31 @@ function SettingsModal({
         phone: formData.phone,
       });
 
-      toast.success("Cập nhật thông tin thành công!");
+      toast.success("Cập nhật thông tin thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
       setIsEditing(false);
       window.location.reload();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Cập nhật thất bại");
+      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -963,16 +984,17 @@ export default function ParentDashboard({
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
       position: "top-right",
-      autoClose: 1000,
-      hideProgressBar: false,
+      autoClose: 250,
+      hideProgressBar: true,
       closeOnClick: true,
       pauseOnHover: false,
       draggable: true,
       theme: "light",
+      transition: Bounce,
     });
     setTimeout(() => {
       onLogout();
-    }, 1000);
+    }, 500);
   };
   // Weekly schedule with attendance
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
@@ -1070,7 +1092,7 @@ export default function ParentDashboard({
 
                   <button
                     onClick={() => {
-                      onLogout();
+                      handleLogout();
                       setIsProfileOpen(false);
                     }}
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
@@ -1568,6 +1590,7 @@ export default function ParentDashboard({
           />
         )
       }
+      <ToastContainer />
     </div >
   );
 }
