@@ -10,8 +10,8 @@ import {
   validateLogin,
 } from "@/lib/stores/auth-store";
 import { useBranchesStore, type Branch } from "@/lib/stores/branches-store";
-import { toasts } from "@/components/ui/toast"
 import { Bounce, ToastContainer, toast } from "react-toastify";
+import DarkVeil from "@/components/ui/darkveil-background";
 
 interface LoginPageProps {
   onLogin?: (user: {
@@ -340,12 +340,20 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex flex-col lg:flex-row">
       {/* Mobile Header - Gradient Banner */}
-      <div className="lg:hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 px-6 py-8 text-white text-center relative overflow-hidden">
-        {/* Animated background shapes for mobile */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-20 -left-20 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-          <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-        </div>
+      {/* Mobile Header - Aurora Background */}
+      {/* Mobile Header - Dark Veil Background */}
+      <div className="fixed inset-0 z-0">
+        <DarkVeil
+          hueShift={339}
+          noiseIntensity={0}
+          scanlineIntensity={0}
+          speed={0.5}
+          scanlineFrequency={0}
+          warpAmount={0}
+        />
+      </div>
+      {/* Mobile Header - Aurora Background */}
+      <div className="lg:hidden relative px-6 py-8 text-white text-center overflow-hidden z-10">
         <div className="relative z-10">
           <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
             <span className="text-3xl">🎓</span>
@@ -358,13 +366,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       </div>
 
       {/* Left side - Decorative (Desktop only) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 relative">
-        {/* Animated background shapes */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/2 -right-20 w-60 h-60 bg-white/10 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse delay-500" />
-        </div>
+      {/* Left side - Content (Desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-center overflow-hidden z-10">
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
@@ -419,7 +422,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       </div>
 
       {/* Right side - Login form */}
-      <div className="flex-1 lg:w-1/2 flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="flex-1 lg:w-1/2 flex items-center justify-center p-4 sm:p-6 z-10">
         <div className="w-full max-w-md">
           <Card className="bg-white border-0 shadow-xl shadow-blue-100/50 p-5 sm:p-8 rounded-2xl sm:rounded-3xl">
             <div className="text-center mb-5 sm:mb-6">
