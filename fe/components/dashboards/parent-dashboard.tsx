@@ -536,7 +536,6 @@ export default function ParentDashboard({
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
-<<<<<<< HEAD
       {
         label: "Khóa học",
         value: dashboardData.classes.length,
@@ -551,7 +550,7 @@ export default function ParentDashboard({
             ? (
               dashboardData.recentGrades.reduce(
                 (acc, g) => acc + g.percentage,
-                0
+                0,
               ) /
               dashboardData.recentGrades.length /
               10
@@ -576,47 +575,6 @@ export default function ParentDashboard({
         color: "from-purple-500 to-purple-600",
       },
     ]
-=======
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + g.percentage,
-                    0,
-                  ) /
-                  dashboardData.recentGrades.length /
-                  10
-                ).toFixed(1)
-              : "N/A",
-          note: "Kết quả học tập",
-          icon: "⭐",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Buổi học",
-          value: attendanceStats.total,
-          note: `${attendanceStats.present} buổi tham dự`,
-          icon: "📅",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${attendanceStats.rate}%`,
-          note: "Tỉ lệ tham gia",
-          icon: "🏆",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
->>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
     : overviewStats;
 
   // Build timetable from classes (child's enrolled classes)
@@ -983,11 +941,7 @@ export default function ParentDashboard({
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {pendingPayments.length > 0 && (
           <div
-<<<<<<< HEAD
-            onClick={() => window.location.href = '/payment'}
-=======
             onClick={() => (window.location.href = "/payment")}
->>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
             className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
           >
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -998,20 +952,15 @@ export default function ParentDashboard({
                     Thông báo học phí
                   </p>
                   <p className="text-sm text-red-600">
-<<<<<<< HEAD
-                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán cho con.
-                    Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
-=======
                     Bạn có{" "}
                     <span className="font-bold">{pendingPayments.length}</span>{" "}
                     khoản cần thanh toán cho con. Tổng tiền:{" "}
                     <span className="font-bold text-red-800">
                       {totalPendingAmount.toLocaleString("vi-VN")} đ
                     </span>
->>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
-                  </p>
-                </div>
-              </div>
+                  </p >
+                </div >
+              </div >
               <Button
                 size="sm"
                 variant="destructive"
@@ -1019,9 +968,10 @@ export default function ParentDashboard({
               >
                 Thanh toán ngay
               </Button>
-            </div>
-          </div>
-        )}
+            </div >
+          </div >
+        )
+        }
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
@@ -1258,7 +1208,6 @@ export default function ParentDashboard({
                                 {/* Attendance Status */}
                                 {item.attendanceStatus ? (
                                   <div
-<<<<<<< HEAD
                                     className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${item.attendanceStatus === "present"
                                       ? "bg-emerald-100 text-emerald-700"
                                       : item.attendanceStatus === "absent"
@@ -1267,17 +1216,6 @@ export default function ParentDashboard({
                                           ? "bg-amber-100 text-amber-700"
                                           : "bg-blue-100 text-blue-700"
                                       }`}
-=======
-                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
-                                      item.attendanceStatus === "present"
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : item.attendanceStatus === "absent"
-                                          ? "bg-red-100 text-red-700"
-                                          : item.attendanceStatus === "late"
-                                            ? "bg-amber-100 text-amber-700"
-                                            : "bg-blue-100 text-blue-700"
-                                    }`}
->>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                                   >
                                     {item.attendanceStatus === "present" &&
                                       "✅ Có mặt"}
@@ -1384,11 +1322,7 @@ export default function ParentDashboard({
               {/* Quick Status */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
-<<<<<<< HEAD
-                  onClick={() => window.location.href = '/payment'}
-=======
                   onClick={() => (window.location.href = "/payment")}
->>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                   className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -1407,11 +1341,7 @@ export default function ParentDashboard({
                 </div>
 
                 <div
-<<<<<<< HEAD
-                  onClick={() => window.location.href = '/payment'}
-=======
                   onClick={() => (window.location.href = "/payment")}
->>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                   className="p-5 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -1470,7 +1400,7 @@ export default function ParentDashboard({
             />
           </TabsContent>
         </Tabs>
-      </main>
+      </main >
 
       {chatWith && (
         <ChatWindow
@@ -1481,12 +1411,14 @@ export default function ParentDashboard({
         />
       )}
       {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
-      {showSettings && (
-        <SettingsModal
-          user={user}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-    </div>
+      {
+        showSettings && (
+          <SettingsModal
+            user={user}
+            onClose={() => setShowSettings(false)}
+          />
+        )
+      }
+    </div >
   );
 }
