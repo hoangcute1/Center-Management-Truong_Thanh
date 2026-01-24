@@ -1,16 +1,24 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 
+const calculatePercentage = (score?: number, maxScore?: number) => {
+  if (typeof score !== "number" || typeof maxScore !== "number" || maxScore === 0) {
+    return null;
+  }
+  return (score / maxScore) * 100;
+};
+
 export interface Assessment {
   _id: string;
   id?: string;
   studentId: string;
   classId: string;
-  type: "quiz" | "homework" | "midterm" | "final" | "other";
+  type: "assignment" | "test" | string;
   title: string;
   score: number;
   maxScore: number;
-  percentage?: number;
+  weight?: number | null;
+  percentage?: number | null;
   feedback?: string;
   assessedBy: string;
   assessedAt: string;
@@ -62,16 +70,18 @@ interface FetchAssessmentsParams {
 interface CreateAssessmentData {
   studentId: string;
   classId: string;
-  type: "quiz" | "homework" | "midterm" | "final" | "other";
+  type: "assignment" | "test" | string;
   title: string;
   score: number;
   maxScore: number;
+  weight: number;
   feedback?: string;
 }
 
 interface UpdateAssessmentData {
   score?: number;
   maxScore?: number;
+  weight?: number;
   feedback?: string;
   title?: string;
 }
@@ -105,7 +115,7 @@ export const useAssessmentsStore = create<
         assessments: assessments.map((a: Assessment) => ({
           ...a,
           id: a._id,
-          percentage: (a.score / a.maxScore) * 100,
+          percentage: calculatePercentage(a.score, a.maxScore) ?? null,
         })),
         isLoading: false,
       });
@@ -124,7 +134,7 @@ export const useAssessmentsStore = create<
       const newAssessment = {
         ...response.data,
         id: response.data._id,
-        percentage: (response.data.score / response.data.maxScore) * 100,
+        percentage: calculatePercentage(response.data.score, response.data.maxScore) ?? null,
       };
 
       set((state) => ({
@@ -147,7 +157,7 @@ export const useAssessmentsStore = create<
       const updatedAssessment = {
         ...response.data,
         id: response.data._id,
-        percentage: (response.data.score / response.data.maxScore) * 100,
+        percentage: calculatePercentage(response.data.score, response.data.maxScore) ?? null,
       };
 
       set((state) => ({

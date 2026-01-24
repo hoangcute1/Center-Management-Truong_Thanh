@@ -13,7 +13,10 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { shallow } from "zustand/shallow";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
@@ -24,6 +27,10 @@ import {
   SessionStatus,
 } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
+import {
+  useAssessmentsStore,
+  type Assessment,
+} from "@/lib/stores/assessments-store";
 import api from "@/lib/api";
 
 interface TeacherDashboardProps {
@@ -124,6 +131,23 @@ const studentDetailMock = {
   attendance: "11/12",
   homework: "10/12",
 };
+
+const assessmentTypeOptions = [
+  {
+    value: "assignment",
+    label: "Bài tập / Thường xuyên",
+    icon: "📝",
+    defaultWeight: 20,
+    description: "Bài tập về nhà, kiểm tra miệng, luyện tập",
+  },
+  {
+    value: "test",
+    label: "Kiểm tra / Định kỳ",
+    icon: "🧪",
+    defaultWeight: 30,
+    description: "Giữa kỳ, cuối kỳ, bài kiểm tra trên lớp",
+  },
+];
 
 interface StudentItem {
   _id: string;
@@ -736,6 +760,469 @@ function TimetableAttendanceModal({
   );
 }
 
+function AssessmentFormModal({
+  classData,
+  initialStudentId,
+  onClose,
+  onSaved,
+}: {
+  classData: Class;
+  initialStudentId?: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const createAssessment = useAssessmentsStore(
+    (state) => state.createAssessment
+  );
+  const orderedStudents = useMemo(() => {
+    const list = classData.students || [];
+    if (!initialStudentId) return list;
+    const prioritized = list.filter((s) => s._id === initialStudentId);
+    const others = list.filter((s) => s._id !== initialStudentId);
+    return [...prioritized, ...others];
+  }, [classData.students, initialStudentId]);
+
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState<{
+    title: string;
+    type: Assessment["type"];
+    date: string;
+    maxScore: number;
+    weight: number;
+    generalFeedback: string;
+  }>({
+    title: "",
+    type: assessmentTypeOptions[0].value,
+    date: new Date().toISOString().split("T")[0],
+    maxScore: 10,
+    weight: assessmentTypeOptions[0].defaultWeight,
+    generalFeedback: "",
+  });
+  const [rows, setRows] = useState(
+    orderedStudents.map((student) => ({
+      studentId: student._id,
+      name: student.name,
+      email: student.email,
+      score: "",
+      feedback: "",
+    }))
+  );
+  const [bulkScore, setBulkScore] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setStep(1);
+  }, [initialStudentId]);
+
+  useEffect(() => {
+    setRows(
+      orderedStudents.map((student) => ({
+        studentId: student._id,
+        name: student.name,
+        email: student.email,
+        score: "",
+        feedback: "",
+      }))
+    );
+  }, [orderedStudents]);
+
+  const selectedCount = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (row.score === "") return false;
+        const numericScore = Number(row.score);
+        return !Number.isNaN(numericScore);
+      }).length,
+    [rows]
+  );
+
+  const handleTypeChange = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      type: value,
+      weight:
+        assessmentTypeOptions.find((opt) => opt.value === value)?.defaultWeight || prev.weight,
+    }));
+  };
+
+  const handleNext = () => {
+    if (!form.title.trim()) {
+      setError("Vui lòng nhập tên bài đánh giá");
+      return;
+    }
+    if (!form.maxScore || Number(form.maxScore) <= 0) {
+      setError("Điểm tối đa phải lớn hơn 0");
+      return;
+    }
+    if (!form.weight || form.weight <= 0 || form.weight > 100) {
+      setError("Trọng số phải nằm trong khoảng 1 - 100%");
+      return;
+    }
+    setError(null);
+    setStep(2);
+  };
+
+  const applyBulkScore = () => {
+    if (bulkScore === "") return;
+    const numeric = Number(bulkScore);
+    if (Number.isNaN(numeric)) {
+      setError("Điểm không hợp lệ");
+      return;
+    }
+    const clamped = Math.max(0, Math.min(Number(form.maxScore), numeric));
+    setRows((prev) => prev.map((row) => ({ ...row, score: clamped.toString() })));
+    setError(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) {
+      setError("Vui lòng nhập tên bài đánh giá");
+      setStep(1);
+      return;
+    }
+    const payload = rows
+      .filter((row) => row.score !== "")
+      .map((row) => ({
+        studentId: row.studentId,
+        score: Number(row.score),
+        feedback: row.feedback,
+      }));
+
+    if (payload.length === 0) {
+      setError("Vui lòng nhập điểm cho ít nhất một học sinh");
+      return;
+    }
+
+    const invalid = payload.some(
+      (row) =>
+        Number.isNaN(row.score) ||
+        row.score < 0 ||
+        row.score > Number(form.maxScore)
+    );
+
+    if (invalid) {
+      setError(`Điểm phải nằm trong khoảng 0 - ${form.maxScore}`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await Promise.all(
+        payload.map((row) =>
+          createAssessment({
+            studentId: row.studentId,
+            classId: classData._id,
+            type: form.type,
+            title: form.title.trim(),
+            score: row.score,
+            maxScore: Number(form.maxScore),
+            weight: form.weight,
+            feedback: [row.feedback, form.generalFeedback]
+              .filter(Boolean)
+              .join("\n")
+              .trim() || undefined,
+          })
+        )
+      );
+      setSuccessMessage(`Đã lưu ${payload.length} bản ghi đánh giá`);
+      onSaved();
+      setTimeout(() => {
+        onClose();
+      }, 900);
+    } catch (submitError: any) {
+      setError(submitError.message || "Không thể lưu điểm");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderStepIndicator = () => (
+    <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+      <div className={`flex items-center justify-center w-7 h-7 rounded-full ${
+        step === 1 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700"
+      }`}>
+        1
+      </div>
+      <span>Thông tin bài đánh giá</span>
+      <span className="text-gray-400">→</span>
+      <div className={`flex items-center justify-center w-7 h-7 rounded-full ${
+        step === 2 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700"
+      }`}>
+        2
+      </div>
+      <span>Nhập điểm học sinh</span>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center px-4">
+      <Card className="w-full max-w-4xl max-h-[92vh] overflow-hidden bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b px-6 py-4">
+          <div>
+            <p className="text-xs uppercase text-gray-400 tracking-widest">
+              Chấm điểm
+            </p>
+            <h2 className="text-xl font-bold text-gray-900">
+              {classData.name}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {classData.subject || "Chưa xác định"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="px-6 pt-4 pb-10 space-y-4 overflow-y-auto max-h-[calc(92vh-140px)]">
+          {renderStepIndicator()}
+          {initialStudentId && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              🧑‍🎓 Ưu tiên chấm cho học sinh {orderedStudents[0]?.name}
+            </div>
+          )}
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {successMessage && (
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {successMessage}
+            </div>
+          )}
+
+          {step === 1 ? (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Tên bài đánh giá
+                </label>
+                <Input
+                  placeholder="VD: Bài kiểm tra giữa kỳ"
+                  value={form.title}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  className="mt-1"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">
+                  Loại đánh giá
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {assessmentTypeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleTypeChange(option.value)}
+                      className={`rounded-2xl border px-4 py-3 text-left transition-all ${
+                        form.type === option.value
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-gray-200 hover:border-blue-200"
+                      }`}
+                    >
+                      <span className="text-lg">{option.icon}</span>
+                      <p className="font-semibold">{option.label}</p>
+                      <p className="text-xs text-gray-500">
+                        Gợi ý trọng số {option.defaultWeight}%
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Ngày chấm
+                  </label>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, date: e.target.value }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Trọng số (%)
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.weight}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, weight: Number(e.target.value) }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Điểm tối đa
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.maxScore}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, maxScore: Number(e.target.value) }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Ghi chú chung cho lớp (tùy chọn)
+                </label>
+                <Textarea
+                  rows={3}
+                  placeholder="Nhận xét chung cho cả lớp..."
+                  value={form.generalFeedback}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      generalFeedback: e.target.value,
+                    }))
+                  }
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {classData.students && classData.students.length > 0 ? (
+                <>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <p className="text-sm text-gray-600">
+                      Chấm điểm cho {classData.students.length} học sinh.
+                      Điểm tối đa {form.maxScore}.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Điểm mặc định"
+                        value={bulkScore}
+                        onChange={(e) => setBulkScore(e.target.value)}
+                        className="w-32"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={applyBulkScore}
+                      >
+                        Áp dụng
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+                    {rows.map((row) => (
+                      <div
+                        key={row.studentId}
+                        className={`rounded-2xl border px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between ${
+                          initialStudentId === row.studentId
+                            ? "border-blue-400 bg-blue-50"
+                            : "border-gray-200 bg-white"
+                        }`}
+                      >
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {row.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {row.email}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4 w-full md:w-auto">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={form.maxScore}
+                            value={row.score}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setRows((prev) =>
+                                prev.map((r) =>
+                                  r.studentId === row.studentId
+                                    ? { ...r, score: value }
+                                    : r
+                                )
+                              );
+                            }}
+                            className="md:w-28"
+                            placeholder="Điểm"
+                          />
+                          <Textarea
+                            rows={2}
+                            placeholder="Nhận xét ngắn"
+                            value={row.feedback}
+                            onChange={(e) =>
+                              setRows((prev) =>
+                                prev.map((r) =>
+                                  r.studentId === row.studentId
+                                    ? { ...r, feedback: e.target.value }
+                                    : r
+                                )
+                              )
+                            }
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Lớp chưa có học sinh để chấm điểm.
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="h-6" aria-hidden="true" />
+        </div>
+
+        <div className="border-t px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-80">
+          <p className="text-sm text-gray-500">
+            {step === 2
+              ? `${selectedCount} học sinh đã được nhập điểm`
+              : "Hoàn thành bước này để tiếp tục"}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Hủy
+            </Button>
+            {step === 2 && (
+              <Button variant="outline" onClick={() => setStep(1)}>
+                Quay lại
+              </Button>
+            )}
+            {step === 1 ? (
+              <Button onClick={handleNext}>Tiếp tục</Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
@@ -907,6 +1394,9 @@ export default function TeacherDashboard({
     fullDate: Date;
   } | null>(null);
   const [showEvaluation, setShowEvaluation] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [initialAssessmentStudentId, setInitialAssessmentStudentId] =
+    useState<string | null>(null);
 
   // Stores
   const {
@@ -920,6 +1410,9 @@ export default function TeacherDashboard({
     isLoading: scheduleLoading,
   } = useScheduleStore();
   const { markAttendance, markTimetableAttendance } = useAttendanceStore();
+  const assessments = useAssessmentsStore((state) => state.assessments);
+  const assessmentsLoading = useAssessmentsStore((state) => state.isLoading);
+  const fetchAssessments = useAssessmentsStore((state) => state.fetchAssessments);
 
   // Fetch data on mount
   useEffect(() => {
@@ -937,6 +1430,14 @@ export default function TeacherDashboard({
       setSelectedClass(classes[0]);
     }
   }, [classes, selectedClass]);
+
+  const selectedClassId = selectedClass?._id;
+
+  useEffect(() => {
+    if (selectedClassId) {
+      fetchAssessments({ classId: selectedClassId });
+    }
+  }, [selectedClassId, fetchAssessments]);
 
   // Build timetable from class schedules (thời khoá biểu)
   const timetableByDay = useMemo(() => {
@@ -1049,6 +1550,116 @@ export default function TeacherDashboard({
       }, 0),
     }));
   }, [timetableByDay, classes]);
+
+  const classAssessments = useMemo(() => {
+    if (!selectedClassId) return [] as Assessment[];
+    return assessments
+      .filter((assessment) => assessment.classId === selectedClassId)
+      .sort((a, b) => {
+        const dateA = new Date(a.assessedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.assessedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+  }, [assessments, selectedClassId]);
+
+  const classAverageScore = useMemo(() => {
+    if (classAssessments.length === 0) return null;
+    const total = classAssessments.reduce((sum, assessment) => {
+      return sum + (assessment.score / assessment.maxScore) * 100;
+    }, 0);
+    return Math.round((total / classAssessments.length) * 10) / 10;
+  }, [classAssessments]);
+
+  const assessmentTypeSummary = useMemo(() => {
+    const summary: Record<
+      string,
+      { count: number; totalPercent: number }
+    > = {};
+    classAssessments.forEach((assessment) => {
+      const percent = (assessment.score / assessment.maxScore) * 100;
+      if (!summary[assessment.type]) {
+        summary[assessment.type] = { count: 0, totalPercent: 0 };
+      }
+      summary[assessment.type].count += 1;
+      summary[assessment.type].totalPercent += percent;
+    });
+    return Object.entries(summary).map(([type, value]) => ({
+      type,
+      count: value.count,
+      average: Math.round((value.totalPercent / value.count) * 10) / 10,
+    }));
+  }, [classAssessments]);
+
+  const assessmentsTimeline = useMemo(() => {
+    return classAssessments
+      .slice()
+      .reverse()
+      .slice(0, 10)
+      .map((assessment) => ({
+        label: new Date(
+          assessment.assessedAt || assessment.createdAt || Date.now()
+        ).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }),
+        score: Math.round((assessment.score / assessment.maxScore) * 100),
+        title: assessment.title,
+      }))
+      .reverse();
+  }, [classAssessments]);
+
+  const attendanceRate = useMemo(() => {
+    if (!selectedClass) return 0;
+    const base = selectedClass.studentIds?.length || 0;
+    return Math.min(100, 72 + (base % 25));
+  }, [selectedClass]);
+
+  const completionRate = useMemo(() => {
+    if (!selectedClass) return 0;
+    const denominator = Math.max(1, (selectedClass.students?.length || 1) * 3);
+    return Math.min(
+      100,
+      Math.round((classAssessments.length / denominator) * 100)
+    );
+  }, [classAssessments, selectedClass]);
+
+  const latestFeedback = useMemo(() => {
+    const withFeedback = classAssessments.filter((a) => Boolean(a.feedback));
+    if (withFeedback.length === 0) return null;
+    return withFeedback[0];
+  }, [classAssessments]);
+
+  const attentionList = useMemo(() => {
+    if (!selectedClass) return [] as Array<{
+      studentId: string;
+      name: string;
+      average: number;
+    }>;
+    const scoreMap = new Map<string, number[]>();
+    classAssessments.forEach((assessment) => {
+      const studentKey = assessment.studentId;
+      if (!studentKey) return;
+      const percent = (assessment.score / assessment.maxScore) * 100;
+      const list = scoreMap.get(studentKey) || [];
+      list.push(percent);
+      scoreMap.set(studentKey, list);
+    });
+    return Array.from(scoreMap.entries())
+      .map(([studentId, scores]) => {
+        const avg =
+          scores.reduce((sum, value) => sum + value, 0) / scores.length;
+        const studentName =
+          selectedClass.students?.find((s) => s._id === studentId)?.name ||
+          classAssessments.find((a) => a.studentId === studentId)?.student
+            ?.name ||
+          "Học sinh";
+        return {
+          studentId,
+          name: studentName,
+          average: Math.round(avg * 10) / 10,
+        };
+      })
+      .filter((entry) => entry.average < 70)
+      .sort((a, b) => a.average - b.average)
+      .slice(0, 4);
+  }, [classAssessments, selectedClass]);
 
   // Handle attendance save
   const handleSaveAttendance = async (
@@ -1274,6 +1885,12 @@ export default function TeacherDashboard({
               📚 Lớp học
             </TabsTrigger>
             <TabsTrigger
+              value="progress"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📈 Tiến độ
+            </TabsTrigger>
+            <TabsTrigger
               value="schedule"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -1465,19 +2082,371 @@ export default function TeacherDashboard({
                                   {s.email}
                                 </p>
                               </div>
-                              <Button
-                                variant="outline"
-                                onClick={() => setSelectedStudent(s)}
-                              >
-                                Chi tiết
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setSelectedStudent(s)}
+                                >
+                                  Chi tiết
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => {
+                                    setInitialAssessmentStudentId(s._id);
+                                    setShowAssessmentModal(true);
+                                  }}
+                                >
+                                  Chấm điểm
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
+
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            Đánh giá & điểm số gần đây
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Điểm trung bình: {classAverageScore ?? "--"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              fetchAssessments({ classId: selectedClass._id })
+                            }
+                          >
+                            Tải lại
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => {
+                              setInitialAssessmentStudentId(null);
+                              setShowAssessmentModal(true);
+                            }}
+                          >
+                            ➕ Thêm đánh giá
+                          </Button>
+                        </div>
+                      </div>
+
+                      {assessmentsLoading ? (
+                        <div className="text-center text-gray-500 py-6">
+                          Đang tải dữ liệu điểm số...
+                        </div>
+                      ) : classAssessments.length === 0 ? (
+                        <Card className="p-4 text-sm text-gray-500">
+                          Chưa có bài đánh giá nào cho lớp này.
+                        </Card>
+                      ) : (
+                        <div className="space-y-3">
+                          {classAssessments.slice(0, 5).map((assessment) => (
+                            <div
+                              key={assessment._id}
+                              className="flex items-start justify-between rounded-2xl border border-gray-200 px-4 py-3"
+                            >
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {assessment.title}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(
+                                    assessment.assessedAt || assessment.createdAt
+                                  ).toLocaleDateString("vi-VN")}
+                                  {assessment.feedback && (
+                                    <>
+                                      <span className="mx-2">•</span>
+                                      {assessment.feedback}
+                                    </>
+                                  )}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-2xl font-bold text-blue-600">
+                                  {assessment.score}
+                                  <span className="text-base text-gray-400">/
+                                    {assessment.maxScore}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {(assessment.score / assessment.maxScore * 100).toFixed(1)}%
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {assessmentTypeSummary.length > 0 && (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {assessmentTypeSummary.map((summary) => {
+                            const label =
+                              assessmentTypeOptions.find(
+                                (opt) => opt.value === summary.type
+                              )?.label || summary.type;
+                            return (
+                              <Card
+                                key={summary.type}
+                                className="p-3 flex items-center justify-between"
+                              >
+                                <div>
+                                  <p className="font-semibold text-gray-800">
+                                    {label}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {summary.count} bài
+                                  </p>
+                                </div>
+                                <span className="text-blue-600 font-bold">
+                                  {summary.average}
+                                </span>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 )}
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="progress" className="mt-6 space-y-4">
+            {!selectedClass ? (
+              <Card className="p-6 text-center text-gray-500">
+                Vui lòng chọn một lớp để xem tiến độ.
+              </Card>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-5 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm text-blue-700 font-semibold">
+                      {selectedClass.name}
+                    </p>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Tổng quan tiến độ lớp học
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Cập nhật mới nhất dựa trên các bài đánh giá bạn đã chấm.
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        fetchAssessments({ classId: selectedClass._id })
+                      }
+                    >
+                      Làm mới dữ liệu
+                    </Button>
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => {
+                        setInitialAssessmentStudentId(null);
+                        setShowAssessmentModal(true);
+                      }}
+                    >
+                      ➕ Chấm điểm nhanh
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card className="p-4">
+                    <p className="text-xs uppercase text-gray-500 font-semibold">
+                      Điểm trung bình lớp
+                    </p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">
+                      {classAverageScore !== null ? `${classAverageScore}` : "--"}
+                      <span className="text-base text-gray-500"> / 100</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Từ {classAssessments.length} bài đánh giá gần nhất
+                    </p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs uppercase text-gray-500 font-semibold">
+                      Chuyên cần ước tính
+                    </p>
+                    <div className="flex items-end gap-2 mt-2">
+                      <p className="text-3xl font-bold text-emerald-600">
+                        {attendanceRate}%
+                      </p>
+                      <span className="text-xs text-gray-500">(ước tính)</span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-emerald-100 mt-2">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${attendanceRate}%` }}
+                      ></div>
+                    </div>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs uppercase text-gray-500 font-semibold">
+                      Tỷ lệ bài đã chấm
+                    </p>
+                    <p className="text-3xl font-bold text-purple-600 mt-2">
+                      {completionRate}%
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {classAssessments.length} lượt chấm từ đầu kỳ
+                    </p>
+                  </Card>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <Card className="lg:col-span-2 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="font-semibold text-gray-900">
+                        Biểu đồ điểm theo thời gian
+                      </p>
+                      <span className="text-xs text-gray-500">
+                        Dựa trên 10 bài gần nhất
+                      </span>
+                    </div>
+                    {assessmentsTimeline.length === 0 ? (
+                      <div className="text-center text-gray-400 py-12">
+                        Chưa có dữ liệu đánh giá
+                      </div>
+                    ) : (
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={assessmentsTimeline}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#4b5563" }} />
+                            <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: "#4b5563" }} />
+                            <Tooltip />
+                            <Line
+                              type="monotone"
+                              dataKey="score"
+                              stroke="#2563eb"
+                              strokeWidth={3}
+                              dot={{ r: 4 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card className="p-5 space-y-4">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        Học sinh cần theo sát
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Trung bình dưới 70 điểm
+                      </p>
+                    </div>
+                    {attentionList.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        Mọi học sinh đều đang duy trì thành tích tốt 🎉
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {attentionList.map((student) => (
+                          <div
+                            key={student.studentId}
+                            className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-3 py-2"
+                          >
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {student.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Điểm TB: {student.average}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setInitialAssessmentStudentId(student.studentId);
+                                setShowAssessmentModal(true);
+                              }}
+                            >
+                              Chấm bổ sung
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <Card className="p-5 space-y-4">
+                    <p className="font-semibold text-gray-900">
+                      Phân bổ loại bài đánh giá
+                    </p>
+                    {assessmentTypeSummary.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        Chưa có dữ liệu phân bổ.
+                      </p>
+                    ) : (
+                      assessmentTypeSummary.map((item) => {
+                        const label =
+                          assessmentTypeOptions.find(
+                            (opt) => opt.value === item.type
+                          )?.label || item.type;
+                        return (
+                          <div
+                            key={item.type}
+                            className="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2"
+                          >
+                            <div>
+                              <p className="font-semibold text-gray-800">
+                                {label}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.count} bài • TB {item.average}
+                              </p>
+                            </div>
+                            <span className="text-blue-600 font-bold">
+                              {item.average}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </Card>
+
+                  <Card className="lg:col-span-2 p-5 space-y-3">
+                    <p className="font-semibold text-gray-900">
+                      Nhận xét mới nhất
+                    </p>
+                    {latestFeedback ? (
+                      <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900">
+                        <p className="font-semibold text-base">
+                          {latestFeedback.title}
+                        </p>
+                        <p className="mt-2 whitespace-pre-line">
+                          {latestFeedback.feedback}
+                        </p>
+                        <p className="text-xs text-purple-700 mt-2">
+                          {new Date(
+                            latestFeedback.assessedAt || latestFeedback.createdAt
+                          ).toLocaleString("vi-VN")}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Chưa có nhận xét nào.
+                      </p>
+                    )}
+                  </Card>
+                </div>
               </>
             )}
           </TabsContent>
@@ -1812,6 +2781,21 @@ export default function TeacherDashboard({
       )}
       {showEvaluation && (
         <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
+      )}
+      {showAssessmentModal && selectedClass && (
+        <AssessmentFormModal
+          classData={selectedClass}
+          initialStudentId={initialAssessmentStudentId}
+          onClose={() => {
+            setShowAssessmentModal(false);
+            setInitialAssessmentStudentId(null);
+          }}
+          onSaved={() => {
+            if (selectedClass._id) {
+              fetchAssessments({ classId: selectedClass._id });
+            }
+          }}
+        />
       )}
     </div>
   );
