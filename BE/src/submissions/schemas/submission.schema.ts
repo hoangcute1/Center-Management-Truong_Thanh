@@ -24,6 +24,15 @@ export class Submission {
 
   @Prop({ type: String, enum: SubmissionStatus, required: true })
   status: SubmissionStatus;
+
+  @Prop({ default: false })
+  graded: boolean;
+
+  @Prop()
+  grade?: number;
+
+  @Prop()
+  maxScore?: number;
 }
 
 export const SubmissionSchema = SchemaFactory.createForClass(Submission);

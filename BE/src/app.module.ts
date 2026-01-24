@@ -25,6 +25,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { FinanceModule } from './finance/finance.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { SubmissionsModule } from './submissions/submissions.module';
+import { GradesModule } from './grades/grades.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SubmissionsModule } from './submissions/submissions.module';
     AssessmentsModule,
     AssignmentsModule,
     SubmissionsModule,
+    GradesModule,
     GoalsModule,
     TuitionModule,
     NotificationsModule,
