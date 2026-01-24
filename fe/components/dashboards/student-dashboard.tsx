@@ -70,7 +70,7 @@ const isSameWeek = (date1: Date, date2: Date): boolean => {
 const getWeeksInYear = (
   year: number,
   accountCreatedAt: Date,
-  currentDate: Date
+  currentDate: Date,
 ): { value: string; label: string; startDate: Date }[] => {
   const weeks: { value: string; label: string; startDate: Date }[] = [];
 
@@ -130,7 +130,7 @@ const getWeeksInYear = (
 // Get available years from account creation to current
 const getAvailableYears = (
   accountCreatedAt: Date,
-  currentDate: Date
+  currentDate: Date,
 ): number[] => {
   const years: number[] = [];
   const startYear = accountCreatedAt.getFullYear();
@@ -152,7 +152,7 @@ interface StudentDashboardProps {
     name: string;
     email: string;
     phone?: string;
-    role: string
+    role: string;
   };
   onLogout: () => void;
 }
@@ -392,78 +392,7 @@ const leaderboardData: Record<
   ],
 };
 
-const scheduleWeek: DaySchedule[] = [
-  {
-    day: "MON",
-    date: "05/01",
-    code: "MATH101",
-    subject: "Toán",
-    teacher: "Cô Trần Thị B",
-    room: "Phòng 604",
-    time: "17:00-18:30",
-    status: "confirmed",
-  },
-  {
-    day: "TUE",
-    date: "06/01",
-    code: "ENG102",
-    subject: "Anh văn",
-    teacher: "Thầy Lê Văn E",
-    room: "Phòng 417",
-    time: "18:00-19:30",
-    status: "confirmed",
-  },
-  {
-    day: "WED",
-    date: "07/01",
-    code: "",
-    subject: "",
-    teacher: "",
-    room: "",
-    time: "",
-    status: "unconfirmed",
-  },
-  {
-    day: "THU",
-    date: "08/01",
-    code: "PHY103",
-    subject: "Vật lý",
-    teacher: "Thầy Nguyễn Văn F",
-    room: "Phòng 608",
-    time: "17:00-18:30",
-    status: "pending",
-  },
-  {
-    day: "FRI",
-    date: "09/01",
-    code: "MATH101",
-    subject: "Toán",
-    teacher: "Cô Trần Thị B",
-    room: "Phòng 604",
-    time: "17:00-18:30",
-    status: "confirmed",
-  },
-  {
-    day: "SAT",
-    date: "10/01",
-    code: "",
-    subject: "",
-    teacher: "",
-    room: "",
-    time: "",
-    status: "unconfirmed",
-  },
-  {
-    day: "SUN",
-    date: "11/01",
-    code: "",
-    subject: "",
-    teacher: "",
-    room: "",
-    time: "",
-    status: "unconfirmed",
-  },
-];
+// Không còn mock data scheduleWeek - sử dụng dữ liệu thật từ API
 
 const progressData = [
   { week: "Tuần 1", score: 65 },
@@ -699,7 +628,7 @@ function SettingsModal({
   user: {
     name: string;
     email: string;
-    phone: string
+    phone: string;
   };
   onClose: () => void;
 }) {
@@ -827,7 +756,22 @@ function SettingsModal({
           <div className="flex gap-3 pt-2">
             <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200">
               <span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                >
+                  <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                  <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                  <circle cx="10" cy="8" r="5" />
+                </svg>
               </span>
               Chỉnh Sửa
             </Button>
@@ -875,7 +819,10 @@ export default function StudentDashboard({
   //Xử lý click ra ngoài để đóng menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     }
@@ -885,10 +832,10 @@ export default function StudentDashboard({
 
   // Week navigation state
   const [selectedYear, setSelectedYear] = useState<number>(() =>
-    new Date().getFullYear()
+    new Date().getFullYear(),
   );
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() =>
-    getStartOfWeek(new Date())
+    getStartOfWeek(new Date()),
   );
 
   // Fetch real data from API
@@ -908,10 +855,18 @@ export default function StudentDashboard({
     }
   }, [user, authUser, fetchMyRequests]);
 
-  const pendingPayments = myRequests.filter(r => r.status === 'pending' || r.status === 'overdue');
-  const paidPayments = myRequests.filter(r => r.status === 'paid');
-  const totalPendingAmount = pendingPayments.reduce((sum, r) => sum + r.finalAmount, 0);
-  const totalPaidAmount = paidPayments.reduce((sum, r) => sum + r.finalAmount, 0);
+  const pendingPayments = myRequests.filter(
+    (r) => r.status === "pending" || r.status === "overdue",
+  );
+  const paidPayments = myRequests.filter((r) => r.status === "paid");
+  const totalPendingAmount = pendingPayments.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
+  const totalPaidAmount = paidPayments.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
 
   // Calculate the earliest date (account creation date)
   const accountCreatedAt = useMemo(() => {
@@ -932,12 +887,12 @@ export default function StudentDashboard({
   // Get available years and weeks
   const availableYears = useMemo(
     () => getAvailableYears(accountCreatedAt, currentDate),
-    [accountCreatedAt, currentDate]
+    [accountCreatedAt, currentDate],
   );
 
   const weeksInSelectedYear = useMemo(
     () => getWeeksInYear(selectedYear, accountCreatedAt, currentDate),
-    [selectedYear, accountCreatedAt, currentDate]
+    [selectedYear, accountCreatedAt, currentDate],
   );
 
   // Check if current week is selected
@@ -1063,7 +1018,7 @@ export default function StudentDashboard({
         const dayOfWeek = dayDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
         for (const cls of dashboardData.classes) {
           const matchingSchedule = cls.schedule?.find(
-            (s) => s.dayOfWeek === dayOfWeek
+            (s) => s.dayOfWeek === dayOfWeek,
           );
           if (matchingSchedule) {
             classForDay = { class: cls, schedule: matchingSchedule };
@@ -1082,7 +1037,7 @@ export default function StudentDashboard({
       if (!attendanceStatus && classForDay) {
         attendanceStatus = getAttendanceByDateAndClass(
           dayDate,
-          classForDay.class._id
+          classForDay.class._id,
         );
       } else if (!attendanceStatus) {
         attendanceStatus = getAttendanceByDateAndClass(dayDate);
@@ -1119,26 +1074,17 @@ export default function StudentDashboard({
           attendanceStatus,
         });
       } else {
-        // Find matching static schedule data for demo
-        const staticSlot = scheduleWeek.find((s) => s.day === dayName);
-        if (staticSlot && staticSlot.code) {
-          schedule.push({
-            ...staticSlot,
-            date: dateStr,
-            status: isPast ? "confirmed" : staticSlot.status,
-          });
-        } else {
-          schedule.push({
-            day: dayName,
-            date: dateStr,
-            code: "",
-            subject: "",
-            teacher: "",
-            room: "",
-            time: "",
-            status: "unconfirmed",
-          });
-        }
+        // Không có lịch học ngày này
+        schedule.push({
+          day: dayName,
+          date: dateStr,
+          code: "",
+          subject: "",
+          teacher: "",
+          room: "",
+          time: "",
+          status: "unconfirmed",
+        });
       }
     }
 
@@ -1175,46 +1121,46 @@ export default function StudentDashboard({
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
     ? [
-      {
-        label: "Khóa học",
-        value: dashboardData.classes.length,
-        note: "Đang theo học",
-        icon: "📚",
-        color: "from-blue-500 to-blue-600",
-      },
-      {
-        label: "Buổi học tới",
-        value: dashboardData.upcomingSessions.length,
-        note: "Sắp diễn ra",
-        icon: "📅",
-        color: "from-emerald-500 to-emerald-600",
-      },
-      {
-        label: "Điểm TB",
-        value:
-          dashboardData.recentGrades.length > 0
-            ? (
-              dashboardData.recentGrades.reduce(
-                (acc, g) => acc + g.percentage,
-                0
-              ) / dashboardData.recentGrades.length
-            ).toFixed(1)
-            : "N/A",
-        note:
-          dashboardData.recentGrades.length > 0
-            ? "Đạt kết quả"
-            : "Chưa có điểm",
-        icon: "⭐",
-        color: "from-amber-500 to-orange-500",
-      },
-      {
-        label: "Chuyên cần",
-        value: `${dashboardData.attendanceStats.rate || 0}%`,
-        note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
-        icon: "✅",
-        color: "from-purple-500 to-purple-600",
-      },
-    ]
+        {
+          label: "Khóa học",
+          value: dashboardData.classes.length,
+          note: "Đang theo học",
+          icon: "📚",
+          color: "from-blue-500 to-blue-600",
+        },
+        {
+          label: "Buổi học tới",
+          value: dashboardData.upcomingSessions.length,
+          note: "Sắp diễn ra",
+          icon: "📅",
+          color: "from-emerald-500 to-emerald-600",
+        },
+        {
+          label: "Điểm TB",
+          value:
+            dashboardData.recentGrades.length > 0
+              ? (
+                  dashboardData.recentGrades.reduce(
+                    (acc, g) => acc + g.percentage,
+                    0,
+                  ) / dashboardData.recentGrades.length
+                ).toFixed(1)
+              : "N/A",
+          note:
+            dashboardData.recentGrades.length > 0
+              ? "Đạt kết quả"
+              : "Chưa có điểm",
+          icon: "⭐",
+          color: "from-amber-500 to-orange-500",
+        },
+        {
+          label: "Chuyên cần",
+          value: `${dashboardData.attendanceStats.rate || 0}%`,
+          note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
+          icon: "✅",
+          color: "from-purple-500 to-purple-600",
+        },
+      ]
     : overviewCards;
 
   const tabIcons: Record<RankingCategory, string> = {
@@ -1281,8 +1227,12 @@ export default function StudentDashboard({
                 <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                   {/* Thông tin user tóm tắt */}
                   <div className="px-4 py-3 border-b border-gray-100 mb-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email}
+                    </p>
                   </div>
 
                   <button
@@ -1293,7 +1243,22 @@ export default function StudentDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-circle-user-round-icon lucide-circle-user-round"
+                      >
+                        <path d="M18 20a6 6 0 0 0-12 0" />
+                        <circle cx="12" cy="10" r="4" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
                     </span>
                     Hồ sơ
                   </button>
@@ -1303,7 +1268,22 @@ export default function StudentDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-log-out-icon lucide-log-out"
+                      >
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      </svg>
                     </span>
                     Đăng xuất
                   </button>
@@ -1312,27 +1292,36 @@ export default function StudentDashboard({
             </div>
           </div>
         </div>
-
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {pendingPayments.length > 0 && (
-          <div 
-            onClick={() => window.location.href = '/payment'}
+          <div
+            onClick={() => (window.location.href = "/payment")}
             className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
           >
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center">
                 <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
                 <div>
-                  <p className="text-sm font-bold text-red-700">Thông báo học phí</p>
+                  <p className="text-sm font-bold text-red-700">
+                    Thông báo học phí
+                  </p>
                   <p className="text-sm text-red-600">
-                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán. 
-                    Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
+                    Bạn có{" "}
+                    <span className="font-bold">{pendingPayments.length}</span>{" "}
+                    khoản cần thanh toán. Tổng tiền:{" "}
+                    <span className="font-bold text-red-800">
+                      {totalPendingAmount.toLocaleString("vi-VN")} đ
+                    </span>
                   </p>
                 </div>
               </div>
-              <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700">
+              <Button
+                size="sm"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
                 Thanh toán ngay
               </Button>
             </div>
@@ -1453,41 +1442,45 @@ export default function StudentDashboard({
 
             {/* Financial Summary Card */}
             <Card className="rounded-2xl shadow-sm border border-gray-100 p-6 bg-white mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    💰 Thông tin học phí
-                  </h2>
-                  <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
-                    Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  💰 Thông tin học phí
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => (window.location.href = "/payment")}
+                >
+                  Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm text-gray-600">Cần thanh toán</p>
+                    <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                      {pendingPayments.length} khoản
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-red-600 truncate">
+                    {totalPendingAmount.toLocaleString("vi-VN")} đ
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-red-50 border border-red-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-600">Cần thanh toán</p>
-                      <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
-                        {pendingPayments.length} khoản
-                      </span>
-                    </div>
-                    <p className="text-2xl font-bold text-red-600 truncate">
-                      {totalPendingAmount.toLocaleString('vi-VN')} đ
-                    </p>
+                <div className="p-4 rounded-xl bg-green-50 border border-green-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm text-gray-600">Đã thanh toán</p>
+                    <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                      {paidPayments.length} khoản
+                    </span>
                   </div>
-
-                  <div className="p-4 rounded-xl bg-green-50 border border-green-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-gray-600">Đã thanh toán</p>
-                      <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                        {paidPayments.length} khoản
-                      </span>
-                    </div>
-                    <p className="text-2xl font-bold text-green-600 truncate">
-                      {totalPaidAmount.toLocaleString('vi-VN')} đ
-                    </p>
-                  </div>
+                  <p className="text-2xl font-bold text-green-600 truncate">
+                    {totalPaidAmount.toLocaleString("vi-VN")} đ
+                  </p>
                 </div>
-              </Card>
+              </div>
+            </Card>
 
             {/* Streak Cards cải tiến */}
             <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -1550,22 +1543,25 @@ export default function StudentDashboard({
                 {badges.map((b) => (
                   <div
                     key={b.title}
-                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${b.earned
-                      ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
-                      : "border-gray-100 bg-gray-50"
-                      }`}
+                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
+                      b.earned
+                        ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
+                        : "border-gray-100 bg-gray-50"
+                    }`}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className={`text-3xl ${b.earned ? "" : "grayscale opacity-50"
-                          }`}
+                        className={`text-3xl ${
+                          b.earned ? "" : "grayscale opacity-50"
+                        }`}
                       >
                         {b.icon}
                       </span>
                       <div>
                         <p
-                          className={`font-bold ${b.earned ? "text-emerald-700" : "text-gray-500"
-                            }`}
+                          className={`font-bold ${
+                            b.earned ? "text-emerald-700" : "text-gray-500"
+                          }`}
                         >
                           {b.title}
                         </p>
@@ -1623,7 +1619,7 @@ export default function StudentDashboard({
                       weeksInSelectedYear.find(
                         (w) =>
                           w.startDate.toDateString() ===
-                          selectedWeekStart.toDateString()
+                          selectedWeekStart.toDateString(),
                       )?.value || ""
                     }
                     onChange={(e) => handleWeekChange(e.target.value)}
@@ -1655,7 +1651,7 @@ export default function StudentDashboard({
                   today.setHours(0, 0, 0, 0);
                   const slotDate = addDays(
                     selectedWeekStart,
-                    DAY_NAMES.indexOf(slot.day)
+                    DAY_NAMES.indexOf(slot.day),
                   );
                   const isToday = slotDate.getTime() === today.getTime();
                   const isPast = slotDate < today;
@@ -1663,20 +1659,22 @@ export default function StudentDashboard({
                   return (
                     <div
                       key={slot.day}
-                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${isToday
-                        ? "border-blue-400 ring-2 ring-blue-100"
-                        : isPast
-                          ? "border-gray-200 opacity-80"
-                          : "border-gray-100"
-                        }`}
+                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
+                        isToday
+                          ? "border-blue-400 ring-2 ring-blue-100"
+                          : isPast
+                            ? "border-gray-200 opacity-80"
+                            : "border-gray-100"
+                      }`}
                     >
                       <div
-                        className={`px-3 py-3 text-center ${isToday
-                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
-                          : isPast
-                            ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
-                            : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
-                          }`}
+                        className={`px-3 py-3 text-center ${
+                          isToday
+                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                            : isPast
+                              ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
+                              : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
+                        }`}
                       >
                         <p className="text-xs font-bold leading-tight">
                           {slot.day}
@@ -1699,22 +1697,25 @@ export default function StudentDashboard({
                       {slot.code ? (
                         <div className="flex-1 p-3 space-y-2 text-center">
                           <div
-                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${isPast
-                              ? "bg-gray-100 text-gray-600"
-                              : "bg-blue-100 text-blue-700"
-                              }`}
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                              isPast
+                                ? "bg-gray-100 text-gray-600"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
                           >
-                            {slot.code}
+                            {slot.subject || slot.code}
                           </div>
                           <div className="text-xs text-gray-500">
-                            📍 {slot.room}
+                            📍 {slot.room || "123"}
                           </div>
                           <div className="text-sm text-gray-900 font-bold">
-                            {slot.time}
+                            {slot.time || "N/A"}
                           </div>
-                          <div className="text-xs text-gray-600">
-                            👨‍🏫 {slot.teacher}
-                          </div>
+                          {slot.teacher && (
+                            <div className="text-xs text-gray-600">
+                              👨‍🏫 {slot.teacher}
+                            </div>
+                          )}
                           <div className="space-y-2 pt-2">
                             <Button
                               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs rounded-xl shadow-md"
@@ -1725,16 +1726,17 @@ export default function StudentDashboard({
                             {/* Attendance Status */}
                             {slot.attendanceStatus ? (
                               <div
-                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${slot.attendanceStatus === "present"
-                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                  : slot.attendanceStatus === "absent"
-                                    ? "bg-red-100 text-red-700 border border-red-200"
-                                    : slot.attendanceStatus === "late"
-                                      ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                      : slot.attendanceStatus === "excused"
-                                        ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                        : "bg-gray-100 text-gray-600"
-                                  }`}
+                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${
+                                  slot.attendanceStatus === "present"
+                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                    : slot.attendanceStatus === "absent"
+                                      ? "bg-red-100 text-red-700 border border-red-200"
+                                      : slot.attendanceStatus === "late"
+                                        ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                        : slot.attendanceStatus === "excused"
+                                          ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                          : "bg-gray-100 text-gray-600"
+                                }`}
                               >
                                 {slot.attendanceStatus === "present" &&
                                   "✅ Có mặt"}
@@ -1916,10 +1918,11 @@ export default function StudentDashboard({
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-gray-900">{g.subject}</p>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${g.status === "Tốt"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                            }`}
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            g.status === "Tốt"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
                         >
                           {g.status}
                         </span>
@@ -1927,12 +1930,13 @@ export default function StudentDashboard({
                       <p className="text-xs text-gray-500 mt-0.5">{g.detail}</p>
                       <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${g.score >= 80
-                            ? "bg-gradient-to-r from-emerald-400 to-green-500"
-                            : g.score >= 70
-                              ? "bg-gradient-to-r from-blue-400 to-blue-500"
-                              : "bg-gradient-to-r from-amber-400 to-orange-500"
-                            }`}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            g.score >= 80
+                              ? "bg-gradient-to-r from-emerald-400 to-green-500"
+                              : g.score >= 70
+                                ? "bg-gradient-to-r from-blue-400 to-blue-500"
+                                : "bg-gradient-to-r from-amber-400 to-orange-500"
+                          }`}
                           style={{ width: `${g.score}%` }}
                         />
                       </div>
@@ -1972,10 +1976,11 @@ export default function StudentDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${rankingView === key
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-700 hover:bg-white"
-                      }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                      rankingView === key
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-gray-700 hover:bg-white"
+                    }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -2060,20 +2065,22 @@ export default function StudentDashboard({
                           {c.avatar}
                         </div>
                         <span
-                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${c.status === "online"
-                            ? "bg-emerald-500"
-                            : "bg-gray-300"
-                            }`}
+                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
+                            c.status === "online"
+                              ? "bg-emerald-500"
+                              : "bg-gray-300"
+                          }`}
                         />
                       </div>
                       <div>
                         <p className="font-bold text-gray-900">{c.name}</p>
                         <p className="text-sm text-gray-500">{c.subject}</p>
                         <p
-                          className={`text-xs mt-0.5 ${c.status === "online"
-                            ? "text-emerald-600"
-                            : "text-gray-400"
-                            }`}
+                          className={`text-xs mt-0.5 ${
+                            c.status === "online"
+                              ? "text-emerald-600"
+                              : "text-gray-400"
+                          }`}
                         >
                           {c.status === "online"
                             ? "● Đang hoạt động"
@@ -2145,7 +2152,7 @@ export default function StudentDashboard({
                   </div>
                 </div>
                 <Button
-                  onClick={() => window.location.href = '/payment'}
+                  onClick={() => (window.location.href = "/payment")}
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                 >
                   Xem tất cả →
@@ -2156,15 +2163,21 @@ export default function StudentDashboard({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl text-white">
                   <p className="text-sm opacity-90">Chờ thanh toán</p>
-                  <p className="text-2xl font-bold">{totalPendingAmount.toLocaleString('vi-VN')} đ</p>
+                  <p className="text-2xl font-bold">
+                    {totalPendingAmount.toLocaleString("vi-VN")} đ
+                  </p>
                 </div>
                 <div className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl text-white">
                   <p className="text-sm opacity-90">Đã thanh toán</p>
-                  <p className="text-2xl font-bold">{totalPaidAmount.toLocaleString('vi-VN')} đ</p>
+                  <p className="text-2xl font-bold">
+                    {totalPaidAmount.toLocaleString("vi-VN")} đ
+                  </p>
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white">
                   <p className="text-sm opacity-90">Học bổng</p>
-                  <p className="text-2xl font-bold">{(authUser as any)?.scholarshipPercent || 0}%</p>
+                  <p className="text-2xl font-bold">
+                    {(authUser as any)?.scholarshipPercent || 0}%
+                  </p>
                 </div>
               </div>
 
@@ -2178,7 +2191,7 @@ export default function StudentDashboard({
                   Xem và thanh toán các yêu cầu đóng tiền từ trung tâm
                 </p>
                 <Button
-                  onClick={() => window.location.href = '/payment'}
+                  onClick={() => (window.location.href = "/payment")}
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   size="lg"
                 >
@@ -2191,7 +2204,7 @@ export default function StudentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => { }}
+              onClose={() => {}}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2226,7 +2239,7 @@ export default function StudentDashboard({
             name: user.name,
             email: user.email,
             phone: user.phone,
-            role: user.role
+            role: user.role,
           }}
           onClose={() => setShowSettings(false)}
         />

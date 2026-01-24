@@ -23,7 +23,7 @@ import { StudentPaymentRequestStatus } from './schemas/student-payment-request.s
 @Controller('payment-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentRequestsController {
-  constructor(private readonly service: PaymentRequestsService) { }
+  constructor(private readonly service: PaymentRequestsService) {}
 
   // ==================== ADMIN ENDPOINTS ====================
 
@@ -34,6 +34,26 @@ export class PaymentRequestsController {
     @Body() dto: CreateClassPaymentRequestDto,
   ) {
     return this.service.createClassPaymentRequest(dto, req.user._id);
+  }
+
+  @Get('class')
+  @Roles(UserRole.Admin)
+  async getClassPaymentRequests(@Query('classId') classId?: string) {
+    return this.service.getClassPaymentRequests(classId);
+  }
+
+  @Get('class/:classRequestId/students')
+  @Roles(UserRole.Admin)
+  async getClassRequestStudents(
+    @Param('classRequestId') classRequestId: string,
+  ) {
+    return this.service.getStudentsByClassRequest(classRequestId);
+  }
+
+  @Delete('class/:id')
+  @Roles(UserRole.Admin)
+  async cancelClassRequest(@Param('id') id: string) {
+    return this.service.cancelClassPaymentRequest(id);
   }
 
   @Get('my')
