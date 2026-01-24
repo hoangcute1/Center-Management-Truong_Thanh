@@ -21,6 +21,7 @@ import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
+import type { StudentDashboardData } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
@@ -171,6 +172,42 @@ type DaySchedule = {
 };
 
 type RankingCategory = "score" | "diligence" | "attendance";
+
+type StudentGrade = StudentDashboardData["recentGrades"][number];
+type SubjectSummary = {
+  classId: string | null;
+  className: string;
+  teacherName?: string | null;
+  latestGrade: StudentGrade | null;
+  grades: StudentGrade[];
+  average: number | null;
+  totalWeight: number;
+};
+
+const SUBJECT_ID_PREFIX = "id:";
+const SUBJECT_NAME_PREFIX = "name:";
+
+const getSubjectKey = (classId: string | null, className: string) =>
+  classId ? `${SUBJECT_ID_PREFIX}${classId}` : `${SUBJECT_NAME_PREFIX}${className}`;
+
+const calculateGradePercentage = (grade: StudentGrade) => {
+  if (
+    typeof grade.percentage === "number" &&
+    !Number.isNaN(grade.percentage)
+  ) {
+    return Math.round((grade.percentage + Number.EPSILON) * 10) / 10;
+  }
+  if (
+    grade.score !== null &&
+    grade.maxScore !== null &&
+    grade.maxScore > 0
+  ) {
+    return Math.round(
+      ((grade.score / grade.maxScore) * 100 + Number.EPSILON) * 10
+    ) / 10;
+  }
+  return null;
+};
 
 const overviewCards = [
   {
@@ -465,17 +502,11 @@ const scheduleWeek: DaySchedule[] = [
   },
 ];
 
-const progressData = [
+const fallbackProgressData = [
   { week: "Tuần 1", score: 65 },
   { week: "Tuần 2", score: 72 },
   { week: "Tuần 3", score: 78 },
   { week: "Tuần 4", score: 82 },
-];
-
-const grades = [
-  { subject: "Toán", score: 82, status: "Tốt", detail: "Bài tập nâng cao" },
-  { subject: "Anh văn", score: 78, status: "Tốt", detail: "Ôn ngữ pháp" },
-  { subject: "Lý", score: 75, status: "Khá", detail: "Ôn phần điện" },
 ];
 
 const contacts = [
@@ -493,24 +524,6 @@ const contacts = [
   },
 ];
 
-const gradeBreakdown = {
-  assignments: [
-    {
-      name: "Bài kiểm tra giữa kỳ",
-      score: 8.5,
-      weight: "30%",
-      date: "15/01/2025",
-    },
-    { name: "Bài tập về nhà 1", score: 9.0, weight: "10%", date: "20/01/2025" },
-    { name: "Bài tập về nhà 2", score: 8.0, weight: "10%", date: "25/01/2025" },
-    { name: "Kiểm tra 15 phút", score: 7.5, weight: "20%", date: "28/01/2025" },
-    { name: "Thi cuối kỳ", score: 8.8, weight: "30%", date: "05/02/2025" },
-  ],
-  attendance: "28/30 buổi (93.3%)",
-  behavior: "Tốt - Em rất chăm chỉ và tích cực trong lớp",
-  teacherComment:
-    "Em học tập tốt, có tinh thần tự giác cao. Cần chú ý thêm vào phần bài tập nâng cao để phát triển tư duy.",
-};
 
 const classDetail = {
   subject: "Toán",
@@ -627,62 +640,283 @@ function ClassDetailModal({ onClose }: { onClose: () => void }) {
 }
 
 function GradeDetailModal({
-  subject,
-  score,
+  grade,
   onClose,
 }: {
-  subject: string;
-  score: number;
+  grade: StudentGrade;
   onClose: () => void;
 }) {
+  const percentage =
+    typeof grade.percentage === "number"
+      ? grade.percentage
+      : grade.score !== null && grade.maxScore && grade.maxScore > 0
+        ? Math.round(((grade.score / grade.maxScore) * 100 + Number.EPSILON) * 10) /
+          10
+        : null;
+
+  const assessedDate = grade.assessedAt ? new Date(grade.assessedAt) : null;
+  const assessedLabel = assessedDate
+    ? assessedDate.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    : "Chưa cập nhật";
+  const dueLabel = grade.dueDate
+    ? new Date(grade.dueDate).toLocaleDateString("vi-VN")
+    : null;
+  const submittedLabel = grade.submittedAt
+    ? new Date(grade.submittedAt).toLocaleDateString("vi-VN")
+    : null;
+
+  const scoreLabel =
+    grade.score !== null && grade.maxScore !== null
+      ? `${grade.score}/${grade.maxScore}`
+      : grade.score !== null
+        ? `${grade.score}`
+        : "Chưa có điểm";
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3">
-      <Card className="w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900">
-            Chi tiết điểm số - {subject}
-          </h2>
+      <Card className="w-full max-w-3xl p-6 max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <p className="text-xs uppercase text-gray-400 font-semibold tracking-widest">
+              Chi tiết điểm số
+            </p>
+            <h2 className="text-2xl font-bold text-gray-900 mt-1">
+              {grade.title}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {grade.className} •
+              {" "}
+              {grade.type === "test"
+                ? "Bài kiểm tra"
+                : grade.type === "assignment"
+                  ? "Bài tập"
+                  : "Đánh giá"}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-lg"
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
           >
             ×
           </button>
         </div>
 
-        <p className="text-sm text-gray-700 mb-4">Điểm trung bình: {score}</p>
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 mb-5">
+          <p className="text-sm text-gray-500">Điểm</p>
+          <div className="flex items-end gap-2 mt-1">
+            <p className="text-4xl font-bold text-blue-600">
+              {percentage ?? "—"}
+            </p>
+            <span className="text-sm text-gray-400">
+              {scoreLabel}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Cập nhật {assessedLabel}
+          </p>
+        </div>
 
-        <div className="space-y-3 mb-4">
-          {gradeBreakdown.assignments.map((assignment) => (
-            <div
-              key={assignment.name}
-              className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
-            >
-              <div>
-                <p className="font-medium text-gray-900">{assignment.name}</p>
-                <p className="text-xs text-gray-600">
-                  Ngày: {assignment.date} • Trọng số: {assignment.weight}
-                </p>
-              </div>
-              <p className="text-lg font-semibold text-blue-700">
-                {assignment.score}
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-sm font-semibold text-gray-800 mb-3">
+              Thông tin đánh giá
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+              <p>
+                📘 Lớp:&nbsp;
+                <span className="font-medium text-gray-900">
+                  {grade.className}
+                </span>
+              </p>
+              <p>
+                🧪 Loại:&nbsp;
+                <span className="font-medium text-gray-900">
+                  {grade.type === "test"
+                    ? "Bài kiểm tra"
+                    : grade.type === "assignment"
+                      ? "Bài tập"
+                      : "Khác"}
+                </span>
+              </p>
+              <p>
+                ⚖️ Trọng số:&nbsp;
+                <span className="font-medium text-gray-900">
+                  {typeof grade.weight === "number" ? `${grade.weight}%` : "Chưa cập nhật"}
+                </span>
+              </p>
+              <p>
+                📅 Hạn:&nbsp;
+                <span className="font-medium text-gray-900">
+                  {dueLabel || "Chưa cập nhật"}
+                </span>
+              </p>
+              <p>
+                ✅ Đã nộp:&nbsp;
+                <span className="font-medium text-gray-900">
+                  {submittedLabel || assessedLabel}
+                </span>
               </p>
             </div>
-          ))}
-        </div>
-
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-gray-800">
-          Tình hình điểm danh: {gradeBreakdown.attendance}
-        </div>
-        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-gray-800">
-          Đánh giá thái độ: {gradeBreakdown.behavior}
-        </div>
-        <div className="mb-6 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-gray-800">
-          Nhận xét giáo viên: {gradeBreakdown.teacherComment}
+          </div>
+          <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
+            <p className="text-sm font-semibold text-purple-800">
+              Nhận xét giáo viên
+            </p>
+            <p className="text-gray-700 text-sm mt-1">
+              {grade.feedback || "Giáo viên chưa để lại nhận xét."}
+            </p>
+          </div>
         </div>
 
         <Button
-          className="w-full bg-blue-600 hover:bg-blue-700"
+          className="w-full bg-blue-600 hover:bg-blue-700 mt-6"
+          onClick={onClose}
+        >
+          Đóng
+        </Button>
+      </Card>
+    </div>
+  );
+}
+
+function SubjectGradesModal({
+  summary,
+  onClose,
+  onSelectGrade,
+}: {
+  summary: SubjectSummary;
+  onClose: () => void;
+  onSelectGrade: (grade: StudentGrade) => void;
+}) {
+  const { className, teacherName, grades, average, totalWeight } = summary;
+  const sortedGrades = grades;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3">
+      <Card className="w-full max-w-4xl p-6 max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <p className="text-xs uppercase text-gray-400 font-semibold tracking-widest">
+              Chi tiết điểm môn học
+            </p>
+            <h2 className="text-2xl font-bold text-gray-900 mt-1">
+              {className}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {teacherName ? `Giáo viên phụ trách: ${teacherName}` : "Chưa có thông tin giáo viên"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <Card className="p-4 bg-blue-50 border-blue-100">
+            <p className="text-xs text-blue-600 font-semibold uppercase">
+              Điểm trung bình
+            </p>
+            <p className="text-3xl font-bold text-blue-700 mt-2">
+              {average ?? "—"}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Tính theo trọng số</p>
+          </Card>
+          <Card className="p-4 bg-emerald-50 border-emerald-100">
+            <p className="text-xs text-emerald-600 font-semibold uppercase">
+              Trọng số đã dùng
+            </p>
+            <p className="text-3xl font-bold text-emerald-700 mt-2">
+              {totalWeight > 0 ? `${totalWeight}%` : "—"}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Tổng các lần chấm</p>
+          </Card>
+          <Card className="p-4 bg-purple-50 border-purple-100">
+            <p className="text-xs text-purple-600 font-semibold uppercase">
+              Số lần chấm
+            </p>
+            <p className="text-3xl font-bold text-purple-700 mt-2">
+              {grades.length}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Bao gồm cả bài tập & kiểm tra</p>
+          </Card>
+        </div>
+
+        {sortedGrades.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 p-6 text-center text-gray-500">
+            Chưa có bài đánh giá nào cho môn học này. Khi giáo viên chấm điểm, lịch sử sẽ xuất hiện tại đây.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sortedGrades.map((grade) => {
+              const percentage = calculateGradePercentage(grade);
+              const assessedDate = grade.assessedAt
+                ? new Date(grade.assessedAt).toLocaleString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "Chưa cập nhật";
+              const weightLabel =
+                typeof grade.weight === "number" ? `${grade.weight}%` : "Chưa cập nhật";
+              const scoreLabel =
+                grade.score !== null && grade.maxScore !== null
+                  ? `${grade.score}/${grade.maxScore}`
+                  : "Chưa có điểm";
+
+              return (
+                <div
+                  key={grade._id}
+                  className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-900">{grade.title}</p>
+                    <p className="text-xs text-gray-500">{assessedDate}</p>
+                    <p className="text-xs text-gray-400">
+                      {grade.type === "test"
+                        ? "Bài kiểm tra"
+                        : grade.type === "assignment"
+                          ? "Bài tập"
+                          : "Đánh giá"}
+                      {" "}• Trọng số {weightLabel}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {grade.feedback || "Giáo viên chưa để lại nhận xét."}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">
+                        {percentage ?? "—"}
+                      </p>
+                      <p className="text-xs text-gray-400">{scoreLabel}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
+                      onClick={() => onSelectGrade(grade)}
+                    >
+                      Xem chi tiết
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <Button
+          className="w-full bg-blue-600 hover:bg-blue-700 mt-6"
           onClick={onClose}
         >
           Đóng
@@ -847,10 +1081,8 @@ export default function StudentDashboard({
     role: string;
   } | null>(null);
   const [showClassDetail, setShowClassDetail] = useState(false);
-  const [selectedGrade, setSelectedGrade] = useState<{
-    subject: string;
-    score: number;
-  } | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<StudentGrade | null>(null);
+  const [selectedSubjectKey, setSelectedSubjectKey] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
   const handleLogout = () => {
@@ -967,6 +1199,234 @@ export default function StudentDashboard({
   const goToCurrentWeek = () => {
     setSelectedYear(currentDate.getFullYear());
     setSelectedWeekStart(currentWeekStart);
+  };
+
+  const classes = dashboardData?.classes ?? [];
+  const recentGrades = dashboardData?.recentGrades ?? [];
+  const gradesWithPercentage = useMemo(
+    () =>
+      recentGrades.filter(
+        (grade) =>
+          typeof grade.percentage === "number" &&
+          !Number.isNaN(grade.percentage)
+      ),
+    [recentGrades]
+  );
+
+  const subjectSummaries = useMemo<SubjectSummary[]>(() => {
+    const gradeGroups = new Map<string, StudentGrade[]>();
+    recentGrades.forEach((grade) => {
+      const key = getSubjectKey(grade.classId ?? null, grade.className || "N/A");
+      const list = gradeGroups.get(key) || [];
+      list.push(grade);
+      gradeGroups.set(key, list);
+    });
+
+    const buildSummary = (
+      classId: string | null,
+      className: string,
+      teacherName?: string | null,
+      grades: StudentGrade[] = []
+    ): SubjectSummary => {
+      const sortedGrades = grades
+        .slice()
+        .sort((a, b) => {
+          const aTime = a.assessedAt ? new Date(a.assessedAt).getTime() : 0;
+          const bTime = b.assessedAt ? new Date(b.assessedAt).getTime() : 0;
+          return bTime - aTime;
+        });
+
+      const latestGrade = sortedGrades[0] ?? null;
+      let weightedSum = 0;
+      let weightedTotal = 0;
+      const fallback: number[] = [];
+
+      sortedGrades.forEach((grade) => {
+        const percent = calculateGradePercentage(grade);
+        if (percent === null) return;
+        if (typeof grade.weight === "number" && grade.weight > 0) {
+          weightedSum += percent * grade.weight;
+          weightedTotal += grade.weight;
+        } else {
+          fallback.push(percent);
+        }
+      });
+
+      const weightedAverage =
+        weightedTotal > 0
+          ? Math.round(((weightedSum / weightedTotal) + Number.EPSILON) * 10) / 10
+          : null;
+      const simpleAverage =
+        weightedTotal === 0 && fallback.length
+          ? Math.round(
+              ((fallback.reduce((sum, value) => sum + value, 0) /
+                fallback.length) +
+                Number.EPSILON) *
+                10
+            ) / 10
+          : null;
+
+      return {
+        classId,
+        className,
+        teacherName,
+        latestGrade,
+        grades: sortedGrades,
+        average: weightedAverage ?? simpleAverage,
+        totalWeight: Math.round(weightedTotal * 10) / 10,
+      };
+    };
+
+    const summaries: SubjectSummary[] = [];
+
+    classes.forEach((cls) => {
+      const idKey = getSubjectKey(cls._id, cls.name);
+      const nameKey = getSubjectKey(null, cls.name);
+      const grades =
+        gradeGroups.get(idKey) || gradeGroups.get(nameKey) || [];
+      gradeGroups.delete(idKey);
+      gradeGroups.delete(nameKey);
+      const normalizedTeacherName =
+        cls.teacherName && cls.teacherName !== "N/A"
+          ? cls.teacherName
+          : undefined;
+      summaries.push(
+        buildSummary(cls._id, cls.name, normalizedTeacherName, grades)
+      );
+    });
+
+    gradeGroups.forEach((grades, key) => {
+      const isIdKey = key.startsWith(SUBJECT_ID_PREFIX);
+      const classId = isIdKey ? key.slice(SUBJECT_ID_PREFIX.length) : null;
+      const className =
+        grades[0]?.className ||
+        (isIdKey ? "Lớp chưa xác định" : key.slice(SUBJECT_NAME_PREFIX.length));
+      const fallbackTeacher = grades[0]?.teacherName || null;
+      summaries.push(buildSummary(classId, className, fallbackTeacher, grades));
+    });
+
+    return summaries.sort((a, b) => {
+      const aAvg = a.average ?? -1;
+      const bAvg = b.average ?? -1;
+      return bAvg - aAvg;
+    });
+  }, [classes, recentGrades]);
+
+  const gradeAverage = useMemo(() => {
+    if (!subjectSummaries.length) return "N/A";
+
+    let weightedSum = 0;
+    let weightedTotal = 0;
+    const fallback: number[] = [];
+
+    subjectSummaries.forEach((summary) => {
+      if (summary.average === null) return;
+      if (summary.totalWeight > 0) {
+        weightedSum += summary.average * summary.totalWeight;
+        weightedTotal += summary.totalWeight;
+      } else {
+        fallback.push(summary.average);
+      }
+    });
+
+    if (weightedTotal > 0) {
+      const avg =
+        Math.round(((weightedSum / weightedTotal) + Number.EPSILON) * 10) / 10;
+      return avg.toFixed(1);
+    }
+
+    if (fallback.length) {
+      const avg =
+        Math.round(
+          ((fallback.reduce((sum, value) => sum + value, 0) /
+            fallback.length) +
+            Number.EPSILON) *
+            10
+        ) / 10;
+      return avg.toFixed(1);
+    }
+
+    return "N/A";
+  }, [subjectSummaries]);
+
+  const selectedSubject = useMemo(() => {
+    if (!selectedSubjectKey) return null;
+    return (
+      subjectSummaries.find(
+        (summary) =>
+          getSubjectKey(summary.classId, summary.className) === selectedSubjectKey
+      ) || null
+    );
+  }, [selectedSubjectKey, subjectSummaries]);
+
+  const gradeTrendData = useMemo(() => {
+    if (!gradesWithPercentage.length) {
+      return fallbackProgressData;
+    }
+
+    const sorted = [...gradesWithPercentage]
+      .sort((a, b) => {
+        const aTime = a.assessedAt ? new Date(a.assessedAt).getTime() : 0;
+        const bTime = b.assessedAt ? new Date(b.assessedAt).getTime() : 0;
+        return aTime - bTime;
+      })
+      .slice(-6);
+
+    return sorted.map((grade, index) => ({
+      week: grade.assessedAt
+        ? new Date(grade.assessedAt).toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        })
+        : `Bài ${index + 1}`,
+      score: grade.percentage || 0,
+    }));
+  }, [gradesWithPercentage]);
+
+  const currentProgressScore =
+    gradeTrendData[gradeTrendData.length - 1]?.score ?? 0;
+  const previousProgressScore =
+    gradeTrendData[gradeTrendData.length - 2]?.score ?? currentProgressScore;
+  const progressDelta = currentProgressScore - previousProgressScore;
+
+  const attendanceCompleted = dashboardData?.attendanceStats.present ?? 0;
+  const attendanceTotal = dashboardData?.attendanceStats.total ?? 0;
+  const attendancePercent =
+    dashboardData?.attendanceStats.rate ??
+    (attendanceTotal
+      ? Math.round((attendanceCompleted / attendanceTotal) * 1000) / 10
+      : 0);
+
+  const diligenceCompleted = recentGrades.length;
+  const diligenceTarget = Math.max(diligenceCompleted, 10);
+  const diligencePercent = Math.round(
+    Math.min(
+      (diligenceCompleted / (diligenceTarget || 1)) * 100,
+      100
+    )
+  );
+
+  const latestGrade = recentGrades[0];
+  const latestTeacherSummary = latestGrade
+    ? `${latestGrade.className} • ${latestGrade.title}`
+    : "Chưa có bài đánh giá nào";
+  const latestTeacherFeedback =
+    latestGrade?.feedback || "Giáo viên chưa để lại nhận xét.";
+  const latestGradeScoreText = latestGrade
+    ? typeof latestGrade.percentage === "number"
+      ? `${latestGrade.percentage}% (${latestGrade.score ?? "?"}/${latestGrade.maxScore ?? "?"})`
+      : latestGrade.score !== null && latestGrade.maxScore !== null
+        ? `${latestGrade.score}/${latestGrade.maxScore}`
+        : "Chưa có điểm"
+    : "Chưa có điểm";
+  const latestGradeWeightText = latestGrade
+    ? typeof latestGrade.weight === "number"
+      ? `Trọng số: ${latestGrade.weight}%`
+      : "Trọng số: Chưa cập nhật"
+    : "Trọng số: Chưa cập nhật";
+
+  const openSubjectDetail = (summary: SubjectSummary) => {
+    setSelectedSubjectKey(getSubjectKey(summary.classId, summary.className));
   };
 
   // Helper function to get attendance status for a session or by date
@@ -1191,17 +1651,9 @@ export default function StudentDashboard({
       },
       {
         label: "Điểm TB",
-        value:
-          dashboardData.recentGrades.length > 0
-            ? (
-              dashboardData.recentGrades.reduce(
-                (acc, g) => acc + g.percentage,
-                0
-              ) / dashboardData.recentGrades.length
-            ).toFixed(1)
-            : "N/A",
+        value: gradeAverage,
         note:
-          dashboardData.recentGrades.length > 0
+          gradesWithPercentage.length > 0
             ? "Đạt kết quả"
             : "Chưa có điểm",
         icon: "⭐",
@@ -1775,112 +2227,173 @@ export default function StudentDashboard({
 
           <TabsContent value="progress" className="mt-6">
             <div className="grid gap-6 lg:grid-cols-3">
-              <Card className="lg:col-span-2 p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-2xl">📈</span>
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">
-                      Tiến độ học tập
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Theo dõi sự tiến bộ của bạn qua từng tuần
-                    </p>
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🎯</span>
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg">
+                        Tóm tắt tiến độ
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Mục tiêu tuần này và sự thay đổi so với tuần trước
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={progressData}
-                      margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorScore"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="week"
-                        tick={{ fontSize: 12, fill: "#4b5563" }}
-                      />
-                      <YAxis
-                        domain={[50, 90]}
-                        tick={{ fontSize: 12, fill: "#4b5563" }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "12px",
-                          border: "none",
-                          boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="score"
-                        stroke="#3b82f6"
-                        strokeWidth={3}
-                        fill="url(#colorScore)"
-                        dot={{
-                          r: 6,
-                          fill: "#3b82f6",
-                          stroke: "#fff",
-                          strokeWidth: 2,
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-4">
+                      <p className="text-xs text-blue-600 font-semibold uppercase">
+                        Điểm hiện tại
+                      </p>
+                      <p className="text-3xl font-bold text-blue-700 mt-2">
+                        {currentProgressScore}
+                      </p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          progressDelta >= 0
+                            ? "text-green-600"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {progressDelta >= 0 ? "▲" : "▼"} {Math.abs(progressDelta)} điểm so với tuần trước
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
+                      <p className="text-xs text-emerald-600 font-semibold uppercase">
+                        Chuyên cần
+                      </p>
+                      <p className="text-3xl font-bold text-emerald-700 mt-2">
+                        {attendancePercent}%
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {attendanceCompleted}/{attendanceTotal} buổi đã học
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-4">
+                      <p className="text-xs text-amber-600 font-semibold uppercase">
+                        Bài tập đã nộp
+                      </p>
+                      <p className="text-3xl font-bold text-amber-700 mt-2">
+                        {diligencePercent}%
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {diligenceCompleted}/{diligenceTarget} bài hoàn thành
+                      </p>
+                    </div>
+                  </div>
+                </Card>
 
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <p className="font-bold text-gray-900 text-lg mb-4">
-                  📊 Thống kê nhanh
-                </p>
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
-                    <p className="text-xs text-blue-600 font-medium">
-                      Điểm tuần này
+                <Card className="p-6 bg-white border-0 shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg">
+                        Đường tiến bộ theo tuần
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Theo dõi sự thay đổi điểm trung bình giữa các tuần học
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {gradeTrendData.length} tuần gần nhất
+                    </span>
+                  </div>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={gradeTrendData}
+                        margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="week" tick={{ fontSize: 12, fill: "#4b5563" }} />
+                        <YAxis domain={[50, 95]} tick={{ fontSize: 12, fill: "#4b5563" }} />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "none",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="score"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                          fill="url(#colorScore)"
+                          dot={{
+                            r: 6,
+                            fill: "#3b82f6",
+                            stroke: "#fff",
+                            strokeWidth: 2,
+                          }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card className="p-6 bg-white border-0 shadow-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-gray-900">Chuyên cần & điểm danh</p>
+                      <p className="text-xs text-gray-500">
+                        Giữ vững chuỗi đến lớp để không bị trừ điểm
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-600">
+                      {attendancePercent}%
+                    </span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-gray-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500"
+                      style={{ width: `${Math.min(attendancePercent, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Đã tham gia: {attendanceCompleted} buổi</span>
+                    <span>Còn lại: {Math.max(attendanceTotal - attendanceCompleted, 0)} buổi</span>
+                  </div>
+                </Card>
+
+                <Card className="p-6 bg-white border-0 shadow-lg space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🗒️</span>
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg">
+                        Nhận xét của giáo viên
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Cập nhật từ các bài chấm gần nhất
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                      Bài đánh giá mới nhất
                     </p>
-                    <p className="text-2xl font-bold text-blue-700">82</p>
-                    <p className="text-xs text-green-600 mt-1">
-                      ↑ +4 so với tuần trước
+                    <p className="text-sm text-blue-900 mt-1">
+                      {latestTeacherSummary}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      {latestGradeScoreText}
+                    </p>
+                    <p className="text-xs text-blue-500 mt-1">
+                      {latestGradeWeightText}
                     </p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
-                    <p className="text-xs text-emerald-600 font-medium">
-                      Tỉ lệ hoàn thành
-                    </p>
-                    <p className="text-2xl font-bold text-emerald-700">93%</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      28/30 bài đã nộp
-                    </p>
+                  <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 text-sm text-purple-900">
+                    {latestTeacherFeedback}
                   </div>
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100">
-                    <p className="text-xs text-amber-600 font-medium">
-                      Xếp hạng lớp
-                    </p>
-                    <p className="text-2xl font-bold text-amber-700">#5</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Trong 30 học sinh
-                    </p>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 
@@ -1900,60 +2413,169 @@ export default function StudentDashboard({
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500">Điểm trung bình</p>
-                  <p className="text-2xl font-bold text-blue-600">78.3</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {gradeAverage}
+                  </p>
                 </div>
               </div>
               <div className="space-y-3">
-                {grades.map((g) => (
-                  <div
-                    key={g.subject}
-                    className="flex items-center gap-4 rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl font-bold shadow-md">
-                      {g.subject.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-gray-900">{g.subject}</p>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${g.status === "Tốt"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                            }`}
-                        >
-                          {g.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{g.detail}</p>
-                      <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${g.score >= 80
-                            ? "bg-gradient-to-r from-emerald-400 to-green-500"
-                            : g.score >= 70
-                              ? "bg-gradient-to-r from-blue-400 to-blue-500"
-                              : "bg-gradient-to-r from-amber-400 to-orange-500"
-                            }`}
-                          style={{ width: `${g.score}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                        {g.score}
-                      </p>
-                      <p className="text-xs text-gray-400">điểm</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
-                      onClick={() =>
-                        setSelectedGrade({ subject: g.subject, score: g.score })
-                      }
-                    >
-                      Chi tiết →
-                    </Button>
+                {subjectSummaries.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-gray-200 p-6 text-center text-gray-500">
+                    Chưa có bài đánh giá nào. Khi giáo viên chấm điểm, thông tin sẽ xuất hiện tại đây.
                   </div>
-                ))}
+                )}
+
+                {subjectSummaries.map((summary) => {
+                  const {
+                    classId,
+                    className,
+                    teacherName,
+                    latestGrade,
+                    grades,
+                    average,
+                    totalWeight,
+                  } = summary;
+
+                  const latestPercentage = latestGrade
+                    ? calculateGradePercentage(latestGrade)
+                    : null;
+                  const displayPercentage =
+                    typeof average === "number" ? average : latestPercentage;
+
+                  const statusLabel = displayPercentage === null
+                    ? "Chưa có điểm"
+                    : displayPercentage >= 85
+                      ? "Xuất sắc"
+                      : displayPercentage >= 70
+                        ? "Tốt"
+                        : displayPercentage >= 50
+                          ? "Cần cố gắng"
+                          : "Cần cải thiện";
+
+                  const badgeClass = displayPercentage === null
+                    ? "bg-gray-100 text-gray-600"
+                    : displayPercentage >= 85
+                      ? "bg-emerald-100 text-emerald-700"
+                      : displayPercentage >= 70
+                        ? "bg-blue-100 text-blue-700"
+                        : displayPercentage >= 50
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-red-100 text-red-700";
+
+                  const assessedDate = latestGrade?.assessedAt
+                    ? new Date(latestGrade.assessedAt).toLocaleDateString("vi-VN")
+                    : "Chưa có bài đánh giá";
+                  const clampedPercentage = Math.min(
+                    Math.max(displayPercentage ?? 0, 0),
+                    100
+                  );
+                  const percentageWidth = `${clampedPercentage}%`;
+                  const weightText = latestGrade && typeof latestGrade.weight === "number"
+                    ? `${latestGrade.weight}%`
+                    : totalWeight > 0
+                      ? `${totalWeight}%`
+                      : "Chưa cập nhật";
+                  const scoreText = latestGrade && latestGrade.score !== null && latestGrade.maxScore !== null
+                    ? `${latestGrade.score}/${latestGrade.maxScore}`
+                    : "Chưa có điểm";
+                  const subjectKey = getSubjectKey(classId, className);
+
+                  return (
+                    <div
+                      key={subjectKey}
+                      className="flex flex-col gap-4 lg:flex-row lg:items-center rounded-2xl border-2 border-gray-100 px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all duration-300 bg-gradient-to-r from-white to-gray-50 cursor-pointer"
+                      onClick={() => openSubjectDetail(summary)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openSubjectDetail(summary);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-4 w-full lg:w-auto">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl font-bold shadow-md">
+                          {className.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 leading-snug">
+                            {className}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {teacherName ? `GV phụ trách: ${teacherName}` : "Chưa cập nhật giáo viên"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {latestGrade
+                              ? `Bài gần nhất: ${latestGrade.title} • ${assessedDate}`
+                              : "Chưa có bài đánh giá"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {latestGrade
+                              ? `Trọng số lần chấm: ${weightText}`
+                              : totalWeight > 0
+                                ? `Tổng trọng số đã tính: ${weightText}`
+                                : "Trọng số: Chưa cập nhật"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex-1 w-full">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${badgeClass}`}>
+                            {statusLabel}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {scoreText}
+                          </span>
+                          {typeof average === "number" && (
+                            <span className="text-xs text-blue-600">
+                              Điểm trung bình: {average}
+                            </span>
+                          )}
+                          {/* <span className="text-xs text-gray-500">
+                            Tổng trọng số: {totalWeight > 0 ? `${totalWeight}%` : "Chưa cập nhật"}
+                          </span> */}
+                          <span className="text-xs text-gray-400">
+                            {grades.length} lần chấm
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${displayPercentage !== null
+                              ? displayPercentage >= 85
+                                ? "bg-gradient-to-r from-emerald-400 to-green-500"
+                                : displayPercentage >= 70
+                                  ? "bg-gradient-to-r from-blue-400 to-blue-500"
+                                  : displayPercentage >= 50
+                                    ? "bg-gradient-to-r from-amber-400 to-orange-500"
+                                    : "bg-gradient-to-r from-red-400 to-pink-500"
+                              : "bg-gray-300"}`
+                            }
+                            style={{ width: percentageWidth }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 w-full lg:w-auto">
+                        <div className="text-center">
+                          <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                            {displayPercentage ?? "—"}
+                          </p>
+                          <p className="text-xs text-gray-400"></p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openSubjectDetail(summary);
+                          }}
+                        >
+                          Chi tiết →
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           </TabsContent>
@@ -1968,29 +2590,39 @@ export default function StudentDashboard({
               </div>
 
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
-                {Object.entries(leaderboardOptions).map(([key, opt]) => (
-                  <button
-                    key={key}
-                    onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${rankingView === key
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-700 hover:bg-white"
-                      }`}
-                  >
-                    <span className="text-base leading-none">
-                      {tabIcons[key as RankingCategory]}
-                    </span>
-                    <span>{opt.label}</span>
-                  </button>
-                ))}
+                {Object.entries(leaderboardOptions).map(([key, opt]) => {
+                  const isActive = rankingView === key;
+                  const baseClass =
+                    "flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors";
+                  const stateClass = isActive
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-700 hover:bg-white";
+                  const buttonClass = baseClass + " " + stateClass;
+
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setRankingView(key as RankingCategory)}
+                      className={buttonClass}
+                    >
+                      <span className="text-base leading-none">
+                        {tabIcons[key as RankingCategory]}
+                      </span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="space-y-3">
-                {leaderboardData[rankingView].map((row) => (
-                  <div
-                    key={`${rankingView}-${row.rank}-${row.name}`}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
-                  >
+                {leaderboardData[rankingView].map((row) => {
+                  const rowKey =
+                    rankingView + "-" + row.rank + "-" + row.name;
+                  return (
+                    <div
+                      key={rowKey}
+                      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+                    >
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
                         {row.rank === 1 && (
@@ -2022,9 +2654,10 @@ export default function StudentDashboard({
                         {row.metric}
                       </p>
                       <p className="text-xs text-gray-500">{row.detail}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="rounded-xl bg-blue-50 text-blue-700 text-sm text-center px-4 py-3">
@@ -2060,20 +2693,20 @@ export default function StudentDashboard({
                           {c.avatar}
                         </div>
                         <span
-                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${c.status === "online"
-                            ? "bg-emerald-500"
-                            : "bg-gray-300"
-                            }`}
+                          className={
+                            "absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white " +
+                            (c.status === "online" ? "bg-emerald-500" : "bg-gray-300")
+                          }
                         />
                       </div>
                       <div>
                         <p className="font-bold text-gray-900">{c.name}</p>
                         <p className="text-sm text-gray-500">{c.subject}</p>
                         <p
-                          className={`text-xs mt-0.5 ${c.status === "online"
-                            ? "text-emerald-600"
-                            : "text-gray-400"
-                            }`}
+                          className={
+                            "text-xs mt-0.5 " +
+                            (c.status === "online" ? "text-emerald-600" : "text-gray-400")
+                          }
                         >
                           {c.status === "online"
                             ? "● Đang hoạt động"
@@ -2213,10 +2846,16 @@ export default function StudentDashboard({
       {showClassDetail && (
         <ClassDetailModal onClose={() => setShowClassDetail(false)} />
       )}
+      {selectedSubject && (
+        <SubjectGradesModal
+          summary={selectedSubject}
+          onClose={() => setSelectedSubjectKey(null)}
+          onSelectGrade={(grade) => setSelectedGrade(grade)}
+        />
+      )}
       {selectedGrade && (
         <GradeDetailModal
-          subject={selectedGrade.subject}
-          score={selectedGrade.score}
+          grade={selectedGrade}
           onClose={() => setSelectedGrade(null)}
         />
       )}
@@ -2225,8 +2864,7 @@ export default function StudentDashboard({
           user={{
             name: user.name,
             email: user.email,
-            phone: user.phone,
-            role: user.role
+            phone: user.phone
           }}
           onClose={() => setShowSettings(false)}
         />
