@@ -114,16 +114,54 @@ export default function ClassesScreen() {
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
 
   const isAdmin = user?.role === "admin";
+  const isParent = user?.role === "parent";
   const teachers = users.filter((u) => u.role === "teacher");
 
+  // State to store child info for parent
+  const [childId, setChildId] = useState<string | null>(null);
+
+  // Fetch child info for parent
+  const fetchChildId = async () => {
+    if (user?.role === "parent" && user?.childEmail) {
+      try {
+        const response = await api.get("/users/child-by-email", {
+          params: { email: user.childEmail },
+        });
+        if (response.data?._id) {
+          setChildId(response.data._id);
+          return response.data._id;
+        }
+      } catch (error) {
+        console.error("Error fetching child info:", error);
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
-    fetchClasses();
-    fetchBranches();
-    fetchUsers();
+    const loadData = async () => {
+      if (isParent) {
+        const cId = await fetchChildId();
+        if (cId) {
+          await fetchClasses(undefined, cId);
+        } else {
+          await fetchClasses();
+        }
+      } else {
+        await fetchClasses();
+      }
+      fetchBranches();
+      fetchUsers();
+    };
+    loadData();
   }, []);
 
   const onRefresh = async () => {
-    await fetchClasses();
+    if (isParent && childId) {
+      await fetchClasses(undefined, childId);
+    } else {
+      await fetchClasses();
+    }
   };
 
   const filteredClasses = classes.filter((c) => {

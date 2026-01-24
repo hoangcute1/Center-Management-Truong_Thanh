@@ -214,9 +214,34 @@ export default function ScheduleScreen() {
     return monday;
   }, [weekOffset]);
 
+  // State to store child info for parent
+  const [childId, setChildId] = useState<string | null>(null);
+
+  // State to store attendance records for student/parent
+  const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<any[]>([]);
+
+  // Fetch child info for parent on mount
+  useEffect(() => {
+    const initChildId = async () => {
+      if (user?.role === "parent" && user?.childEmail && !childId) {
+        try {
+          const response = await api.get("/users/child-by-email", {
+            params: { email: user.childEmail },
+          });
+          if (response.data?._id) {
+            setChildId(response.data._id);
+          }
+        } catch (error) {
+          console.error("Error fetching child info:", error);
+        }
+      }
+    };
+    initChildId();
+  }, [user]);
+
   useEffect(() => {
     loadSchedule();
-  }, [user, weekOffset]);
+  }, [user, weekOffset, childId]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -231,12 +256,44 @@ export default function ScheduleScreen() {
     if (user.role === "teacher" || user.role === "admin") {
       // Fetch classes for teacher/admin to build timetable
       await fetchClasses();
-    } else if (user.role === "student" || user.role === "parent") {
-      // Fetch classes to get schedule for student/parent
+    } else if (user.role === "student") {
+      // Fetch classes to get schedule for student
       await fetchClasses();
       // Also fetch sessions for attendance status
       const { startDate, endDate } = getWeekRange(currentWeekStart);
       await fetchStudentSchedule(user._id, startDate, endDate);
+      // Fetch attendance records for student
+      try {
+        const attendanceRes = await api.get("/attendance", {
+          params: { studentId: user._id },
+        });
+        setStudentAttendanceRecords(
+          Array.isArray(attendanceRes.data) ? attendanceRes.data : [],
+        );
+      } catch (error) {
+        console.error("Error fetching attendance records:", error);
+        setStudentAttendanceRecords([]);
+      }
+    } else if (user.role === "parent") {
+      // For parent, need childId to fetch child's classes
+      if (childId) {
+        await fetchClasses(undefined, childId);
+        const { startDate, endDate } = getWeekRange(currentWeekStart);
+        await fetchStudentSchedule(childId, startDate, endDate);
+        // Fetch attendance records for child
+        try {
+          const attendanceRes = await api.get("/attendance", {
+            params: { studentId: childId },
+          });
+          setStudentAttendanceRecords(
+            Array.isArray(attendanceRes.data) ? attendanceRes.data : [],
+          );
+        } catch (error) {
+          console.error("Error fetching attendance records:", error);
+          setStudentAttendanceRecords([]);
+        }
+      }
+      // If no childId yet, wait for it to be fetched
     }
   };
 
@@ -396,7 +453,7 @@ export default function ScheduleScreen() {
     const timetable: TimetableItem[] = [];
 
     // Apply filters
-    let filteredClasses = classes;
+    let filteredClasses: any[] = classes;
 
     if (selectedBranch) {
       filteredClasses = filteredClasses.filter((cls) => {
@@ -470,7 +527,7 @@ export default function ScheduleScreen() {
   const adminClassList = useMemo(() => {
     if (user?.role !== "admin") return [];
 
-    let filteredClasses = classes;
+    let filteredClasses: any[] = classes;
 
     if (selectedBranch) {
       filteredClasses = filteredClasses.filter((cls) => {
@@ -547,15 +604,24 @@ export default function ScheduleScreen() {
     const dayIndex = selectedDate.getDay();
     const timetable: (TimetableItem & { attendanceStatus?: string })[] = [];
 
+    // For parent, use childId; for student, use user._id
+    const targetStudentId = user?.role === "parent" ? childId : user?._id;
+
     // Filter classes where student is enrolled
-    const studentClasses = classes.filter((cls) => {
-      // Check if user is in studentIds
-      if (cls.studentIds && cls.studentIds.includes(user._id)) return true;
-      // Check if user is in students array
-      if (cls.students && cls.students.some((s) => s._id === user._id))
-        return true;
-      return false;
-    });
+    // For parent: API already returns child's classes, so we can use all classes
+    // For student: filter by studentIds
+    const studentClasses =
+      user?.role === "parent"
+        ? classes // Parent: classes already filtered by childId from API
+        : classes.filter((cls) => {
+            // Check if user is in studentIds
+            if (cls.studentIds && cls.studentIds.includes(user._id))
+              return true;
+            // Check if user is in students array
+            if (cls.students && cls.students.some((s) => s._id === user._id))
+              return true;
+            return false;
+          });
 
     studentClasses.forEach((cls, classIndex) => {
       const teacherName =
@@ -568,23 +634,51 @@ export default function ScheduleScreen() {
       if (cls.schedule && cls.schedule.length > 0) {
         cls.schedule.forEach((sch) => {
           if (sch.dayOfWeek === dayIndex) {
-            // Check if there's attendance for this class and date
+            // Check if there's attendance for this class and date from attendance records
             let attendanceStatus: string | undefined = undefined;
-            const session = sessions.find((s) => {
-              const sessionClassId =
-                typeof s.classId === "object"
-                  ? (s.classId as any)._id
-                  : s.classId;
-              const sessionDate = new Date(s.startTime);
-              return (
-                sessionClassId === cls._id &&
-                sessionDate.getDate() === selectedDate.getDate() &&
-                sessionDate.getMonth() === selectedDate.getMonth() &&
-                sessionDate.getFullYear() === selectedDate.getFullYear()
-              );
+
+            // First, try to find attendance from studentAttendanceRecords
+            const attendanceRecord = studentAttendanceRecords.find((r) => {
+              // Check if attendance record matches this class
+              const recordClassId =
+                typeof r.sessionId === "object" && r.sessionId?.classId
+                  ? typeof r.sessionId.classId === "object"
+                    ? r.sessionId.classId._id
+                    : r.sessionId.classId
+                  : null;
+
+              // Also check by date
+              if (r.sessionId?.startTime) {
+                const attDate = new Date(r.sessionId.startTime);
+                return (
+                  (recordClassId === cls._id || r.classId === cls._id) &&
+                  attDate.getDate() === selectedDate.getDate() &&
+                  attDate.getMonth() === selectedDate.getMonth() &&
+                  attDate.getFullYear() === selectedDate.getFullYear()
+                );
+              }
+              return false;
             });
-            if (session) {
-              attendanceStatus = session.status;
+
+            if (attendanceRecord) {
+              attendanceStatus = attendanceRecord.status;
+            } else {
+              // Fallback: check session status (but this is not attendance status)
+              const session = sessions.find((s) => {
+                const sessionClassId =
+                  typeof s.classId === "object"
+                    ? (s.classId as any)._id
+                    : s.classId;
+                const sessionDate = new Date(s.startTime);
+                return (
+                  sessionClassId === cls._id &&
+                  sessionDate.getDate() === selectedDate.getDate() &&
+                  sessionDate.getMonth() === selectedDate.getMonth() &&
+                  sessionDate.getFullYear() === selectedDate.getFullYear()
+                );
+              });
+              // Note: session.status is 'pending'/'approved'/'cancelled', not attendance status
+              // So we don't use it for attendance display
             }
 
             timetable.push({
@@ -606,7 +700,7 @@ export default function ScheduleScreen() {
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
     return timetable;
-  }, [classes, selectedDate, user, sessions]);
+  }, [classes, selectedDate, user, sessions, childId, studentAttendanceRecords]);
 
   // Check if day has classes for student
   const studentHasClassesOnDate = useCallback(
@@ -614,12 +708,19 @@ export default function ScheduleScreen() {
       if (user?.role !== "student" && user?.role !== "parent") return false;
 
       const dayIndex = date.getDay();
-      const studentClasses = classes.filter((cls) => {
-        if (cls.studentIds && cls.studentIds.includes(user._id)) return true;
-        if (cls.students && cls.students.some((s) => s._id === user._id))
-          return true;
-        return false;
-      });
+
+      // For parent: use all classes (already filtered by childId from API)
+      // For student: filter by studentIds
+      const studentClasses =
+        user?.role === "parent"
+          ? classes
+          : classes.filter((cls) => {
+              if (cls.studentIds && cls.studentIds.includes(user._id))
+                return true;
+              if (cls.students && cls.students.some((s) => s._id === user._id))
+                return true;
+              return false;
+            });
 
       return studentClasses.some(
         (cls) =>

@@ -479,11 +479,19 @@ export default function ParentDashboard({
   }, [fetchChildrenRequests]);
 
   const allRequests = childrenRequests.flatMap((c) => c.requests);
-  const pendingPayments = allRequests.filter((r) => r.status === 'pending' || r.status === 'overdue');
-  const paidPayments = allRequests.filter((r) => r.status === 'paid');
+  const pendingPayments = allRequests.filter(
+    (r) => r.status === "pending" || r.status === "overdue",
+  );
+  const paidPayments = allRequests.filter((r) => r.status === "paid");
 
-  const totalPendingAmount = pendingPayments.reduce((sum, r) => sum + r.finalAmount, 0);
-  const totalPaidAmount = paidPayments.reduce((sum, r) => sum + r.finalAmount, 0);
+  const totalPendingAmount = pendingPayments.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
+  const totalPaidAmount = paidPayments.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
   const { user: authUser } = useAuthStore();
 
   // Fetch data on mount
@@ -500,7 +508,7 @@ export default function ParentDashboard({
     if (dashboardData?.attendanceRecords?.length) {
       console.log(
         "Parent - Attendance Records:",
-        dashboardData.attendanceRecords
+        dashboardData.attendanceRecords,
       );
     }
   }, [dashboardData?.attendanceRecords]);
@@ -528,6 +536,7 @@ export default function ParentDashboard({
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
+<<<<<<< HEAD
       {
         label: "Khóa học",
         value: dashboardData.classes.length,
@@ -567,6 +576,47 @@ export default function ParentDashboard({
         color: "from-purple-500 to-purple-600",
       },
     ]
+=======
+        {
+          label: "Khóa học",
+          value: dashboardData.classes.length,
+          note: "Đang theo học",
+          icon: "📚",
+          color: "from-blue-500 to-blue-600",
+        },
+        {
+          label: "Điểm TB",
+          value:
+            dashboardData.recentGrades.length > 0
+              ? (
+                  dashboardData.recentGrades.reduce(
+                    (acc, g) => acc + g.percentage,
+                    0,
+                  ) /
+                  dashboardData.recentGrades.length /
+                  10
+                ).toFixed(1)
+              : "N/A",
+          note: "Kết quả học tập",
+          icon: "⭐",
+          color: "from-emerald-500 to-emerald-600",
+        },
+        {
+          label: "Buổi học",
+          value: attendanceStats.total,
+          note: `${attendanceStats.present} buổi tham dự`,
+          icon: "📅",
+          color: "from-amber-500 to-orange-500",
+        },
+        {
+          label: "Chuyên cần",
+          value: `${attendanceStats.rate}%`,
+          note: "Tỉ lệ tham gia",
+          icon: "🏆",
+          color: "from-purple-500 to-purple-600",
+        },
+      ]
+>>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
     : overviewStats;
 
   // Build timetable from classes (child's enrolled classes)
@@ -604,7 +654,7 @@ export default function ParentDashboard({
             classInfo: classItem,
             schedule: sched,
           });
-        }
+        },
       );
     });
 
@@ -741,7 +791,7 @@ export default function ParentDashboard({
                     }
                   }
                   return false;
-                }
+                },
               );
 
               // If not found by classId match, try just by date
@@ -758,7 +808,7 @@ export default function ParentDashboard({
                       );
                     }
                     return false;
-                  }
+                  },
                 );
               }
 
@@ -775,7 +825,7 @@ export default function ParentDashboard({
                       sessionDate.getDate() === targetDay &&
                       s.classId === classItem._id
                     );
-                  }
+                  },
                 );
                 if (sessionRecord) {
                   attendanceStatus = sessionRecord.attendanceStatus || null;
@@ -795,7 +845,7 @@ export default function ParentDashboard({
                 attendanceStatus,
               });
             }
-          }
+          },
         );
       });
 
@@ -852,7 +902,7 @@ export default function ParentDashboard({
 
   const progressAverage = useMemo(
     () => progressData[progressData.length - 1].score,
-    []
+    [],
   );
 
   return (
@@ -933,21 +983,40 @@ export default function ParentDashboard({
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {pendingPayments.length > 0 && (
           <div
+<<<<<<< HEAD
             onClick={() => window.location.href = '/payment'}
+=======
+            onClick={() => (window.location.href = "/payment")}
+>>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
             className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
           >
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center">
                 <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
                 <div>
-                  <p className="text-sm font-bold text-red-700">Thông báo học phí</p>
+                  <p className="text-sm font-bold text-red-700">
+                    Thông báo học phí
+                  </p>
                   <p className="text-sm text-red-600">
+<<<<<<< HEAD
                     Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán cho con.
                     Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
+=======
+                    Bạn có{" "}
+                    <span className="font-bold">{pendingPayments.length}</span>{" "}
+                    khoản cần thanh toán cho con. Tổng tiền:{" "}
+                    <span className="font-bold text-red-800">
+                      {totalPendingAmount.toLocaleString("vi-VN")} đ
+                    </span>
+>>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                   </p>
                 </div>
               </div>
-              <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700">
+              <Button
+                size="sm"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
                 Thanh toán ngay
               </Button>
             </div>
@@ -992,12 +1061,6 @@ export default function ParentDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💳 Thanh toán
-            </TabsTrigger>
-            <TabsTrigger
-              value="invoice"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-            >
-              🧾 Hóa đơn
             </TabsTrigger>
             <TabsTrigger
               value="contact"
@@ -1059,7 +1122,8 @@ export default function ParentDashboard({
                         Thông tin con
                       </p>
                       <p className="text-sm text-gray-500">
-                        {childData.name} - {(childData as any).grade || "Lớp 10"}
+                        {childData.name} -{" "}
+                        {(childData as any).grade || "Lớp 10"}
                       </p>
                     </div>
                     <Button
@@ -1092,7 +1156,11 @@ export default function ParentDashboard({
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                       💰 Thông tin học phí
                     </h2>
-                    <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => (window.location.href = "/payment")}
+                    >
                       Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </div>
@@ -1106,7 +1174,7 @@ export default function ParentDashboard({
                         </span>
                       </div>
                       <p className="text-2xl font-bold text-red-600 truncate">
-                        {totalPendingAmount.toLocaleString('vi-VN')} đ
+                        {totalPendingAmount.toLocaleString("vi-VN")} đ
                       </p>
                     </div>
 
@@ -1118,7 +1186,7 @@ export default function ParentDashboard({
                         </span>
                       </div>
                       <p className="text-2xl font-bold text-green-600 truncate">
-                        {totalPaidAmount.toLocaleString('vi-VN')} đ
+                        {totalPaidAmount.toLocaleString("vi-VN")} đ
                       </p>
                     </div>
                   </div>
@@ -1190,6 +1258,7 @@ export default function ParentDashboard({
                                 {/* Attendance Status */}
                                 {item.attendanceStatus ? (
                                   <div
+<<<<<<< HEAD
                                     className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${item.attendanceStatus === "present"
                                       ? "bg-emerald-100 text-emerald-700"
                                       : item.attendanceStatus === "absent"
@@ -1198,6 +1267,17 @@ export default function ParentDashboard({
                                           ? "bg-amber-100 text-amber-700"
                                           : "bg-blue-100 text-blue-700"
                                       }`}
+=======
+                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
+                                      item.attendanceStatus === "present"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : item.attendanceStatus === "absent"
+                                          ? "bg-red-100 text-red-700"
+                                          : item.attendanceStatus === "late"
+                                            ? "bg-amber-100 text-amber-700"
+                                            : "bg-blue-100 text-blue-700"
+                                    }`}
+>>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                                   >
                                     {item.attendanceStatus === "present" &&
                                       "✅ Có mặt"}
@@ -1294,7 +1374,7 @@ export default function ParentDashboard({
                   </div>
                 </div>
                 <Button
-                  onClick={() => window.location.href = '/payment'}
+                  onClick={() => (window.location.href = "/payment")}
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-200"
                 >
                   Vào trang thanh toán →
@@ -1304,7 +1384,11 @@ export default function ParentDashboard({
               {/* Quick Status */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
+<<<<<<< HEAD
                   onClick={() => window.location.href = '/payment'}
+=======
+                  onClick={() => (window.location.href = "/payment")}
+>>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                   className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -1312,7 +1396,9 @@ export default function ParentDashboard({
                       📋
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">Danh sách yêu cầu</h3>
+                      <h3 className="font-bold text-gray-900">
+                        Danh sách yêu cầu
+                      </h3>
                       <p className="text-sm text-gray-500">
                         Kiểm tra các khoản cần đóng
                       </p>
@@ -1321,7 +1407,11 @@ export default function ParentDashboard({
                 </div>
 
                 <div
+<<<<<<< HEAD
                   onClick={() => window.location.href = '/payment'}
+=======
+                  onClick={() => (window.location.href = "/payment")}
+>>>>>>> c5388d3ba5f4b165d4c2ffef185ae56f1d48fda6
                   className="p-5 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -1329,7 +1419,9 @@ export default function ParentDashboard({
                       history
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">Lịch sử giao dịch</h3>
+                      <h3 className="font-bold text-gray-900">
+                        Lịch sử giao dịch
+                      </h3>
                       <p className="text-sm text-gray-500">
                         Xem lại các khoản đã thanh toán
                       </p>
@@ -1337,15 +1429,6 @@ export default function ParentDashboard({
                   </div>
                 </div>
               </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="invoice" className="mt-6">
-            <Card className="p-5">
-              <p className="font-semibold text-gray-900 mb-2">
-                Danh sách hóa đơn
-              </p>
-              <p className="text-sm text-gray-500">Chưa có hóa đơn nào</p>
             </Card>
           </TabsContent>
 
