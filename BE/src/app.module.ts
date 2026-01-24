@@ -23,6 +23,7 @@ import { PaymentRequestsModule } from './payment-requests/payment-requests.modul
 import { PaymentsModule } from './payments/payments.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { FinanceModule } from './finance/finance.module';
+import { AssignmentsModule } from './assignments/assignments.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { FinanceModule } from './finance/finance.module';
     SessionsModule,
     AttendanceModule,
     AssessmentsModule,
+    AssignmentsModule,
     GoalsModule,
     TuitionModule,
     NotificationsModule,
