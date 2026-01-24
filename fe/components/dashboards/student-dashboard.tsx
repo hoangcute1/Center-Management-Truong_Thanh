@@ -12,7 +12,7 @@ import {
   Area,
 } from "recharts";
 import { ChevronDown, Camera, ChevronRight } from "lucide-react";
-import { ToastContainer, toast } from "react-toastify";
+import { Bounce, ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+import api from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 
 // Helper functions for week navigation
@@ -154,6 +155,7 @@ interface StudentDashboardProps {
     phone?: string;
     role: string;
     studentCode: string;
+    gender: string;
   };
   onLogout: () => void;
 }
@@ -698,18 +700,32 @@ function SettingsModal({
   onClose,
 }: {
   user: {
+    _id?: string;
+    id?: string;
     name: string;
     email: string;
     phone?: string;
     studentCode: string;
-    parentName: string;
-    parentPhone: string;
+    parentName?: string;
+    parentPhone?: string;
+    dateOfBirth?: string;
+    gender?: string;
   };
   onClose: () => void;
 }) {
   // State để hiển thị preview ảnh
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: user.name,
+    phone: user.phone || "",
+    dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
+    gender: user.gender || "",
+  });
 
   // Xử lý khi chọn file ảnh
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -722,7 +738,40 @@ function SettingsModal({
 
   // Hàm kích hoạt input file
   const handleEditAvatar = () => {
-    fileInputRef.current?.click();
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const userId = user._id || user.id;
+      if (!userId) {
+        toast.error("Không tìm thấy thông tin người dùng");
+        return;
+      }
+
+      await api.patch(`/users/${userId}`, {
+        name: formData.name,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender
+      });
+
+      toast.success("Cập nhật thông tin thành công!");
+      setIsEditing(false);
+      // Reload page to reflect changes or rely on parent refetch
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Cập nhật thất bại");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -771,13 +820,15 @@ function SettingsModal({
               )}
             </div>
 
-            <button
-              onClick={handleEditAvatar}
-              className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
-              title="Đổi ảnh đại diện"
-            >
-              <Camera size={17} />
-            </button>
+            {isEditing && (
+              <button
+                onClick={handleEditAvatar}
+                className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+                title="Đổi ảnh đại diện"
+              >
+                <Camera size={17} />
+              </button>
+            )}
           </div>
 
           <input
@@ -795,18 +846,43 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={user.name}
-                readOnly
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={isEditing ? formData.name : user.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                readOnly={!isEditing}
               />
             </div>
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Giới tính</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={user.phone || "Nam"}
-                readOnly
-              />
+              {isEditing ? (
+                <select
+                  className="w-full rounded-lg border border-blue-300 px-3 py-2.5 transition-all appearance-none"
+                  value={formData.gender}
+                  onChange={(e) => handleInputChange("gender", e.target.value)}
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
+              ) : (
+                <input
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none bg-gray-50 text-gray-700"
+                  defaultValue={
+                    user.gender === "male"
+                      ? "Nam"
+                      : user.gender === "female"
+                        ? "Nữ"
+                        : user.gender === "other"
+                          ? "Khác"
+                          : "Chưa cập nhật"
+                  }
+                  readOnly
+                />
+              )}
             </div>
           </div>
 
@@ -814,26 +890,41 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Ngày sinh</label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={"11/11/2011"}
-                readOnly
+                type={isEditing ? "date" : "text"}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={
+                  isEditing
+                    ? formData.dateOfBirth
+                    : user.dateOfBirth
+                      ? new Date(user.dateOfBirth).toLocaleDateString("vi-VN")
+                      : "Chưa cập nhật"
+                }
+                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                readOnly={!isEditing}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Mã số học sinh</label>
+              <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={user.studentCode || "HS11111"}
-                readOnly
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={isEditing ? formData.phone : (user.phone || "Chưa cập nhật")}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                readOnly={!isEditing}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Số điện thoại</label>
+            <label className="text-gray-700 font-medium">Mã số học sinh</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              defaultValue={user.phone || "Chưa có"}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+              defaultValue={user.studentCode || "Chưa có"}
               readOnly
             />
           </div>
@@ -841,7 +932,7 @@ function SettingsModal({
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Email</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
               defaultValue={user.email}
               readOnly
             />
@@ -851,7 +942,7 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên phụ huynh</label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                 defaultValue={user.parentName || "Chưa có"}
                 readOnly
               />
@@ -859,20 +950,51 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại phụ huynh</label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                defaultValue={user.phone || "Chưa có"}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+                defaultValue={user.parentPhone || "Chưa cập nhật"}
                 readOnly
               />
             </div>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200">
-              <span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
-              </span>
-              Chỉnh Sửa
-            </Button>
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+              >
+                <span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+                </span>
+                Chỉnh Sửa
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: user.name,
+                      phone: user.phone || "",
+                      dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
+                      gender: user.gender || "",
+                    });
+                  }}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </Card>
@@ -898,16 +1020,18 @@ export default function StudentDashboard({
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
       position: "top-right",
-      autoClose: 1000,
-      hideProgressBar: false,
+      autoClose: 500,
+      hideProgressBar: true,
       closeOnClick: true,
       pauseOnHover: false,
       draggable: true,
+      progress: undefined,
       theme: "light",
+      transition: Bounce,
     });
     setTimeout(() => {
       onLogout();
-    }, 1000);
+    }, 500);
   };
 
   //Dropdown Profile
@@ -943,6 +1067,25 @@ export default function StudentDashboard({
 
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
+
+  // State to hold full user details including sensitive/personal info not in initial props
+  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchFullUserDetails = async () => {
+      try {
+        const userId = authUser?._id || user.id;
+        if (userId) {
+          const response = await api.get(`/users/${userId}`);
+          setFullUserDetails(response.data);
+          console.log("Data của user:", response.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch full user details:", error);
+      }
+    };
+    fetchFullUserDetails();
+  }, [authUser, user.id]);
 
   useEffect(() => {
     if (user || authUser) {
@@ -2265,12 +2408,7 @@ export default function StudentDashboard({
       )}
       {showSettings && (
         <SettingsModal
-          user={{
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role
-          }}
+          user={fullUserDetails || user}
           onClose={() => setShowSettings(false)}
         />
       )}
