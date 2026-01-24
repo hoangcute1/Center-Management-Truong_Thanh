@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +93,94 @@ type Role = "student" | "teacher" | "parent" | "admin";
 
 // Modal types
 type ModalType = "forgot-password" | "contact-admin" | null;
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+interface GlassSelectProps {
+  label: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  options: Option[];
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+function GlassSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = "-- Chọn --",
+  disabled,
+}: GlassSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="space-y-1 sm:space-y-2 relative" ref={containerRef}>
+      <label className="text-xs sm:text-sm font-medium text-blue-100 flex items-center gap-1 sm:gap-2">
+        {label}
+      </label>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full text-left rounded-lg sm:rounded-xl border border-white/20 bg-white/10 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-white 
+          focus:outline-none focus:border-blue-400 focus:bg-white/20 transition-all duration-200 flex items-center justify-between
+          ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-white/20"}
+          ${isOpen ? "border-blue-400 bg-white/20" : ""}
+        `}
+      >
+        <span className={!selected ? "text-blue-200/70" : ""}>
+          {selected?.label || placeholder}
+        </span>
+        <span className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""} opacity-70`}>
+          ▼
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-2 p-1 rounded-xl border border-white/20 bg-gray-900/90 backdrop-blur-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden animate-in fade-in zoom-in-95 duration-100 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-2
+                ${value === opt.value
+                  ? "bg-blue-600/50 text-white font-medium"
+                  : "text-gray-300 hover:bg-white/10 hover:text-white"
+                }
+              `}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [selectedRole, setSelectedRole] = useState<Role | "">("");
@@ -347,7 +435,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           hueShift={339}
           noiseIntensity={0}
           scanlineIntensity={0}
-          speed={0.5}
+          speed={1}
           scanlineFrequency={0}
           warpAmount={0}
         />
@@ -422,26 +510,26 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       </div>
 
       {/* Right side - Login form */}
-      <div className="flex-1 lg:w-1/2 flex items-center justify-center p-4 sm:p-6 z-10">
+      <div className="flex-1 lg:w-1/2 flex items-center justify-center p-4 sm:p-6 z-10 ">
         <div className="w-full max-w-md">
-          <Card className="bg-white border-0 shadow-xl shadow-blue-100/50 p-5 sm:p-8 rounded-2xl sm:rounded-3xl">
+          <Card className="bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl p-5 sm:p-8 rounded-2xl sm:rounded-3xl">
             <div className="text-center mb-5 sm:mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">
                 Chào mừng trở lại! 👋
               </h2>
-              <p className="text-gray-500 mt-1 text-sm sm:text-base">
+              <p className="text-blue-100 mt-1 text-sm sm:text-base">
                 Đăng nhập để tiếp tục
               </p>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-100 text-sm flex items-center gap-2">
                 <span>⚠️</span>
                 <span>{error}</span>
                 <button
                   onClick={() => setError(null)}
-                  className="ml-auto text-red-400 hover:text-red-600"
+                  className="ml-auto text-red-200 hover:text-red-100"
                 >
                   ✕
                 </button>
@@ -450,8 +538,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
             {/* Demo Login Buttons */}
             <div className="mb-5 sm:mb-6">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 mb-2 sm:mb-3 flex items-center gap-2">
-                <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-xs">
+              <p className="text-xs sm:text-sm font-medium text-blue-100 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs">
                   ⚡
                 </span>
                 Đăng nhập nhanh (Demo) - Mật khẩu: 123456
@@ -496,15 +584,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             {/* Divider */}
-            <div className="relative my-4 sm:my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-white px-3 sm:px-4 text-xs sm:text-sm text-gray-400">
-                  hoặc đăng nhập bằng email
-                </span>
-              </div>
+            <div className="relative my-4 sm:my-6 flex items-center gap-3">
+              <div className="flex-1 border-t border-white/20" />
+              <span className="text-xs sm:text-sm text-blue-200">
+                hoặc đăng nhập bằng email
+              </span>
+              <div className="flex-1 border-t border-white/20" />
             </div>
 
             {/* Login Form */}
@@ -512,65 +597,80 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               {/* Branch & Role in one row on mobile */}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-4">
                 {/* Branch Select */}
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1 sm:gap-2">
-                    <span>🏫</span>{" "}
-                    <span className="hidden sm:inline">Cơ sở</span>
-                    <span className="sm:hidden">Cơ sở</span>
-                  </label>
-                  <select
-                    className="w-full rounded-lg sm:rounded-xl border-2 border-gray-100 bg-gray-50 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm 
-                      focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200"
-                    value={branchId}
-                    onChange={(e) => setBranchId(e.target.value)}
-                  >
-                    {displayBranches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <GlassSelect
+                  label={
+                    <>
+                      <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-house-fill" viewBox="0 0 16 16">
+                          <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L8 2.207l6.646 6.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293z" />
+                          <path d="m8 3.293 6 6V13.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5V9.293z" />
+                        </svg>
+                      </span>{" "}
+                      <span className="hidden sm:inline">Cơ sở</span>
+                      <span className="sm:hidden">Cơ sở</span>
+                    </>
+                  }
+                  value={branchId}
+                  onChange={setBranchId}
+                  options={displayBranches.map((b) => ({
+                    value: b.id,
+                    label: b.name,
+                  }))}
+                />
 
                 {/* Role Select */}
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1 sm:gap-2">
-                    <span>👤</span> <span>Vai trò</span>
-                  </label>
-                  <select
-                    className="w-full rounded-lg sm:rounded-xl border-2 border-gray-100 bg-gray-50 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm 
-                      focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200"
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value as Role)}
-                  >
-                    <option value="">-- Chọn --</option>
-                    <option value="student">🎓 Học sinh</option>
-                    <option value="teacher">👨‍🏫 Giáo viên</option>
-                    <option value="parent">👪 Phụ huynh</option>
-                    <option value="admin">⚙️ Quản trị</option>
-                  </select>
-                </div>
+                <GlassSelect
+                  label={
+                    <>
+                      <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-person-fill" viewBox="0 0 16 16">
+                          <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
+                        </svg>
+                      </span>
+                      <span>Vai trò</span>
+                    </>
+                  }
+                  value={selectedRole}
+                  onChange={(val) => setSelectedRole(val as Role)}
+                  options={[
+                    { value: "student", label: "🎓 Học sinh" },
+                    { value: "teacher", label: "👨‍🏫 Giáo viên" },
+                    { value: "parent", label: "👪 Phụ huynh" },
+                    { value: "admin", label: "⚙️ Quản trị" },
+                  ]}
+                  placeholder=" Chọn vai trò "
+                />
               </div>
 
               {/* Email Input */}
               <div className="space-y-1 sm:space-y-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1 sm:gap-2">
-                  <span>✉️</span> Email
+                <label className="text-xs sm:text-sm font-medium text-blue-100 flex items-center gap-1 sm:gap-2">
+                  <span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-envelope-fill" viewBox="0 0 16 16">
+                      <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414zM0 4.697v7.104l5.803-3.558zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586zm3.436-.586L16 11.801V4.697z" />
+                    </svg>
+                  </span>
+                  Email
                 </label>
                 <Input
                   type="email"
                   placeholder="example@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg sm:rounded-xl border-2 border-gray-100 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm 
-                    focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200"
+                  className="w-full rounded-lg sm:rounded-xl border border-white/20 bg-white/10 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-white placeholder:text-white/40
+                    focus:outline-none focus:border-blue-400 focus:bg-white/20 transition-all duration-200"
                 />
               </div>
 
               {/* Password Input */}
               <div className="space-y-1 sm:space-y-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1 sm:gap-2">
-                  <span>🔒</span> Mật khẩu
+                <label className="text-xs sm:text-sm font-medium text-blue-100 flex items-center gap-1 sm:gap-2">
+                  <span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-lock-fill" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M8 0a4 4 0 0 1 4 4v2.05a2.5 2.5 0 0 1 2 2.45v5a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 2 13.5v-5a2.5 2.5 0 0 1 2-2.45V4a4 4 0 0 1 4-4m0 1a3 3 0 0 0-3 3v2h6V4a3 3 0 0 0-3-3" />
+                    </svg>
+                  </span>
+                  Mật khẩu
                 </label>
                 <div className="relative">
                   <Input
@@ -578,15 +678,25 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg sm:rounded-xl border-2 border-gray-100 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 text-xs sm:text-sm 
-                      focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200"
+                    className="w-full rounded-lg sm:rounded-xl border border-white/20 bg-white/10 px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 text-xs sm:text-sm text-white placeholder:text-white/40
+                      focus:outline-none focus:border-blue-400 focus:bg-white/20 transition-all duration-200"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm sm:text-base"
+                    className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-sm sm:text-base"
                   >
-                    {showPassword ? "🙈" : "👁️"}
+                    {showPassword ?
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-eye-slash" viewBox="0 0 16 16">
+                        <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z" />
+                        <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829" />
+                        <path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z" />
+                      </svg>
+                      :
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-eye" viewBox="0 0 16 16">
+                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
+                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
+                      </svg>}
                   </button>
                 </div>
               </div>
@@ -598,12 +708,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     type="checkbox"
                     className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-gray-600">Ghi nhớ</span>
+                  <span className="text-blue-100">Ghi nhớ</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setActiveModal("forgot-password")}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-blue-300 hover:text-white font-medium"
                 >
                   Quên mật khẩu?
                 </button>
@@ -656,12 +766,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
             {/* Footer */}
             <div className="mt-4 sm:mt-6 text-center">
-              <p className="text-xs sm:text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-blue-200">
                 Chưa có tài khoản?{" "}
                 <button
                   type="button"
                   onClick={() => setActiveModal("contact-admin")}
-                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                  className="text-blue-300 hover:text-white font-semibold"
                 >
                   Liên hệ Admin
                 </button>
@@ -670,7 +780,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </Card>
 
           {/* Copyright */}
-          <p className="text-center text-[10px] sm:text-xs text-gray-400 mt-4 sm:mt-6">
+          <p className="text-center text-[10px] sm:text-xs text-blue-200/60 mt-4 sm:mt-6">
             © 2025 Trường Thành Education. All rights reserved.
           </p>
         </div>

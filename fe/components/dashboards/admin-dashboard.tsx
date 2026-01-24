@@ -1997,7 +1997,7 @@ export default function AdminDashboard({
     toast.info("Đang đăng xuất...", {
       position: "top-right",
       autoClose: 250,
-      hideProgressBar: false,
+      hideProgressBar: true,
       closeOnClick: true,
       pauseOnHover: false,
       draggable: true,
