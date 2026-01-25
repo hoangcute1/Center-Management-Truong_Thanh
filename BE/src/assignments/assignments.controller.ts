@@ -26,6 +26,13 @@ import type { UserDocument } from '../users/schemas/user.schema';
 export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
+  @Get()
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  @ApiOperation({ summary: 'Lấy danh sách bài tập của giáo viên' })
+  findMyAssignments(@CurrentUser() user: UserDocument) {
+    return this.assignmentsService.findByTeacher(user._id.toString());
+  }
+
   @Post()
   @Roles(UserRole.Admin, UserRole.Teacher)
   @ApiOperation({ summary: 'Giao bài tập/bài kiểm tra cho lớp' })

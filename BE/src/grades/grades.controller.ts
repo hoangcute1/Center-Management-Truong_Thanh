@@ -9,6 +9,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GradesService } from './grades.service';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
+import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,6 +23,16 @@ import type { UserDocument } from '../users/schemas/user.schema';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class GradesController {
   constructor(private readonly gradesService: GradesService) {}
+
+  @Post('manual')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  @ApiOperation({ summary: 'Nhập điểm tay (không cần assignment)' })
+  createManualGrade(
+    @CurrentUser() teacher: UserDocument,
+    @Body() dto: CreateManualGradeDto,
+  ) {
+    return this.gradesService.createManualGrade(teacher, dto);
+  }
 
   @Post('assignment')
   @Roles(UserRole.Admin, UserRole.Teacher)

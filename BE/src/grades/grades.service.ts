@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Grade, GradeDocument } from './schemas/grade.schema';
+import { Grade, GradeDocument, GradeType } from './schemas/grade.schema';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
+import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
 import { UserDocument } from '../users/schemas/user.schema';
 import { Submission, SubmissionDocument } from '../submissions/schemas/submission.schema';
 import { Assignment, AssignmentDocument } from '../assignments/schemas/assignment.schema';
@@ -21,6 +22,44 @@ export class GradesService {
     @InjectModel(Assignment.name)
     private readonly assignmentModel: Model<AssignmentDocument>,
   ) {}
+
+  /**
+   * Nhập điểm tay - Không cần assignment/submission
+   */
+  async createManualGrade(teacher: UserDocument, dto: CreateManualGradeDto) {
+    // Validate score không vượt quá maxScore
+    if (dto.score > dto.maxScore) {
+      throw new BadRequestException(
+        `Score (${dto.score}) cannot exceed maxScore (${dto.maxScore})`,
+      );
+    }
+
+    // Tạo Grade record
+    const grade = new this.gradeModel({
+      studentId: new Types.ObjectId(dto.studentId),
+      classId: new Types.ObjectId(dto.classId),
+      subjectId: dto.subjectId ? new Types.ObjectId(dto.subjectId) : undefined,
+      assignmentId: undefined, // Manual grade không có assignment
+      score: dto.score,
+      maxScore: dto.maxScore,
+      type: GradeType.Manual,
+      category: dto.category,
+      gradedBy: teacher._id,
+      gradedAt: new Date(),
+      feedback: dto.feedback,
+    });
+
+    await grade.save();
+
+    // Populate và trả về
+    return this.gradeModel
+      .findById(grade._id)
+      .populate('studentId', 'name email')
+      .populate('classId', 'name')
+      .populate('subjectId', 'name')
+      .populate('gradedBy', 'name email')
+      .exec();
+  }
 
   /**
    * Chấm bài - Tạo grade record + update submission

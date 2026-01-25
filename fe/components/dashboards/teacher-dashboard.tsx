@@ -25,6 +25,7 @@ import {
 } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import api from "@/lib/api";
+import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
 
 interface TeacherDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -656,9 +657,8 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
-                  !canEdit ? "opacity-60" : ""
-                }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
+                  }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -1079,17 +1079,16 @@ export default function TeacherDashboard({
           record.status === "present"
             ? "có mặt"
             : record.status === "absent"
-            ? "vắng mặt"
-            : record.status === "late"
-            ? "đi muộn"
-            : "được phép nghỉ";
+              ? "vắng mặt"
+              : record.status === "late"
+                ? "đi muộn"
+                : "được phép nghỉ";
 
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-            classData.name
-          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
+            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1145,18 +1144,17 @@ export default function TeacherDashboard({
             record.status === "present"
               ? "có mặt"
               : record.status === "absent"
-              ? "vắng mặt"
-              : record.status === "late"
-              ? "đi muộn"
-              : "được phép nghỉ";
+                ? "vắng mặt"
+                : record.status === "late"
+                  ? "đi muộn"
+                  : "được phép nghỉ";
 
           try {
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-                schedule.className
-              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
+                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1296,6 +1294,12 @@ export default function TeacherDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
+            </TabsTrigger>
+            <TabsTrigger
+              value="assignments"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📝 Giao bài & Chấm bài
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
@@ -1446,7 +1450,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                      selectedClass.students.length === 0 ? (
+                        selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -1531,9 +1535,8 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                  canAttend ? "ring-2 ring-green-400" : ""
-                                }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
+                                  }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -1631,26 +1634,24 @@ export default function TeacherDashboard({
                     >
                       <div className="flex items-center gap-4">
                         <div
-                          className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                            doc.type === "PDF"
-                              ? "bg-red-100"
-                              : doc.type === "DOCX"
+                          className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.type === "PDF"
+                            ? "bg-red-100"
+                            : doc.type === "DOCX"
                               ? "bg-blue-100"
                               : doc.type === "PPTX"
-                              ? "bg-orange-100"
-                              : "bg-gray-100"
-                          }`}
+                                ? "bg-orange-100"
+                                : "bg-gray-100"
+                            }`}
                         >
                           <FileIcon
-                            className={`h-6 w-6 ${
-                              doc.type === "PDF"
-                                ? "text-red-600"
-                                : doc.type === "DOCX"
+                            className={`h-6 w-6 ${doc.type === "PDF"
+                              ? "text-red-600"
+                              : doc.type === "DOCX"
                                 ? "text-blue-600"
                                 : doc.type === "PPTX"
-                                ? "text-orange-600"
-                                : "text-gray-600"
-                            }`}
+                                  ? "text-orange-600"
+                                  : "text-gray-600"
+                              }`}
                           />
                         </div>
                         <div>
@@ -1766,10 +1767,14 @@ export default function TeacherDashboard({
             </Card>
           </TabsContent>
 
+          <TabsContent value="assignments" className="mt-6">
+            <TeacherAssignmentsTab />
+          </TabsContent>
+
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}

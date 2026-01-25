@@ -36,6 +36,19 @@ export class AssignmentsService {
   }
 
   /**
+   * Lấy danh sách bài tập theo giáo viên
+   */
+  async findByTeacher(teacherId: string) {
+    return this.assignmentModel
+      .find({ createdBy: new Types.ObjectId(teacherId) })
+      .populate('classId', 'name')
+      .populate('subjectId', 'name')
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  /**
    * Lấy danh sách bài tập theo lớp
    */
   async findByClass(classId: string) {
