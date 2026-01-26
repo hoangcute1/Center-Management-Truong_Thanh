@@ -154,11 +154,8 @@ interface StudentDashboardProps {
     email: string;
     phone?: string;
     role: string;
-<<<<<<< HEAD
     studentCode: string;
     gender: string;
-=======
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
   };
   onLogout: () => void;
 }
@@ -636,16 +633,12 @@ function SettingsModal({
     id?: string;
     name: string;
     email: string;
-<<<<<<< HEAD
     phone?: string;
     studentCode: string;
     parentName?: string;
     parentPhone?: string;
     dateOfBirth?: string;
     gender?: string;
-=======
-    phone: string;
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
   };
   onClose: () => void;
 }) {
@@ -894,7 +887,6 @@ function SettingsModal({
           </div>
 
           <div className="flex gap-3 pt-2">
-<<<<<<< HEAD
             {!isEditing ? (
               <Button
                 onClick={() => setIsEditing(true)}
@@ -932,29 +924,6 @@ function SettingsModal({
                 </Button>
               </>
             )}
-=======
-            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200">
-              <span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
-                >
-                  <path d="M2 21a8 8 0 0 1 10.821-7.487" />
-                  <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
-                  <circle cx="10" cy="8" r="5" />
-                </svg>
-              </span>
-              Chỉnh Sửa
-            </Button>
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
           </div>
         </div>
       </Card>
@@ -1323,46 +1292,46 @@ export default function StudentDashboard({
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
     ? [
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Buổi học tới",
-          value: dashboardData.upcomingSessions.length,
-          note: "Sắp diễn ra",
-          icon: "📅",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + g.percentage,
-                    0,
-                  ) / dashboardData.recentGrades.length
-                ).toFixed(1)
-              : "N/A",
-          note:
-            dashboardData.recentGrades.length > 0
-              ? "Đạt kết quả"
-              : "Chưa có điểm",
-          icon: "⭐",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${dashboardData.attendanceStats.rate || 0}%`,
-          note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
-          icon: "✅",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
+      {
+        label: "Khóa học",
+        value: dashboardData.classes.length,
+        note: "Đang theo học",
+        icon: "📚",
+        color: "from-blue-500 to-blue-600",
+      },
+      {
+        label: "Buổi học tới",
+        value: dashboardData.upcomingSessions.length,
+        note: "Sắp diễn ra",
+        icon: "📅",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        label: "Điểm TB",
+        value:
+          dashboardData.recentGrades.length > 0
+            ? (
+              dashboardData.recentGrades.reduce(
+                (acc, g) => acc + g.percentage,
+                0,
+              ) / dashboardData.recentGrades.length
+            ).toFixed(1)
+            : "N/A",
+        note:
+          dashboardData.recentGrades.length > 0
+            ? "Đạt kết quả"
+            : "Chưa có điểm",
+        icon: "⭐",
+        color: "from-amber-500 to-orange-500",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${dashboardData.attendanceStats.rate || 0}%`,
+        note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
+        icon: "✅",
+        color: "from-purple-500 to-purple-600",
+      },
+    ]
     : overviewCards;
 
   const tabIcons: Record<RankingCategory, string> = {
@@ -1499,11 +1468,7 @@ export default function StudentDashboard({
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {pendingPayments.length > 0 && (
           <div
-<<<<<<< HEAD
-            onClick={() => window.location.href = '/payment'}
-=======
             onClick={() => (window.location.href = "/payment")}
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
             className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
           >
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1514,17 +1479,12 @@ export default function StudentDashboard({
                     Thông báo học phí
                   </p>
                   <p className="text-sm text-red-600">
-<<<<<<< HEAD
-                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán.
-                    Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
-=======
                     Bạn có{" "}
                     <span className="font-bold">{pendingPayments.length}</span>{" "}
                     khoản cần thanh toán. Tổng tiền:{" "}
                     <span className="font-bold text-red-800">
                       {totalPendingAmount.toLocaleString("vi-VN")} đ
                     </span>
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
                   </p>
                 </div>
               </div>
@@ -1657,15 +1617,11 @@ export default function StudentDashboard({
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                   💰 Thông tin học phí
                 </h2>
-<<<<<<< HEAD
-                <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
-=======
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => (window.location.href = "/payment")}
                 >
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
                   Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
@@ -1679,11 +1635,7 @@ export default function StudentDashboard({
                     </span>
                   </div>
                   <p className="text-2xl font-bold text-red-600 truncate">
-<<<<<<< HEAD
-                    {totalPendingAmount.toLocaleString('vi-VN')} đ
-=======
                     {totalPendingAmount.toLocaleString("vi-VN")} đ
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
                   </p>
                 </div>
 
@@ -1695,11 +1647,7 @@ export default function StudentDashboard({
                     </span>
                   </div>
                   <p className="text-2xl font-bold text-green-600 truncate">
-<<<<<<< HEAD
-                    {totalPaidAmount.toLocaleString('vi-VN')} đ
-=======
                     {totalPaidAmount.toLocaleString("vi-VN")} đ
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
                   </p>
                 </div>
               </div>
@@ -1766,25 +1714,22 @@ export default function StudentDashboard({
                 {badges.map((b) => (
                   <div
                     key={b.title}
-                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
-                      b.earned
-                        ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
-                        : "border-gray-100 bg-gray-50"
-                    }`}
+                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${b.earned
+                      ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
+                      : "border-gray-100 bg-gray-50"
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className={`text-3xl ${
-                          b.earned ? "" : "grayscale opacity-50"
-                        }`}
+                        className={`text-3xl ${b.earned ? "" : "grayscale opacity-50"
+                          }`}
                       >
                         {b.icon}
                       </span>
                       <div>
                         <p
-                          className={`font-bold ${
-                            b.earned ? "text-emerald-700" : "text-gray-500"
-                          }`}
+                          className={`font-bold ${b.earned ? "text-emerald-700" : "text-gray-500"
+                            }`}
                         >
                           {b.title}
                         </p>
@@ -1882,22 +1827,20 @@ export default function StudentDashboard({
                   return (
                     <div
                       key={slot.day}
-                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
-                        isToday
-                          ? "border-blue-400 ring-2 ring-blue-100"
-                          : isPast
-                            ? "border-gray-200 opacity-80"
-                            : "border-gray-100"
-                      }`}
+                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${isToday
+                        ? "border-blue-400 ring-2 ring-blue-100"
+                        : isPast
+                          ? "border-gray-200 opacity-80"
+                          : "border-gray-100"
+                        }`}
                     >
                       <div
-                        className={`px-3 py-3 text-center ${
-                          isToday
-                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
-                            : isPast
-                              ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
-                              : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
-                        }`}
+                        className={`px-3 py-3 text-center ${isToday
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                          : isPast
+                            ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
+                            : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
+                          }`}
                       >
                         <p className="text-xs font-bold leading-tight">
                           {slot.day}
@@ -1920,11 +1863,10 @@ export default function StudentDashboard({
                       {slot.code ? (
                         <div className="flex-1 p-3 space-y-2 text-center">
                           <div
-                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
-                              isPast
-                                ? "bg-gray-100 text-gray-600"
-                                : "bg-blue-100 text-blue-700"
-                            }`}
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${isPast
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-blue-100 text-blue-700"
+                              }`}
                           >
                             {slot.subject || slot.code}
                           </div>
@@ -1949,17 +1891,16 @@ export default function StudentDashboard({
                             {/* Attendance Status */}
                             {slot.attendanceStatus ? (
                               <div
-                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${
-                                  slot.attendanceStatus === "present"
-                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                    : slot.attendanceStatus === "absent"
-                                      ? "bg-red-100 text-red-700 border border-red-200"
-                                      : slot.attendanceStatus === "late"
-                                        ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                        : slot.attendanceStatus === "excused"
-                                          ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                          : "bg-gray-100 text-gray-600"
-                                }`}
+                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${slot.attendanceStatus === "present"
+                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                  : slot.attendanceStatus === "absent"
+                                    ? "bg-red-100 text-red-700 border border-red-200"
+                                    : slot.attendanceStatus === "late"
+                                      ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                      : slot.attendanceStatus === "excused"
+                                        ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                        : "bg-gray-100 text-gray-600"
+                                  }`}
                               >
                                 {slot.attendanceStatus === "present" &&
                                   "✅ Có mặt"}
@@ -2141,11 +2082,10 @@ export default function StudentDashboard({
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-gray-900">{g.subject}</p>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            g.status === "Tốt"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
+                          className={`text-xs px-2 py-0.5 rounded-full ${g.status === "Tốt"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                            }`}
                         >
                           {g.status}
                         </span>
@@ -2153,13 +2093,12 @@ export default function StudentDashboard({
                       <p className="text-xs text-gray-500 mt-0.5">{g.detail}</p>
                       <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            g.score >= 80
-                              ? "bg-gradient-to-r from-emerald-400 to-green-500"
-                              : g.score >= 70
-                                ? "bg-gradient-to-r from-blue-400 to-blue-500"
-                                : "bg-gradient-to-r from-amber-400 to-orange-500"
-                          }`}
+                          className={`h-full rounded-full transition-all duration-500 ${g.score >= 80
+                            ? "bg-gradient-to-r from-emerald-400 to-green-500"
+                            : g.score >= 70
+                              ? "bg-gradient-to-r from-blue-400 to-blue-500"
+                              : "bg-gradient-to-r from-amber-400 to-orange-500"
+                            }`}
                           style={{ width: `${g.score}%` }}
                         />
                       </div>
@@ -2199,11 +2138,10 @@ export default function StudentDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                      rankingView === key
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-gray-700 hover:bg-white"
-                    }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${rankingView === key
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-700 hover:bg-white"
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -2288,22 +2226,20 @@ export default function StudentDashboard({
                           {c.avatar}
                         </div>
                         <span
-                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
-                            c.status === "online"
-                              ? "bg-emerald-500"
-                              : "bg-gray-300"
-                          }`}
+                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${c.status === "online"
+                            ? "bg-emerald-500"
+                            : "bg-gray-300"
+                            }`}
                         />
                       </div>
                       <div>
                         <p className="font-bold text-gray-900">{c.name}</p>
                         <p className="text-sm text-gray-500">{c.subject}</p>
                         <p
-                          className={`text-xs mt-0.5 ${
-                            c.status === "online"
-                              ? "text-emerald-600"
-                              : "text-gray-400"
-                          }`}
+                          className={`text-xs mt-0.5 ${c.status === "online"
+                            ? "text-emerald-600"
+                            : "text-gray-400"
+                            }`}
                         >
                           {c.status === "online"
                             ? "● Đang hoạt động"
@@ -2427,7 +2363,7 @@ export default function StudentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2458,16 +2394,7 @@ export default function StudentDashboard({
       )}
       {showSettings && (
         <SettingsModal
-<<<<<<< HEAD
           user={fullUserDetails || user}
-=======
-          user={{
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-          }}
->>>>>>> 09a8691cd874ca8f7e4ae71bf9d9a45e277dab42
           onClose={() => setShowSettings(false)}
         />
       )}
