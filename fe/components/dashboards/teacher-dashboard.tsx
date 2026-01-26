@@ -28,6 +28,7 @@ import {
 } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import api from "@/lib/api";
+import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
 
 interface TeacherDashboardProps {
   user: { id: string; name: string; email: string; role: string };
@@ -1706,6 +1707,12 @@ export default function TeacherDashboard({
               💬 Liên hệ
             </TabsTrigger>
             <TabsTrigger
+              value="assignments"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📝 Giao bài & Chấm bài
+            </TabsTrigger>
+            <TabsTrigger
               value="incidents"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -2169,6 +2176,10 @@ export default function TeacherDashboard({
                 ))
               )}
             </Card>
+          </TabsContent>
+
+          <TabsContent value="assignments" className="mt-6">
+            <TeacherAssignmentsTab />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">

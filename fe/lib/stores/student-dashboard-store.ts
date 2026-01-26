@@ -166,7 +166,7 @@ export const useStudentDashboardStore = create<
             _id: c._id,
             name: c.name,
             description: c.description,
-            teacherName: c.teacher?.name || "N/A",
+            teacherName: c.teacherId?.name || c.teacher?.name || "Chưa có GV",
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
             progress: 75, // TODO: Calculate from sessions
