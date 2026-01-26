@@ -27,6 +27,11 @@ import {
   SessionStatus,
 } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
+import {
+  useDocumentsStore,
+  Document as TeachingDocument,
+  DocumentVisibility,
+} from "@/lib/stores/documents-store";
 import api from "@/lib/api";
 import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
 
@@ -34,46 +39,6 @@ interface TeacherDashboardProps {
   user: { id: string; name: string; email: string; role: string };
   onLogout: () => void;
 }
-
-// Mock data for teaching documents
-const teachingDocuments = [
-  {
-    id: "doc1",
-    name: "Tài liệu Toán 10 - Chương 1",
-    type: "PDF",
-    size: "2.4 MB",
-    uploadDate: "05/01/2025",
-    className: "Toán 10A",
-    downloads: 24,
-  },
-  {
-    id: "doc2",
-    name: "Bài tập Toán 10 - Tuần 2",
-    type: "DOCX",
-    size: "1.1 MB",
-    uploadDate: "08/01/2025",
-    className: "Toán 10A",
-    downloads: 18,
-  },
-  {
-    id: "doc3",
-    name: "Tài liệu Toán 10B - Đại số",
-    type: "PDF",
-    size: "3.2 MB",
-    uploadDate: "09/01/2025",
-    className: "Toán 10B",
-    downloads: 32,
-  },
-  {
-    id: "doc4",
-    name: "Slide bài giảng - Hình học",
-    type: "PPTX",
-    size: "5.8 MB",
-    uploadDate: "10/01/2025",
-    className: "Toán 10A",
-    downloads: 15,
-  },
-];
 
 const evaluationSummary = {
   total: 3,
@@ -300,19 +265,21 @@ function AttendanceModal({
       name: s.name,
       email: s.email,
       status: null,
-    }))
+    })),
   );
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const attended = rows.filter(
-    (r) => r.status === "present" || r.status === "late"
+    (r) => r.status === "present" || r.status === "late",
   ).length;
   const absent = rows.filter((r) => r.status === "absent").length;
 
   const update = (studentId: string, value: AttendanceRow["status"]) => {
     setRows(
-      rows.map((r) => (r.studentId === studentId ? { ...r, status: value } : r))
+      rows.map((r) =>
+        r.studentId === studentId ? { ...r, status: value } : r,
+      ),
     );
   };
 
@@ -455,14 +422,14 @@ function AttendanceModal({
 function isWithinClassTime(
   scheduleDate: Date,
   startTime: string,
-  endTime: string
+  endTime: string,
 ): boolean {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const schedDay = new Date(
     scheduleDate.getFullYear(),
     scheduleDate.getMonth(),
-    scheduleDate.getDate()
+    scheduleDate.getDate(),
   );
 
   // Check if same day
@@ -514,7 +481,7 @@ function TimetableAttendanceModal({
       name: s.name,
       email: s.email,
       status: null,
-    }))
+    })),
   );
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -539,13 +506,13 @@ function TimetableAttendanceModal({
               const existingRecord = existingRecords.find(
                 (r: any) =>
                   r.studentId === row.studentId ||
-                  r.studentId?._id === row.studentId
+                  r.studentId?._id === row.studentId,
               );
               if (existingRecord) {
                 return { ...row, status: existingRecord.status };
               }
               return row;
-            })
+            }),
           );
         }
       } catch (error) {
@@ -561,18 +528,20 @@ function TimetableAttendanceModal({
   const canEdit = isWithinClassTime(
     fullDate,
     schedule.startTime,
-    schedule.endTime
+    schedule.endTime,
   );
 
   const attended = rows.filter(
-    (r) => r.status === "present" || r.status === "late"
+    (r) => r.status === "present" || r.status === "late",
   ).length;
   const absent = rows.filter((r) => r.status === "absent").length;
 
   const update = (studentId: string, value: AttendanceRow["status"]) => {
     if (!canEdit) return;
     setRows(
-      rows.map((r) => (r.studentId === studentId ? { ...r, status: value } : r))
+      rows.map((r) =>
+        r.studentId === studentId ? { ...r, status: value } : r,
+      ),
     );
   };
 
@@ -660,8 +629,9 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
-                  }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
+                  !canEdit ? "opacity-60" : ""
+                }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -979,10 +949,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -991,10 +962,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1023,18 +995,23 @@ function SettingsModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-gray-700 font-medium">Trình độ chuyên môn</label>
+            <label className="text-gray-700 font-medium">
+              Trình độ chuyên môn
+            </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+              }`}
               value={
                 isEditing
                   ? formData.qualification
                   : user.qualification || "Chưa cập nhật"
               }
-              onChange={(e) => handleInputChange("qualification", e.target.value)}
+              onChange={(e) =>
+                handleInputChange("qualification", e.target.value)
+              }
               readOnly={!isEditing}
             />
           </div>
@@ -1043,10 +1020,11 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+              }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1205,7 +1183,7 @@ export default function TeacherDashboard({
   } | null>(null);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(
-    null
+    null,
   );
   const [attendanceSession, setAttendanceSession] = useState<{
     session: Session;
@@ -1226,6 +1204,7 @@ export default function TeacherDashboard({
   const [showEvaluation, setShowEvaluation] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // State to hold full user details including sensitive/personal info not in initial props
@@ -1234,7 +1213,8 @@ export default function TeacherDashboard({
   // Fetch full teacher data
   useEffect(() => {
     if (user?.id) {
-      api.get(`/users/${user.id}`)
+      api
+        .get(`/users/${user.id}`)
         .then((res: any) => {
           // Check if response data is wrapped in 'user' field or is direct
           const userData = res.data.user || res.data;
@@ -1258,11 +1238,25 @@ export default function TeacherDashboard({
     isLoading: scheduleLoading,
   } = useScheduleStore();
   const { markAttendance, markTimetableAttendance } = useAttendanceStore();
+  const {
+    documents: teachingDocuments,
+    fetchMyDocuments,
+    uploadDocument,
+    createDocument,
+    deleteDocument,
+    shareToCommunity,
+    restrictToClass,
+    incrementDownload,
+    isLoading: documentsLoading,
+  } = useDocumentsStore();
 
   // Handle click outside to close profile dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     }
@@ -1278,7 +1272,10 @@ export default function TeacherDashboard({
     // Fetch schedule for this week (sessions)
     const { startDate, endDate } = getWeekRange();
     fetchTeacherSchedule(user.id, startDate, endDate);
-  }, [user.id, fetchClasses, fetchTeacherSchedule]);
+
+    // Fetch documents
+    fetchMyDocuments();
+  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments]);
 
   // Set first class as selected when classes load
   useEffect(() => {
@@ -1370,7 +1367,7 @@ export default function TeacherDashboard({
   const overviewCards = useMemo(() => {
     const totalStudents = classes.reduce(
       (sum, c) => sum + (c.studentIds?.length || 0),
-      0
+      0,
     );
 
     return [
@@ -1419,7 +1416,7 @@ export default function TeacherDashboard({
   // Handle attendance save
   const handleSaveAttendance = async (
     records: AttendanceRow[],
-    note: string
+    note: string,
   ) => {
     if (!attendanceSession) return;
 
@@ -1453,8 +1450,9 @@ export default function TeacherDashboard({
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
-            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+            classData.name
+          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1465,7 +1463,7 @@ export default function TeacherDashboard({
   // Handle timetable attendance save
   const handleSaveTimetableAttendance = async (
     records: AttendanceRow[],
-    note: string
+    note: string,
   ) => {
     if (!timetableAttendance) return;
 
@@ -1474,7 +1472,7 @@ export default function TeacherDashboard({
     // Check time restriction
     if (!isWithinClassTime(fullDate, schedule.startTime, schedule.endTime)) {
       alert(
-        "❌ Đã hết giờ điểm danh!\n\nBạn chỉ có thể điểm danh trong khoảng thời gian buổi học (±15 phút)."
+        "❌ Đã hết giờ điểm danh!\n\nBạn chỉ có thể điểm danh trong khoảng thời gian buổi học (±15 phút).",
       );
       return;
     }
@@ -1490,7 +1488,7 @@ export default function TeacherDashboard({
 
       if (attendanceRecords.length === 0) {
         alert(
-          "⚠️ Vui lòng chọn trạng thái điểm danh cho ít nhất một học sinh."
+          "⚠️ Vui lòng chọn trạng thái điểm danh cho ít nhất một học sinh.",
         );
         return;
       }
@@ -1519,8 +1517,9 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
-                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+                schedule.className
+              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1617,8 +1616,12 @@ export default function TeacherDashboard({
                 <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                   {/* Thông tin user tóm tắt */}
                   <div className="px-4 py-3 border-b border-gray-100 mb-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email}
+                    </p>
                   </div>
 
                   <button
@@ -1629,7 +1632,22 @@ export default function TeacherDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-circle-user-round-icon lucide-circle-user-round"
+                      >
+                        <path d="M18 20a6 6 0 0 0-12 0" />
+                        <circle cx="12" cy="10" r="4" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
                     </span>
                     Hồ sơ
                   </button>
@@ -1642,7 +1660,22 @@ export default function TeacherDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-log-out-icon lucide-log-out"
+                      >
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      </svg>
                     </span>
                     Đăng xuất
                   </button>
@@ -1861,7 +1894,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                        selectedClass.students.length === 0 ? (
+                      selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -1935,19 +1968,20 @@ export default function TeacherDashboard({
                         <div className="flex-1 p-3 space-y-3">
                           {day.schedules.map((sch, idx) => {
                             const classData = classes.find(
-                              (c) => c._id === sch.classId
+                              (c) => c._id === sch.classId,
                             );
                             const canAttend = isWithinClassTime(
                               day.fullDate,
                               sch.startTime,
-                              sch.endTime
+                              sch.endTime,
                             );
 
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
-                                  }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                  canAttend ? "ring-2 ring-green-400" : ""
+                                }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2006,14 +2040,17 @@ export default function TeacherDashboard({
                     Quản lý và chia sẻ tài liệu với học sinh
                   </p>
                 </div>
-                <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                  onClick={() => setShowUploadModal(true)}
+                >
                   <UploadIcon className="h-4 w-4" />
                   Tải lên tài liệu mới
                 </Button>
               </div>
 
               <div className="grid gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <Card className="p-4 bg-blue-50 border-blue-100">
                     <p className="text-sm text-gray-600">Tổng tài liệu</p>
                     <p className="text-2xl font-bold text-blue-600">
@@ -2024,91 +2061,179 @@ export default function TeacherDashboard({
                     <p className="text-sm text-gray-600">Lượt tải xuống</p>
                     <p className="text-2xl font-bold text-green-600">
                       {teachingDocuments.reduce(
-                        (sum, doc) => sum + doc.downloads,
-                        0
+                        (sum, doc) => sum + doc.downloadCount,
+                        0,
                       )}
                     </p>
                   </Card>
                   <Card className="p-4 bg-orange-50 border-orange-100">
                     <p className="text-sm text-gray-600">Lớp được chia sẻ</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {new Set(teachingDocuments.map((d) => d.className)).size}
+                      {
+                        new Set(
+                          teachingDocuments.flatMap((d) =>
+                            d.classIds.map((c) => c._id),
+                          ),
+                        ).size
+                      }
+                    </p>
+                  </Card>
+                  <Card className="p-4 bg-purple-50 border-purple-100">
+                    <p className="text-sm text-gray-600">Chia sẻ cộng đồng</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {
+                        teachingDocuments.filter(
+                          (d) => d.visibility === "community",
+                        ).length
+                      }
                     </p>
                   </Card>
                 </div>
 
-                <div className="space-y-3">
-                  {teachingDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.type === "PDF"
-                            ? "bg-red-100"
-                            : doc.type === "DOCX"
-                              ? "bg-blue-100"
-                              : doc.type === "PPTX"
-                                ? "bg-orange-100"
-                                : "bg-gray-100"
+                {documentsLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Đang tải tài liệu...
+                  </div>
+                ) : teachingDocuments.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Chưa có tài liệu nào. Hãy tải lên tài liệu đầu tiên!
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {teachingDocuments.map((doc) => (
+                      <div
+                        key={doc._id}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${
+                              doc.fileType === "PDF"
+                                ? "bg-red-100"
+                                : doc.fileType === "DOCX"
+                                  ? "bg-blue-100"
+                                  : doc.fileType === "PPTX"
+                                    ? "bg-orange-100"
+                                    : doc.fileType === "XLSX"
+                                      ? "bg-green-100"
+                                      : "bg-gray-100"
                             }`}
-                        >
-                          <FileIcon
-                            className={`h-6 w-6 ${doc.type === "PDF"
-                              ? "text-red-600"
-                              : doc.type === "DOCX"
-                                ? "text-blue-600"
-                                : doc.type === "PPTX"
-                                  ? "text-orange-600"
-                                  : "text-gray-600"
+                          >
+                            <FileIcon
+                              className={`h-6 w-6 ${
+                                doc.fileType === "PDF"
+                                  ? "text-red-600"
+                                  : doc.fileType === "DOCX"
+                                    ? "text-blue-600"
+                                    : doc.fileType === "PPTX"
+                                      ? "text-orange-600"
+                                      : doc.fileType === "XLSX"
+                                        ? "text-green-600"
+                                        : "text-gray-600"
                               }`}
-                          />
+                            />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {doc.title}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                {doc.fileType}
+                              </span>
+                              {doc.fileSize && <span>{doc.fileSize}</span>}
+                              <span>•</span>
+                              <span>
+                                {doc.classIds.map((c) => c.name).join(", ") ||
+                                  "Tất cả lớp"}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {new Date(doc.createdAt).toLocaleDateString(
+                                  "vi-VN",
+                                )}
+                              </span>
+                              {doc.visibility === "community" && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                  🌐 Cộng đồng
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {doc.name}
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span>{doc.type}</span>
-                            <span>•</span>
-                            <span>{doc.size}</span>
-                            <span>•</span>
-                            <span>{doc.className}</span>
-                            <span>•</span>
-                            <span>{doc.uploadDate}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right hidden sm:block">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {doc.downloadCount} lượt tải
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <a
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => incrementDownload(doc._id)}
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1"
+                              >
+                                <DownloadIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline">Tải</span>
+                              </Button>
+                            </a>
+                            {doc.visibility === "class" ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-purple-600 hover:bg-purple-50"
+                                onClick={() => {
+                                  shareToCommunity(doc._id);
+                                  toast.success("Đã chia sẻ ra cộng đồng!");
+                                }}
+                              >
+                                🌐 Chia sẻ
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  restrictToClass(doc._id);
+                                  toast.success("Đã giới hạn chỉ lớp học!");
+                                }}
+                              >
+                                🔒 Giới hạn
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:bg-red-50"
+                              onClick={() => {
+                                if (
+                                  confirm("Bạn có chắc muốn xoá tài liệu này?")
+                                ) {
+                                  deleteDocument(doc._id);
+                                  toast.success("Đã xoá tài liệu!");
+                                }
+                              }}
+                            >
+                              Xoá
+                            </Button>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {doc.downloads} lượt tải
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                          >
-                            <DownloadIcon className="h-4 w-4" />
-                            <span className="hidden sm:inline">Tải xuống</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            Xoá
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
-                <Card className="p-4 border-dashed border-2 border-gray-300 bg-gray-50">
+                <Card
+                  className="p-4 border-dashed border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => setShowUploadModal(true)}
+                >
                   <div className="text-center py-8">
                     <UploadIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-600 font-medium">
@@ -2185,7 +2310,7 @@ export default function TeacherDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => { }}
+              onClose={() => {}}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2230,11 +2355,328 @@ export default function TeacherDashboard({
         <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
       )}
       {showSettings && (
-        <SettingsModal
-          user={user}
-          onClose={() => setShowSettings(false)}
+        <SettingsModal user={user} onClose={() => setShowSettings(false)} />
+      )}
+      {showUploadModal && (
+        <UploadDocumentModal
+          classes={classes}
+          onClose={() => setShowUploadModal(false)}
+          onUpload={async (file, data) => {
+            try {
+              await uploadDocument(file, data);
+              toast.success("Tải lên tài liệu thành công!");
+              setShowUploadModal(false);
+            } catch (error: any) {
+              toast.error(error.message || "Lỗi khi tải lên tài liệu");
+            }
+          }}
         />
       )}
+    </div>
+  );
+}
+
+// Modal Upload Document với Drag & Drop
+function UploadDocumentModal({
+  classes,
+  onClose,
+  onUpload,
+}: {
+  classes: Class[];
+  onClose: () => void;
+  onUpload: (file: File, data: any) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [visibility, setVisibility] = useState<"class" | "community">("class");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async () => {
+    if (!title || !selectedFile) {
+      alert("Vui lòng nhập tiêu đề và chọn file");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await onUpload(selectedFile, {
+        title,
+        description,
+        classIds: selectedClassIds.length > 0 ? selectedClassIds : undefined,
+        visibility,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleClass = (classId: string) => {
+    setSelectedClassIds((prev) =>
+      prev.includes(classId)
+        ? prev.filter((id) => id !== classId)
+        : [...prev, classId],
+    );
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!title) {
+        // Auto-fill title from filename (without extension)
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setTitle(nameWithoutExt);
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!title) {
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setTitle(nameWithoutExt);
+      }
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "pdf":
+        return "📄";
+      case "doc":
+      case "docx":
+        return "📝";
+      case "xls":
+      case "xlsx":
+        return "📊";
+      case "ppt":
+      case "pptx":
+        return "📽️";
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "webp":
+        return "🖼️";
+      case "mp4":
+      case "webm":
+      case "avi":
+        return "🎬";
+      case "mp3":
+      case "wav":
+        return "🎵";
+      case "zip":
+      case "rar":
+        return "📦";
+      default:
+        return "📎";
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900">
+            Tải lên tài liệu mới
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Drag & Drop Zone */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+              isDragging
+                ? "border-blue-500 bg-blue-50"
+                : selectedFile
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-300 hover:border-gray-400"
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelect}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.mp3,.wav,.zip,.rar,.txt"
+            />
+            {selectedFile ? (
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl">
+                  {getFileIcon(selectedFile.name)}
+                </span>
+                <div className="text-left">
+                  <p className="font-medium text-gray-900 truncate max-w-[250px]">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                  }}
+                  className="ml-2 p-1 hover:bg-red-100 rounded text-red-500"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-4xl mb-2">📁</div>
+                <p className="text-gray-600 font-medium">
+                  Kéo thả file vào đây hoặc click để chọn
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Hỗ trợ: PDF, Word, Excel, PowerPoint, Ảnh, Video, Audio, ZIP
+                  (tối đa 50MB)
+                </p>
+              </>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tiêu đề <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="VD: Tài liệu Toán 10 - Chương 1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Mô tả
+            </label>
+            <textarea
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Mô tả ngắn về tài liệu..."
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Chọn lớp chia sẻ
+            </label>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border rounded-lg bg-gray-50">
+              {classes.length === 0 ? (
+                <p className="text-sm text-gray-500">Bạn chưa có lớp nào</p>
+              ) : (
+                classes.map((cls) => (
+                  <button
+                    key={cls._id}
+                    type="button"
+                    onClick={() => toggleClass(cls._id)}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                      selectedClassIds.includes(cls._id)
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    {cls.name}
+                  </button>
+                ))
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Không chọn = chia sẻ với tất cả lớp của bạn
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phạm vi chia sẻ
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={visibility === "class"}
+                  onChange={() => setVisibility("class")}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm">🔒 Chỉ lớp học</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={visibility === "community"}
+                  onChange={() => setVisibility("community")}
+                  className="w-4 h-4 text-purple-600"
+                />
+                <span className="text-sm">🌐 Cộng đồng (tất cả)</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Huỷ
+            </Button>
+            <Button
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              onClick={handleSubmit}
+              disabled={isLoading || !title || !selectedFile}
+            >
+              {isLoading ? "Đang tải..." : "Tải lên"}
+            </Button>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

@@ -26,6 +26,7 @@ import { FinanceModule } from './finance/finance.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { GradesModule } from './grades/grades.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -63,8 +64,8 @@ import { GradesModule } from './grades/grades.module';
     PaymentsModule,
     ExpensesModule,
     FinanceModule,
+    DocumentsModule,
   ],
-
 
   controllers: [AppController],
   providers: [AppService],
