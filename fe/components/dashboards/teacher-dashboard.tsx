@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Bounce, ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import {
   BarChart,
   Bar,
@@ -11,6 +13,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { ChevronDown, Camera } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -800,6 +803,320 @@ function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function SettingsModal({
+  user,
+  onClose,
+}: {
+  user: {
+    _id?: string;
+    id?: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    teacherCode?: string;
+    qualification?: string;
+    teacherNote?: string;
+  };
+  onClose: () => void;
+}) {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: user.name,
+    phone: user.phone || "",
+    qualification: user.qualification || "",
+    teacherNote: user.teacherNote || "",
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+    }
+  };
+
+  const handleEditAvatar = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const userId = user._id || user.id;
+      if (!userId) {
+        toast.error("Không tìm thấy thông tin người dùng", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
+        return;
+      }
+
+      await api.patch(`/users/${userId}`, {
+        name: formData.name,
+        phone: formData.phone,
+        qualification: formData.qualification,
+        teacherNote: formData.teacherNote,
+      });
+
+      toast.success("Cập nhật thông tin thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+      setIsEditing(false);
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center">
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {isEditing && (
+              <button
+                onClick={handleEditAvatar}
+                className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+                title="Đổi ảnh đại diện"
+              >
+                <Camera size={17} />
+              </button>
+            )}
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Form Inputs */}
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Họ và tên</label>
+              <input
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={isEditing ? formData.name : user.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                readOnly={!isEditing}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Số điện thoại</label>
+              <input
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={
+                  isEditing ? formData.phone : user.phone || "Chưa cập nhật"
+                }
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                readOnly={!isEditing}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 bg-gray-50 text-gray-500 cursor-not-allowed"
+              defaultValue={user.email}
+              readOnly
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Mã giáo viên</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 bg-gray-50 text-gray-500 cursor-not-allowed"
+              defaultValue={user.teacherCode || "Chưa có"}
+              readOnly
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Trình độ chuyên môn</label>
+            <input
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
+              value={
+                isEditing
+                  ? formData.qualification
+                  : user.qualification || "Chưa cập nhật"
+              }
+              onChange={(e) => handleInputChange("qualification", e.target.value)}
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Ghi chú</label>
+            <textarea
+              rows={3}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
+              value={
+                isEditing
+                  ? formData.teacherNote
+                  : user.teacherNote || "Chưa có ghi chú"
+              }
+              onChange={(e) => handleInputChange("teacherNote", e.target.value)}
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+              >
+                <span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                  >
+                    <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                    <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    <circle cx="10" cy="8" r="5" />
+                  </svg>
+                </span>
+                Chỉnh Sửa
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: user.name,
+                      phone: user.phone || "",
+                      qualification: user.qualification || "",
+                      teacherNote: user.teacherNote || "",
+                    });
+                  }}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function FileIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -907,6 +1224,27 @@ export default function TeacherDashboard({
     fullDate: Date;
   } | null>(null);
   const [showEvaluation, setShowEvaluation] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // State to hold full user details including sensitive/personal info not in initial props
+  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+
+  // Fetch full teacher data
+  useEffect(() => {
+    if (user?.id) {
+      api.get(`/users/${user.id}`)
+        .then((res: any) => {
+          // Check if response data is wrapped in 'user' field or is direct
+          const userData = res.data.user || res.data;
+          setFullUserDetails(userData);
+        })
+        .catch((err: any) => {
+          console.error("Failed to fetch full user details:", err);
+        });
+    }
+  }, [user.id]);
 
   // Stores
   const {
@@ -920,6 +1258,17 @@ export default function TeacherDashboard({
     isLoading: scheduleLoading,
   } = useScheduleStore();
   const { markAttendance, markTimetableAttendance } = useAttendanceStore();
+
+  // Handle click outside to close profile dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch data on mount
   useEffect(() => {
@@ -999,6 +1348,23 @@ export default function TeacherDashboard({
   const totalWeeklySchedules = useMemo(() => {
     return timetableByDay.reduce((sum, day) => sum + day.schedules.length, 0);
   }, [timetableByDay]);
+
+  // Overview statistics
+  const handleLogout = () => {
+    toast.info("Đang đăng xuất...", {
+      position: "top-right",
+      autoClose: 250,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: false,
+      draggable: true,
+      theme: "light",
+      transition: Bounce,
+    });
+    setTimeout(() => {
+      onLogout();
+    }, 500);
+  };
 
   // Overview statistics
   const overviewCards = useMemo(() => {
@@ -1214,30 +1580,75 @@ export default function TeacherDashboard({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Trường Thành Education
-            </h1>
-            <p className="text-sm text-gray-500">Dashboard Giáo viên</p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap justify-end">
-            <NotificationCenter userRole={user.role} />
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-base shadow-md">
-                {user.name.charAt(0)}
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-600">{user.email}</p>
-              </div>
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+              T
             </div>
-            <Button variant="outline" onClick={onLogout}>
-              Đăng xuất
-            </Button>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+                Trường Thành Education
+              </h1>
+              <p className="text-xs text-gray-500">Dashboard Giáo viên</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <NotificationCenter userRole={user.role} />
+            {/* Use Dropdown in Profile */}
+            <div className="relative ml-3" ref={dropdownRef}>
+              {/* Avatar */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative group focus:outline-none"
+              >
+                {/* Avatar chính */}
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-blue-500">
+                  {user.name.charAt(0)}
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
+                  <ChevronDown size={10} strokeWidth={3} />
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  {/* Thông tin user tóm tắt */}
+                  <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                    </span>
+                    Hồ sơ
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                    </span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -1817,6 +2228,12 @@ export default function TeacherDashboard({
       )}
       {showEvaluation && (
         <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
+      )}
+      {showSettings && (
+        <SettingsModal
+          user={user}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   );
