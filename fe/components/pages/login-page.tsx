@@ -729,9 +729,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   !selectedRole ||
                   (!branchId && selectedRole !== "admin")
                 }
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 
-                  text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-blue-200/50 
-                  transition-all duration-300 hover:-translate-y-0.5 text-sm sm:text-base
+                className="w-full bg-gradient-to-r from-blue-600/80 to-indigo-600/80 backdrop-blur-md border border-white/20 
+                  hover:bg-gradient-to-r hover:from-blue-600/90 hover:to-indigo-600/90 
+                  text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] 
+                  transition-all duration-300 hover:-translate-y-0.5 hover:shadow-blue-500/40 text-sm sm:text-base
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
                   active:scale-[0.98]"
               >
