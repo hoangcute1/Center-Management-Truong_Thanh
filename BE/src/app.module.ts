@@ -23,6 +23,10 @@ import { PaymentRequestsModule } from './payment-requests/payment-requests.modul
 import { PaymentsModule } from './payments/payments.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { FinanceModule } from './finance/finance.module';
+import { AssignmentsModule } from './assignments/assignments.module';
+import { SubmissionsModule } from './submissions/submissions.module';
+import { GradesModule } from './grades/grades.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -43,6 +47,9 @@ import { FinanceModule } from './finance/finance.module';
     SessionsModule,
     AttendanceModule,
     AssessmentsModule,
+    AssignmentsModule,
+    SubmissionsModule,
+    GradesModule,
     GoalsModule,
     TuitionModule,
     NotificationsModule,
@@ -57,8 +64,8 @@ import { FinanceModule } from './finance/finance.module';
     PaymentsModule,
     ExpensesModule,
     FinanceModule,
+    DocumentsModule,
   ],
-
 
   controllers: [AppController],
   providers: [AppService],

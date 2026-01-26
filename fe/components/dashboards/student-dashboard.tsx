@@ -24,6 +24,7 @@ import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
 import api from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 
@@ -652,7 +653,9 @@ function SettingsModal({
   const [formData, setFormData] = useState({
     name: user.name,
     phone: user.phone || "",
-    dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
+    dateOfBirth: user.dateOfBirth
+      ? new Date(user.dateOfBirth).toISOString().split("T")[0]
+      : "",
     gender: user.gender || "",
   });
 
@@ -673,7 +676,7 @@ function SettingsModal({
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -689,7 +692,7 @@ function SettingsModal({
         name: formData.name,
         phone: formData.phone,
         dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender
+        gender: formData.gender,
       });
 
       toast.success("Cập nhật thông tin thành công!");
@@ -775,10 +778,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -820,10 +824,11 @@ function SettingsModal({
               <label className="text-gray-700 font-medium">Ngày sinh</label>
               <input
                 type={isEditing ? "date" : "text"}
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={
                   isEditing
                     ? formData.dateOfBirth
@@ -831,18 +836,23 @@ function SettingsModal({
                       ? new Date(user.dateOfBirth).toLocaleDateString("vi-VN")
                       : "Chưa cập nhật"
                 }
-                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("dateOfBirth", e.target.value)
+                }
                 readOnly={!isEditing}
               />
             </div>
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
-                value={isEditing ? formData.phone : (user.phone || "Chưa cập nhật")}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
+                value={
+                  isEditing ? formData.phone : user.phone || "Chưa cập nhật"
+                }
                 onChange={(e) => handleInputChange("phone", e.target.value)}
                 readOnly={!isEditing}
               />
@@ -869,7 +879,9 @@ function SettingsModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Họ và tên phụ huynh</label>
+              <label className="text-gray-700 font-medium">
+                Họ và tên phụ huynh
+              </label>
               <input
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                 defaultValue={user.parentName || "Chưa có"}
@@ -877,7 +889,9 @@ function SettingsModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Số điện thoại phụ huynh</label>
+              <label className="text-gray-700 font-medium">
+                Số điện thoại phụ huynh
+              </label>
               <input
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                 defaultValue={user.parentPhone || "Chưa cập nhật"}
@@ -893,7 +907,22 @@ function SettingsModal({
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
               >
                 <span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                  >
+                    <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                    <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    <circle cx="10" cy="8" r="5" />
+                  </svg>
                 </span>
                 Chỉnh Sửa
               </Button>
@@ -905,7 +934,9 @@ function SettingsModal({
                     setFormData({
                       name: user.name,
                       phone: user.phone || "",
-                      dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
+                      dateOfBirth: user.dateOfBirth
+                        ? new Date(user.dateOfBirth).toISOString().split("T")[0]
+                        : "",
                       gender: user.gender || "",
                     });
                   }}
@@ -965,6 +996,7 @@ export default function StudentDashboard({
 
   //Dropdown Profile
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
   //Xử lý click ra ngoài để đóng menu
@@ -999,6 +1031,12 @@ export default function StudentDashboard({
 
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
+  const {
+    documents: studentDocuments,
+    fetchForStudent,
+    incrementDownload,
+    isLoading: documentsLoading,
+  } = useDocumentsStore();
 
   // State to hold full user details including sensitive/personal info not in initial props
   const [fullUserDetails, setFullUserDetails] = useState<any>(null);
@@ -1010,7 +1048,7 @@ export default function StudentDashboard({
         if (userId) {
           const response = await api.get(`/users/${userId}`);
           setFullUserDetails(response.data);
-          console.log("Data của user:", response.data)
+          console.log("Data của user:", response.data);
         }
       } catch (error) {
         console.error("Failed to fetch full user details:", error);
@@ -1022,8 +1060,9 @@ export default function StudentDashboard({
   useEffect(() => {
     if (user || authUser) {
       fetchMyRequests();
+      fetchForStudent();
     }
-  }, [user, authUser, fetchMyRequests]);
+  }, [user, authUser, fetchMyRequests, fetchForStudent]);
 
   const pendingPayments = myRequests.filter(
     (r) => r.status === "pending" || r.status === "overdue",
@@ -1884,7 +1923,7 @@ export default function StudentDashboard({
                           <div className="space-y-2 pt-2">
                             <Button
                               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs rounded-xl shadow-md"
-                              onClick={() => setShowClassDetail(true)}
+                              onClick={() => setShowDocumentsModal(true)}
                             >
                               📄 Tài liệu
                             </Button>
@@ -2398,6 +2437,202 @@ export default function StudentDashboard({
           onClose={() => setShowSettings(false)}
         />
       )}
+      {showDocumentsModal && (
+        <StudentDocumentsModal
+          documents={studentDocuments}
+          isLoading={documentsLoading}
+          onClose={() => setShowDocumentsModal(false)}
+          onDownload={incrementDownload}
+        />
+      )}
+    </div>
+  );
+}
+
+// Modal xem tài liệu cho học sinh
+function StudentDocumentsModal({
+  documents,
+  isLoading,
+  onClose,
+  onDownload,
+}: {
+  documents: Document[];
+  isLoading: boolean;
+  onClose: () => void;
+  onDownload: (id: string) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "class" | "community">("all");
+
+  const filteredDocs = documents.filter((doc) => {
+    if (filter === "all") return true;
+    return doc.visibility === filter;
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              📚 Tài liệu học tập
+            </h2>
+            <p className="text-sm text-gray-500">
+              Tài liệu từ giáo viên của bạn
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === "all"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Tất cả ({documents.length})
+          </button>
+          <button
+            onClick={() => setFilter("class")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === "class"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            🔒 Lớp học (
+            {documents.filter((d) => d.visibility === "class").length})
+          </button>
+          <button
+            onClick={() => setFilter("community")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === "community"
+                ? "bg-purple-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            🌐 Cộng đồng (
+            {documents.filter((d) => d.visibility === "community").length})
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500">
+            Đang tải tài liệu...
+          </div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <span className="text-4xl mb-3 block">📭</span>
+            Chưa có tài liệu nào
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredDocs.map((doc) => {
+              const fileName =
+                doc.originalFileName || doc.fileUrl.split("/").pop() || "";
+              const ext = fileName.split(".").pop()?.toLowerCase() || "";
+              const getIcon = () => {
+                switch (ext) {
+                  case "pdf":
+                    return { icon: "📕", bg: "bg-red-100" };
+                  case "doc":
+                  case "docx":
+                    return { icon: "📘", bg: "bg-blue-100" };
+                  case "ppt":
+                  case "pptx":
+                    return { icon: "📙", bg: "bg-orange-100" };
+                  case "xls":
+                  case "xlsx":
+                    return { icon: "📗", bg: "bg-green-100" };
+                  case "jpg":
+                  case "jpeg":
+                  case "png":
+                  case "gif":
+                  case "webp":
+                    return { icon: "🖼️", bg: "bg-purple-100" };
+                  case "mp4":
+                  case "webm":
+                  case "avi":
+                    return { icon: "🎬", bg: "bg-pink-100" };
+                  case "mp3":
+                  case "wav":
+                    return { icon: "🎵", bg: "bg-yellow-100" };
+                  case "zip":
+                  case "rar":
+                    return { icon: "📦", bg: "bg-gray-200" };
+                  default:
+                    return { icon: "📄", bg: "bg-gray-100" };
+                }
+              };
+              const { icon, bg } = getIcon();
+              return (
+                <div
+                  key={doc._id}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-10 w-10 rounded-lg flex items-center justify-center ${bg}`}
+                    >
+                      <span className="text-lg">{icon}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{doc.title}</p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        {ext && (
+                          <span className="px-2 py-0.5 bg-gray-100 rounded uppercase">
+                            {ext}
+                          </span>
+                        )}
+                        <span>•</span>
+                        <span>
+                          👨‍🏫 {doc.ownerTeacherId?.name || "Giáo viên"}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
+                        </span>
+                        {doc.visibility === "community" && (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                            🌐 Cộng đồng
+                          </span>
+                        )}
+                      </div>
+                      {doc.description && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {doc.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <a
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => onDownload(doc._id)}
+                    className="flex-shrink-0"
+                  >
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      ⬇️ Tải xuống
+                    </Button>
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
