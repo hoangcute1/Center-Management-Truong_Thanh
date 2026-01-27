@@ -25,7 +25,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
-import api from "@/lib/api";
+import api, { API_BASE_URL } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 
 // Helper functions for week navigation
@@ -778,11 +778,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -824,11 +823,10 @@ function SettingsModal({
               <label className="text-gray-700 font-medium">Ngày sinh</label>
               <input
                 type={isEditing ? "date" : "text"}
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing
                     ? formData.dateOfBirth
@@ -845,11 +843,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -2492,32 +2489,29 @@ function StudentDocumentsModal({
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setFilter("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "all"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             Tất cả ({documents.length})
           </button>
           <button
             onClick={() => setFilter("class")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "class"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "class"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             🔒 Lớp học (
             {documents.filter((d) => d.visibility === "class").length})
           </button>
           <button
             onClick={() => setFilter("community")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "community"
-                ? "bg-purple-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "community"
+              ? "bg-purple-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             🌐 Cộng đồng (
             {documents.filter((d) => d.visibility === "community").length})
@@ -2614,10 +2608,9 @@ function StudentDocumentsModal({
                     </div>
                   </div>
                   <a
-                    href={doc.fileUrl}
-                    target="_blank"
+                    href={`${API_BASE_URL}/documents/${doc._id}/file`}
+                    target="_self"
                     rel="noopener noreferrer"
-                    onClick={() => onDownload(doc._id)}
                     className="flex-shrink-0"
                   >
                     <Button
