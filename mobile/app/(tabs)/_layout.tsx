@@ -168,13 +168,22 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Materials - teacher only, hidden from tab bar */}
+      {/* Materials - visible for teacher and student */}
       <Tabs.Screen
         name="materials"
         options={{
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
-          href: null,
+          href: (role === "teacher" || role === "student") ? "/(tabs)/materials" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "document-text" : "document-text-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
         }}
       />
 

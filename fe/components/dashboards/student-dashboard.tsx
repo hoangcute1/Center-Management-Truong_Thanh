@@ -1024,7 +1024,7 @@ export default function StudentDashboard({
     isLoading: dashboardLoading,
     fetchDashboardData,
   } = useStudentDashboardStore();
-  const { user: authUser } = useAuthStore();
+  const { user: authUser, accessToken } = useAuthStore();
 
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
@@ -1585,6 +1585,12 @@ export default function StudentDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
+            </TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📚 Tài liệu
             </TabsTrigger>
             <TabsTrigger
               value="payment"
@@ -2396,6 +2402,135 @@ export default function StudentDashboard({
             </Card>
           </TabsContent>
 
+          <TabsContent value="documents" className="mt-6">
+            <Card className="p-6 border-0 shadow-lg rounded-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-200">
+                    📚
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Tài liệu học tập
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Tài liệu từ giáo viên của bạn
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter buttons */}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                <button
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white"
+                >
+                  Tất cả ({studentDocuments.length})
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  🔒 Lớp học ({studentDocuments.filter((d) => d.visibility === "class").length})
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  🌐 Cộng đồng ({studentDocuments.filter((d) => d.visibility === "community").length})
+                </button>
+              </div>
+
+              {/* Documents list */}
+              {documentsLoading ? (
+                <div className="text-center py-12">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-500">Đang tải tài liệu...</p>
+                </div>
+              ) : studentDocuments.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <span className="text-6xl mb-4 block">📭</span>
+                  <p className="text-lg font-medium">Chưa có tài liệu nào</p>
+                  <p className="text-sm">Giáo viên của bạn chưa chia sẻ tài liệu</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {studentDocuments.map((doc) => {
+                    const fileName = doc.originalFileName || doc.fileUrl.split("/").pop() || "";
+                    const ext = fileName.split(".").pop()?.toLowerCase() || "";
+                    const getIcon = () => {
+                      switch (ext) {
+                        case "pdf": return { icon: "📕", bg: "bg-red-100", color: "text-red-600" };
+                        case "doc": case "docx": return { icon: "📘", bg: "bg-blue-100", color: "text-blue-600" };
+                        case "ppt": case "pptx": return { icon: "📙", bg: "bg-orange-100", color: "text-orange-600" };
+                        case "xls": case "xlsx": return { icon: "📗", bg: "bg-green-100", color: "text-green-600" };
+                        case "jpg": case "jpeg": case "png": case "gif": case "webp": return { icon: "🖼️", bg: "bg-purple-100", color: "text-purple-600" };
+                        case "mp4": case "webm": case "avi": return { icon: "🎬", bg: "bg-pink-100", color: "text-pink-600" };
+                        case "mp3": case "wav": return { icon: "🎵", bg: "bg-yellow-100", color: "text-yellow-600" };
+                        case "zip": case "rar": return { icon: "📦", bg: "bg-gray-200", color: "text-gray-600" };
+                        default: return { icon: "📄", bg: "bg-gray-100", color: "text-gray-600" };
+                      }
+                    };
+                    const { icon, bg, color } = getIcon();
+                    return (
+                      <div
+                        key={doc._id}
+                        className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 hover:shadow-md hover:border-blue-200 transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${bg}`}>
+                            <span className="text-2xl">{icon}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">{doc.title}</p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                              {ext && (
+                                <span className={`px-2 py-0.5 ${bg} ${color} rounded uppercase font-medium`}>
+                                  {ext}
+                                </span>
+                              )}
+                              <span>•</span>
+                              <span>👨‍🏫 {doc.ownerTeacherId?.name || "Giáo viên"}</span>
+                              <span>•</span>
+                              <span>{new Date(doc.createdAt).toLocaleDateString("vi-VN")}</span>
+                              <span>•</span>
+                              <span>⬇️ {doc.downloadCount} lượt tải</span>
+                              {doc.visibility === "community" && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                  🌐 Cộng đồng
+                                </span>
+                              )}
+                            </div>
+                            {doc.description && (
+                              <p className="text-xs text-gray-500 mt-1">{doc.description}</p>
+                            )}
+                            {doc.classIds && doc.classIds.length > 0 && (
+                              <p className="text-xs text-blue-600 mt-1">
+                                📚 {doc.classIds.map((c) => c.name).join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <a
+                          href={`${API_BASE_URL}/documents/${doc._id}/file?token=${accessToken}`}
+                          target="_self"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0"
+                          onClick={() => incrementDownload(doc._id)}
+                        >
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md"
+                          >
+                            ⬇️ Tải xuống
+                          </Button>
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
@@ -2459,6 +2594,7 @@ function StudentDocumentsModal({
   onDownload: (id: string) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "class" | "community">("all");
+  const { accessToken } = useAuthStore();
 
   const filteredDocs = documents.filter((doc) => {
     if (filter === "all") return true;
@@ -2608,10 +2744,11 @@ function StudentDocumentsModal({
                     </div>
                   </div>
                   <a
-                    href={`${API_BASE_URL}/documents/${doc._id}/file`}
+                    href={`${API_BASE_URL}/documents/${doc._id}/file?token=${accessToken}`}
                     target="_self"
                     rel="noopener noreferrer"
                     className="flex-shrink-0"
+                    onClick={() => onDownload(doc._id)}
                   >
                     <Button
                       size="sm"
