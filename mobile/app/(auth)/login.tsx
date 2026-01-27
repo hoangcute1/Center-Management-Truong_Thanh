@@ -13,7 +13,7 @@ import {
   Dimensions,
   Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
@@ -50,6 +50,7 @@ const ROLE_CONFIG = {
 type Role = keyof typeof ROLE_CONFIG;
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -160,9 +161,8 @@ export default function LoginScreen() {
       console.log("[LOGIN] User role:", userData.role);
 
       if (selectedRole && userData.role !== selectedRole) {
-        const mismatchMessage = `Tài khoản này thuộc vai trò "${
-          ROLE_CONFIG[userData.role as Role]?.label || userData.role
-        }". Vui lòng chọn lại.`;
+        const mismatchMessage = `Tài khoản này thuộc vai trò "${ROLE_CONFIG[userData.role as Role]?.label || userData.role
+          }". Vui lòng chọn lại.`;
         setFormError(mismatchMessage);
         Alert.alert("Sai vai trò", mismatchMessage);
         await logout();
@@ -281,7 +281,7 @@ export default function LoginScreen() {
                     style={[
                       styles.branchItem,
                       selectedBranch?._id === branch._id &&
-                        styles.branchItemSelected,
+                      styles.branchItemSelected,
                     ]}
                     onPress={() => {
                       selectBranch(branch);
@@ -303,7 +303,7 @@ export default function LoginScreen() {
                           style={[
                             styles.branchItemText,
                             selectedBranch?._id === branch._id &&
-                              styles.branchItemTextSelected,
+                            styles.branchItemTextSelected,
                           ]}
                         >
                           {branch.name}
@@ -333,7 +333,7 @@ export default function LoginScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.backgroundDecor} pointerEvents="none">
         <LinearGradient
@@ -354,16 +354,33 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header with Gradient */}
+          {/* Overscroll Filler - Fixes white gap when pulling down */}
           <LinearGradient
-            colors={["#3B82F6", "#2563EB"]}
+            colors={["#3B82F6", "#3B82F6"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.headerGradient}
+            style={{
+              position: "absolute",
+              top: -1000,
+              left: 0,
+              right: 0,
+              height: 1000,
+            }}
+          />
+
+          {/* Header with Gradient */}
+          <LinearGradient
+            colors={["#3B82F6", "#3B82F6"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.headerGradient, { paddingTop: insets.top + 48 }]}
           >
             <View style={styles.logoContainer}>
               <View style={styles.logoCircle}>
@@ -644,7 +661,7 @@ export default function LoginScreen() {
 
       {/* Branch Modal */}
       <BranchModal />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -680,7 +697,6 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   headerGradient: {
-    paddingTop: 48,
     paddingBottom: 64,
     paddingHorizontal: 24,
     alignItems: "center",
