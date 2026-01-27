@@ -24,12 +24,8 @@ import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
-<<<<<<< HEAD
-import api from "@/lib/api";
-=======
 import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
 import api, { API_BASE_URL } from "@/lib/api";
->>>>>>> 4007d45ead37413bc913087bed805c780dcfa605
 import { AlertTriangle } from "lucide-react";
 
 // Helper functions for week navigation
@@ -847,13 +843,9 @@ function SettingsModal({
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
                   }`}
-<<<<<<< HEAD
-                value={isEditing ? formData.phone : (user.phone || "Chưa cập nhật")}
-=======
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
->>>>>>> 4007d45ead37413bc913087bed805c780dcfa605
                 onChange={(e) => handleInputChange("phone", e.target.value)}
                 readOnly={!isEditing}
               />
@@ -956,6 +948,9 @@ export default function StudentDashboard({
     score: number;
   } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [studentDocuments, setStudentDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
@@ -1029,6 +1024,33 @@ export default function StudentDashboard({
     };
     fetchFullUserDetails();
   }, [authUser, user.id]);
+
+  // Fetch documents for student
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        setDocumentsLoading(true);
+        const response = await api.get('/documents/student');
+        setStudentDocuments(response.data);
+      } catch (error) {
+        console.error('Failed to fetch documents:', error);
+      } finally {
+        setDocumentsLoading(false);
+      }
+    };
+    if (authUser || user) {
+      fetchDocuments();
+    }
+  }, [authUser, user]);
+
+  // Function to increment download count
+  const incrementDownload = async (documentId: string) => {
+    try {
+      await api.post(`/documents/${documentId}/download`);
+    } catch (error) {
+      console.error('Failed to increment download count:', error);
+    }
+  };
 
   useEffect(() => {
     if (user || authUser) {
@@ -1895,7 +1917,7 @@ export default function StudentDashboard({
                           <div className="space-y-2 pt-2">
                             <Button
                               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs rounded-xl shadow-md"
-                              onClick={() => setShowClassDetail(true)}
+                              onClick={() => setShowDocumentsModal(true)}
                             >
                               📄 Tài liệu
                             </Button>
@@ -2409,8 +2431,6 @@ export default function StudentDashboard({
           onClose={() => setShowSettings(false)}
         />
       )}
-<<<<<<< HEAD
-=======
       {showDocumentsModal && (
         <StudentDocumentsModal
           documents={studentDocuments}
@@ -2603,7 +2623,6 @@ function StudentDocumentsModal({
           </div>
         )}
       </Card>
->>>>>>> 4007d45ead37413bc913087bed805c780dcfa605
     </div>
   );
 }
