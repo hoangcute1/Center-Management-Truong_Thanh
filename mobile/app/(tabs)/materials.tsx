@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Redirect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -6,18 +7,100 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  Alert,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { teachingDocuments } from "@/lib/constants/materials";
 import { useAuthStore } from "@/lib/stores";
+import documentsApi, { Document } from "@/lib/api/documents";
 
 export default function MaterialsScreen() {
   const { user } = useAuthStore();
-  const isTeacher = user?.role === "teacher";
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!isTeacher) {
+  const isTeacher = user?.role === "teacher";
+  const isStudent = user?.role === "student";
+
+  // Redirect if not teacher or student
+  if (!isTeacher && !isStudent) {
     return <Redirect href="/(tabs)" />;
   }
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = isTeacher
+        ? await documentsApi.getMyDocuments()
+        : await documentsApi.getForStudent();
+      setDocuments(data);
+    } catch (err: any) {
+      console.error("Error loading documents:", err);
+      setError(err.message || "Lỗi khi tải tài liệu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async (doc: Document) => {
+    try {
+      // Get API Base URL from the api instance
+      const baseUrl = documentsApi['axiosInstance']?.defaults.baseURL || "http://192.168.101.87:3000";
+
+      // Use the new download endpoint which handles incrementing count too
+      const downloadUrl = `${baseUrl}/documents/${doc._id}/file`;
+
+      const canOpen = await Linking.canOpenURL(downloadUrl);
+      if (canOpen) {
+        await Linking.openURL(downloadUrl);
+      } else {
+        Alert.alert("Lỗi", "Không thể mở file");
+      }
+    } catch (err) {
+      console.error("Error downloading document:", err);
+      Alert.alert("Lỗi", "Không thể tải file");
+    }
+  };
+
+  const getFileType = (fileName: string): string => {
+    const ext = fileName?.split(".").pop()?.toUpperCase() || "FILE";
+    return ext;
+  };
+
+  const getFileColor = (type: string) => {
+    switch (type) {
+      case "PDF":
+        return { bg: "#FEE2E2", text: "#DC2626" };
+      case "DOCX":
+      case "DOC":
+        return { bg: "#DBEAFE", text: "#2563EB" };
+      case "PPTX":
+      case "PPT":
+        return { bg: "#FEF3C7", text: "#D97706" };
+      case "XLSX":
+      case "XLS":
+        return { bg: "#D1FAE5", text: "#059669" };
+      default:
+        return { bg: "#F3F4F6", text: "#6B7280" };
+    }
+  };
+
+  const formatFileSize = (url: string): string => {
+    // Since we don't have file size from backend, return placeholder
+    return "N/A";
+  };
+
+  const formatDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("vi-VN");
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
@@ -33,60 +116,85 @@ export default function MaterialsScreen() {
           <View style={styles.headerText}>
             <Text style={styles.title}>Tài liệu học tập</Text>
             <Text style={styles.subtitle}>
-              Danh sách tài liệu giảng dạy dành cho giáo viên
+              {isTeacher
+                ? "Danh sách tài liệu giảng dạy của bạn"
+                : "Tài liệu từ giáo viên"}
             </Text>
           </View>
         </View>
 
-        {teachingDocuments.map((doc) => (
-          <TouchableOpacity
-            key={doc.id}
-            style={styles.documentCard}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.documentIcon,
-                {
-                  backgroundColor:
-                    doc.type === "PDF"
-                      ? "#FEE2E2"
-                      : doc.type === "DOCX"
-                        ? "#DBEAFE"
-                        : "#FEF3C7",
-                },
-              ]}
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="alert-circle" size={48} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={loadDocuments}
             >
-              <Text
-                style={[
-                  styles.documentIconText,
-                  {
-                    color:
-                      doc.type === "PDF"
-                        ? "#DC2626"
-                        : doc.type === "DOCX"
-                          ? "#2563EB"
-                          : "#D97706",
-                  },
-                ]}
-              >
-                {doc.type}
-              </Text>
-            </View>
-            <View style={styles.documentInfo}>
-              <Text style={styles.documentName} numberOfLines={1}>
-                {doc.name}
-              </Text>
-              <Text style={styles.documentMeta}>
-                {doc.size} • {doc.uploadDate} • {doc.downloads} lượt tải
-              </Text>
-              <Text style={styles.documentClass}>{doc.className}</Text>
-            </View>
-            <TouchableOpacity style={styles.downloadButton}>
-              <Ionicons name="download-outline" size={20} color="#6B7280" />
+              <Text style={styles.retryButtonText}>Thử lại</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
+          </View>
+        ) : documents.length === 0 ? (
+          <View style={styles.centerContainer}>
+            <Ionicons name="folder-open-outline" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyText}>
+              {isTeacher
+                ? "Chưa có tài liệu nào. Hãy tải lên từ web!"
+                : "Chưa có tài liệu nào"}
+            </Text>
+          </View>
+        ) : (
+          documents.map((doc) => {
+            const fileType = getFileType(
+              doc.originalFileName || doc.fileUrl
+            );
+            const colors = getFileColor(fileType);
+
+            return (
+              <TouchableOpacity
+                key={doc._id}
+                style={styles.documentCard}
+                activeOpacity={0.7}
+                onPress={() => handleDownload(doc)}
+              >
+                <View
+                  style={[styles.documentIcon, { backgroundColor: colors.bg }]}
+                >
+                  <Text style={[styles.documentIconText, { color: colors.text }]}>
+                    {fileType}
+                  </Text>
+                </View>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName} numberOfLines={1}>
+                    {doc.title}
+                  </Text>
+                  <Text style={styles.documentMeta} numberOfLines={1}>
+                    {doc.downloadCount} lượt tải • {formatDate(doc.createdAt)}
+                  </Text>
+                  {doc.classIds && doc.classIds.length > 0 && (
+                    <Text style={styles.documentClass} numberOfLines={1}>
+                      {doc.classIds.map((c) => c.name).join(", ")}
+                    </Text>
+                  )}
+                  {doc.visibility === "community" && (
+                    <Text style={styles.communityBadge}>🌐 Cộng đồng</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  onPress={() => handleDownload(doc)}
+                >
+                  <Ionicons name="download-outline" size={20} color="#3B82F6" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -139,6 +247,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6B7280",
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#EF4444",
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: "#3B82F6",
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+  },
   documentCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -161,7 +304,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   documentIconText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "bold",
   },
   documentInfo: {
@@ -184,9 +327,14 @@ const styles = StyleSheet.create({
     color: "#3B82F6",
     fontWeight: "500",
   },
+  communityBadge: {
+    fontSize: 11,
+    color: "#8B5CF6",
+    marginTop: 2,
+  },
   downloadButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#EEF2FF",
   },
 });

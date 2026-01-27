@@ -10,7 +10,10 @@ import {
   UseGuards,
   UseInterceptors,
   BadRequestException,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -44,7 +47,7 @@ if (!existsSync(uploadsDir)) {
 @Controller('documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(private readonly documentsService: DocumentsService) { }
 
   @Post('upload')
   @Roles(UserRole.Admin, UserRole.Teacher)
@@ -84,10 +87,12 @@ export class DocumentsController {
           'application/zip',
           'application/x-rar-compressed',
         ];
+        console.log('Checking file upload:', file.originalname, file.mimetype);
         if (allowedMimes.includes(file.mimetype)) {
           cb(null, true);
         } else {
-          cb(new BadRequestException('Loại file không được hỗ trợ'), false);
+          console.error('File rejected (MIME):', file.mimetype);
+          cb(new BadRequestException('Loại file không được hỗ trợ: ' + file.mimetype), false);
         }
       },
     }),
@@ -116,11 +121,36 @@ export class DocumentsController {
       throw new BadRequestException('Vui lòng chọn file để upload');
     }
 
+    // Parse classIds if it comes as JSON string from FormData
+    let classIds: string[] | undefined = undefined;
+
+    if (dto.classIds) {
+      if (typeof dto.classIds === 'string') {
+        try {
+          const parsed = JSON.parse(dto.classIds);
+          classIds = Array.isArray(parsed) ? parsed : undefined;
+        } catch (e) {
+          console.warn('Failed to parse classIds JSON:', dto.classIds);
+          // If parsing fails, treat as undefined (will use teacher's classes)
+        }
+      } else if (Array.isArray(dto.classIds)) {
+        classIds = dto.classIds;
+      }
+    }
+
+    console.log('Upload document request:', {
+      fileName: file.originalname,
+      size: file.size,
+      classIds,
+      visibility: dto.visibility,
+    });
+
     // Generate file URL
     const fileUrl = `/uploads/documents/${file.filename}`;
 
     return this.documentsService.create(user, {
       ...dto,
+      classIds,
       fileUrl,
       originalFileName: file.originalname,
     });
@@ -214,6 +244,31 @@ export class DocumentsController {
   @ApiParam({ name: 'id', description: 'ID của tài liệu' })
   incrementDownload(@Param('id') id: string) {
     return this.documentsService.incrementDownload(id);
+  }
+
+  @Get(':id/file')
+  @ApiOperation({ summary: 'Tải xuống file tài liệu' })
+  @ApiParam({ name: 'id', description: 'ID của tài liệu' })
+  async downloadFile(@Param('id') id: string, @Res() res: Response) {
+    const document = await this.documentsService.findOne(id);
+
+    // Increment download count
+    await this.documentsService.incrementDownload(id);
+
+    const filename = document.fileUrl?.split('/').pop() || '';
+    const filePath = join(process.cwd(), 'uploads', 'documents', filename);
+
+    // Check if file exists
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('File không tồn tại trên hệ thống');
+    }
+
+    // Server file with attachment disposition to force download
+    res.download(filePath, document.originalFileName || 'document', (err) => {
+      if (err) {
+        console.error('Download error:', err);
+      }
+    });
   }
 
   @Delete(':id')
