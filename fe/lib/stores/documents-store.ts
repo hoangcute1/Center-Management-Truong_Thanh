@@ -46,7 +46,7 @@ export interface UploadDocumentDto {
   visibility?: DocumentVisibility;
 }
 
-export interface UpdateDocumentDto extends Partial<CreateDocumentDto> {}
+export interface UpdateDocumentDto extends Partial<CreateDocumentDto> { }
 
 interface DocumentsState {
   documents: Document[];
@@ -136,11 +136,20 @@ export const useDocumentsStore = create<DocumentsState>((set, get) => ({
         formData.append("description", data.description);
       }
       if (data.classIds && data.classIds.length > 0) {
-        data.classIds.forEach((id) => formData.append("classIds", id));
+        // Send classIds as JSON string to avoid array index issues in multipart
+        formData.append("classIds", JSON.stringify(data.classIds));
       }
       if (data.visibility) {
         formData.append("visibility", data.visibility);
       }
+
+      console.log("Uploading document:", {
+        fileName: file.name,
+        fileSize: file.size,
+        title: data.title,
+        classIds: data.classIds,
+        visibility: data.visibility,
+      });
 
       const response = await api.post("/documents/upload", formData, {
         headers: {
@@ -154,6 +163,7 @@ export const useDocumentsStore = create<DocumentsState>((set, get) => ({
       }));
       return newDoc;
     } catch (error: any) {
+      console.error("Upload error details:", error.response || error);
       const message =
         error.response?.data?.message || "Lỗi khi tải lên tài liệu";
       set({ error: message, isLoading: false });

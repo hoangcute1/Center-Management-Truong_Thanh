@@ -32,7 +32,7 @@ import {
   Document as TeachingDocument,
   DocumentVisibility,
 } from "@/lib/stores/documents-store";
-import api from "@/lib/api";
+import api, { API_BASE_URL } from "@/lib/api";
 import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
 
 interface TeacherDashboardProps {
@@ -2160,10 +2160,9 @@ export default function TeacherDashboard({
                           </div>
                           <div className="flex gap-2">
                             <a
-                              href={doc.fileUrl}
-                              target="_blank"
+                              href={`${API_BASE_URL}/documents/${doc._id}/file`}
+                              target="_self"
                               rel="noopener noreferrer"
-                              onClick={() => incrementDownload(doc._id)}
                             >
                               <Button
                                 variant="outline"
@@ -2311,59 +2310,73 @@ export default function TeacherDashboard({
         </Tabs>
       </main>
 
-      {chatWith && (
-        <ChatWindow
-          recipientName={chatWith.name}
-          recipientRole={chatWith.role}
-          currentUserName={user.name}
-          onClose={() => setChatWith(null)}
-        />
-      )}
-      {selectedStudent && (
-        <StudentDetailModal
-          student={selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-        />
-      )}
-      {attendanceSession && (
-        <AttendanceModal
-          session={attendanceSession.session}
-          classData={attendanceSession.classData}
-          onClose={() => setAttendanceSession(null)}
-          onSave={handleSaveAttendance}
-        />
-      )}
-      {timetableAttendance && (
-        <TimetableAttendanceModal
-          schedule={timetableAttendance.schedule}
-          classData={timetableAttendance.classData}
-          fullDate={timetableAttendance.fullDate}
-          onClose={() => setTimetableAttendance(null)}
-          onSave={handleSaveTimetableAttendance}
-        />
-      )}
-      {showEvaluation && (
-        <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
-      )}
-      {showSettings && (
-        <SettingsModal user={user} onClose={() => setShowSettings(false)} />
-      )}
-      {showUploadModal && (
-        <UploadDocumentModal
-          classes={classes}
-          onClose={() => setShowUploadModal(false)}
-          onUpload={async (file, data) => {
-            try {
-              await uploadDocument(file, data);
-              toast.success("Tải lên tài liệu thành công!");
-              setShowUploadModal(false);
-            } catch (error: any) {
-              toast.error(error.message || "Lỗi khi tải lên tài liệu");
-            }
-          }}
-        />
-      )}
-    </div>
+      {
+        chatWith && (
+          <ChatWindow
+            recipientName={chatWith.name}
+            recipientRole={chatWith.role}
+            currentUserName={user.name}
+            onClose={() => setChatWith(null)}
+          />
+        )
+      }
+      {
+        selectedStudent && (
+          <StudentDetailModal
+            student={selectedStudent}
+            onClose={() => setSelectedStudent(null)}
+          />
+        )
+      }
+      {
+        attendanceSession && (
+          <AttendanceModal
+            session={attendanceSession.session}
+            classData={attendanceSession.classData}
+            onClose={() => setAttendanceSession(null)}
+            onSave={handleSaveAttendance}
+          />
+        )
+      }
+      {
+        timetableAttendance && (
+          <TimetableAttendanceModal
+            schedule={timetableAttendance.schedule}
+            classData={timetableAttendance.classData}
+            fullDate={timetableAttendance.fullDate}
+            onClose={() => setTimetableAttendance(null)}
+            onSave={handleSaveTimetableAttendance}
+          />
+        )
+      }
+      {
+        showEvaluation && (
+          <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
+        )
+      }
+      {
+        showSettings && (
+          <SettingsModal user={user} onClose={() => setShowSettings(false)} />
+        )
+      }
+      {
+        showUploadModal && (
+          <UploadDocumentModal
+            classes={classes}
+            onClose={() => setShowUploadModal(false)}
+            onUpload={async (file, data) => {
+              try {
+                await uploadDocument(file, data);
+                toast.success("Tải lên tài liệu thành công!");
+                setShowUploadModal(false);
+              } catch (error: any) {
+                toast.error(error.message || "Lỗi khi tải lên tài liệu");
+              }
+            }}
+          />
+        )
+      }
+    </div >
   );
 }
 

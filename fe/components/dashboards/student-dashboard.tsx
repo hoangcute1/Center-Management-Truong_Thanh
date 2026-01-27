@@ -24,7 +24,12 @@ import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+<<<<<<< HEAD
 import api from "@/lib/api";
+=======
+import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
+import api, { API_BASE_URL } from "@/lib/api";
+>>>>>>> 4007d45ead37413bc913087bed805c780dcfa605
 import { AlertTriangle } from "lucide-react";
 
 // Helper functions for week navigation
@@ -842,7 +847,13 @@ function SettingsModal({
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
                   }`}
+<<<<<<< HEAD
                 value={isEditing ? formData.phone : (user.phone || "Chưa cập nhật")}
+=======
+                value={
+                  isEditing ? formData.phone : user.phone || "Chưa cập nhật"
+                }
+>>>>>>> 4007d45ead37413bc913087bed805c780dcfa605
                 onChange={(e) => handleInputChange("phone", e.target.value)}
                 readOnly={!isEditing}
               />
@@ -2398,6 +2409,201 @@ export default function StudentDashboard({
           onClose={() => setShowSettings(false)}
         />
       )}
+<<<<<<< HEAD
+=======
+      {showDocumentsModal && (
+        <StudentDocumentsModal
+          documents={studentDocuments}
+          isLoading={documentsLoading}
+          onClose={() => setShowDocumentsModal(false)}
+          onDownload={incrementDownload}
+        />
+      )}
+    </div>
+  );
+}
+
+// Modal xem tài liệu cho học sinh
+function StudentDocumentsModal({
+  documents,
+  isLoading,
+  onClose,
+  onDownload,
+}: {
+  documents: Document[];
+  isLoading: boolean;
+  onClose: () => void;
+  onDownload: (id: string) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "class" | "community">("all");
+
+  const filteredDocs = documents.filter((doc) => {
+    if (filter === "all") return true;
+    return doc.visibility === filter;
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              📚 Tài liệu học tập
+            </h2>
+            <p className="text-sm text-gray-500">
+              Tài liệu từ giáo viên của bạn
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+          >
+            Tất cả ({documents.length})
+          </button>
+          <button
+            onClick={() => setFilter("class")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "class"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+          >
+            🔒 Lớp học (
+            {documents.filter((d) => d.visibility === "class").length})
+          </button>
+          <button
+            onClick={() => setFilter("community")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "community"
+              ? "bg-purple-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+          >
+            🌐 Cộng đồng (
+            {documents.filter((d) => d.visibility === "community").length})
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500">
+            Đang tải tài liệu...
+          </div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <span className="text-4xl mb-3 block">📭</span>
+            Chưa có tài liệu nào
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredDocs.map((doc) => {
+              const fileName =
+                doc.originalFileName || doc.fileUrl.split("/").pop() || "";
+              const ext = fileName.split(".").pop()?.toLowerCase() || "";
+              const getIcon = () => {
+                switch (ext) {
+                  case "pdf":
+                    return { icon: "📕", bg: "bg-red-100" };
+                  case "doc":
+                  case "docx":
+                    return { icon: "📘", bg: "bg-blue-100" };
+                  case "ppt":
+                  case "pptx":
+                    return { icon: "📙", bg: "bg-orange-100" };
+                  case "xls":
+                  case "xlsx":
+                    return { icon: "📗", bg: "bg-green-100" };
+                  case "jpg":
+                  case "jpeg":
+                  case "png":
+                  case "gif":
+                  case "webp":
+                    return { icon: "🖼️", bg: "bg-purple-100" };
+                  case "mp4":
+                  case "webm":
+                  case "avi":
+                    return { icon: "🎬", bg: "bg-pink-100" };
+                  case "mp3":
+                  case "wav":
+                    return { icon: "🎵", bg: "bg-yellow-100" };
+                  case "zip":
+                  case "rar":
+                    return { icon: "📦", bg: "bg-gray-200" };
+                  default:
+                    return { icon: "📄", bg: "bg-gray-100" };
+                }
+              };
+              const { icon, bg } = getIcon();
+              return (
+                <div
+                  key={doc._id}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-10 w-10 rounded-lg flex items-center justify-center ${bg}`}
+                    >
+                      <span className="text-lg">{icon}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{doc.title}</p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        {ext && (
+                          <span className="px-2 py-0.5 bg-gray-100 rounded uppercase">
+                            {ext}
+                          </span>
+                        )}
+                        <span>•</span>
+                        <span>
+                          👨‍🏫 {doc.ownerTeacherId?.name || "Giáo viên"}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
+                        </span>
+                        {doc.visibility === "community" && (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                            🌐 Cộng đồng
+                          </span>
+                        )}
+                      </div>
+                      {doc.description && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {doc.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <a
+                    href={`${API_BASE_URL}/documents/${doc._id}/file`}
+                    target="_self"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0"
+                  >
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      ⬇️ Tải xuống
+                    </Button>
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+>>>>>>> 4007d45ead37413bc913087bed805c780dcfa605
     </div>
   );
 }

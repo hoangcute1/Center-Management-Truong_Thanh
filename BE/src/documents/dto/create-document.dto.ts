@@ -31,10 +31,8 @@ export class CreateDocumentDto {
     description: 'Danh sách ID lớp học được chia sẻ',
     type: [String],
   })
-  @IsArray()
-  @IsMongoId({ each: true })
   @IsOptional()
-  classIds?: string[];
+  classIds?: any; // Relax validation to debug 400 error
 
   @ApiPropertyOptional({
     enum: DocumentVisibility,
