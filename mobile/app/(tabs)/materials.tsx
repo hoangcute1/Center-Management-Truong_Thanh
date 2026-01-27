@@ -16,10 +16,11 @@ import { useAuthStore } from "@/lib/stores";
 import documentsApi, { Document } from "@/lib/api/documents";
 
 export default function MaterialsScreen() {
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "class" | "community">("all");
 
   const isTeacher = user?.role === "teacher";
   const isStudent = user?.role === "student";
@@ -52,10 +53,13 @@ export default function MaterialsScreen() {
   const handleDownload = async (doc: Document) => {
     try {
       // Get API Base URL from the api instance
-      const baseUrl = documentsApi['axiosInstance']?.defaults.baseURL || "http://192.168.101.87:3000";
+      const baseUrl =
+        documentsApi["axiosInstance"]?.defaults.baseURL ||
+        "http://192.168.101.87:3000";
 
       // Use the new download endpoint which handles incrementing count too
-      const downloadUrl = `${baseUrl}/documents/${doc._id}/file`;
+      // Append accessToken for auth
+      const downloadUrl = `${baseUrl}/documents/${doc._id}/file?token=${accessToken}`;
 
       const canOpen = await Linking.canOpenURL(downloadUrl);
       if (canOpen) {
@@ -102,6 +106,11 @@ export default function MaterialsScreen() {
     return date.toLocaleDateString("vi-VN");
   };
 
+  const filteredDocuments = documents.filter((doc) => {
+    if (filter === "all") return true;
+    return doc.visibility === filter;
+  });
+
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <ScrollView
@@ -123,6 +132,70 @@ export default function MaterialsScreen() {
           </View>
         </View>
 
+        {/* Filter Tabs */}
+        {!loading && documents.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterContainer}
+            contentContainerStyle={styles.filterContent}
+          >
+            <TouchableOpacity
+              style={[
+                styles.filterTab,
+                filter === "all" && styles.filterTabActive,
+              ]}
+              onPress={() => setFilter("all")}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  filter === "all" && styles.filterTabTextActive,
+                ]}
+              >
+                Tất cả ({documents.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterTab,
+                filter === "class" && styles.filterTabActive,
+              ]}
+              onPress={() => setFilter("class")}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  filter === "class" && styles.filterTabTextActive,
+                ]}
+              >
+                🔒 Lớp học (
+                {documents.filter((d) => d.visibility === "class").length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterTab,
+                filter === "community" && styles.filterTabActive,
+                filter === "community" && { backgroundColor: "#8B5CF6" },
+              ]}
+              onPress={() => setFilter("community")}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  filter === "community" && styles.filterTabTextActive,
+                ]}
+              >
+                🌐 Cộng đồng (
+                {documents.filter((d) => d.visibility === "community").length})
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
@@ -139,17 +212,19 @@ export default function MaterialsScreen() {
               <Text style={styles.retryButtonText}>Thử lại</Text>
             </TouchableOpacity>
           </View>
-        ) : documents.length === 0 ? (
+        ) : filteredDocuments.length === 0 ? (
           <View style={styles.centerContainer}>
             <Ionicons name="folder-open-outline" size={64} color="#9CA3AF" />
             <Text style={styles.emptyText}>
-              {isTeacher
-                ? "Chưa có tài liệu nào. Hãy tải lên từ web!"
-                : "Chưa có tài liệu nào"}
+              {filter === "all"
+                ? isTeacher
+                  ? "Chưa có tài liệu nào. Hãy tải lên từ web!"
+                  : "Chưa có tài liệu nào"
+                : "Không tìm thấy tài liệu trong mục này"}
             </Text>
           </View>
         ) : (
-          documents.map((doc) => {
+          filteredDocuments.map((doc) => {
             const fileType = getFileType(
               doc.originalFileName || doc.fileUrl
             );
@@ -336,5 +411,35 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: "#EEF2FF",
+  },
+  filterContainer: {
+    maxHeight: 50,
+    marginBottom: 12,
+  },
+  filterContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  filterTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  filterTabActive: {
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
+  },
+  filterTabText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#4B5563",
+  },
+  filterTabTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });
