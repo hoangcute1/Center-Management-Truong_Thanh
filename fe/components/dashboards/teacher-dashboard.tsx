@@ -629,9 +629,8 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
-                  !canEdit ? "opacity-60" : ""
-                }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
+                  }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -949,11 +948,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -962,11 +960,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -999,11 +996,10 @@ function SettingsModal({
               Trình độ chuyên môn
             </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-              }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
               value={
                 isEditing
                   ? formData.qualification
@@ -1020,11 +1016,10 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-              }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1351,7 +1346,7 @@ export default function TeacherDashboard({
     toast.info("Đang đăng xuất...", {
       position: "top-right",
       autoClose: 250,
-      hideProgressBar: false,
+      hideProgressBar: true,
       closeOnClick: true,
       pauseOnHover: false,
       draggable: true,
@@ -1450,9 +1445,8 @@ export default function TeacherDashboard({
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-            classData.name
-          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
+            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1517,9 +1511,8 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-                schedule.className
-              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
+                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1579,6 +1572,7 @@ export default function TeacherDashboard({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1894,7 +1888,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                      selectedClass.students.length === 0 ? (
+                        selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -1979,9 +1973,8 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                  canAttend ? "ring-2 ring-green-400" : ""
-                                }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
+                                  }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2107,30 +2100,28 @@ export default function TeacherDashboard({
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                              doc.fileType === "PDF"
-                                ? "bg-red-100"
-                                : doc.fileType === "DOCX"
-                                  ? "bg-blue-100"
-                                  : doc.fileType === "PPTX"
-                                    ? "bg-orange-100"
-                                    : doc.fileType === "XLSX"
-                                      ? "bg-green-100"
-                                      : "bg-gray-100"
-                            }`}
+                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.fileType === "PDF"
+                              ? "bg-red-100"
+                              : doc.fileType === "DOCX"
+                                ? "bg-blue-100"
+                                : doc.fileType === "PPTX"
+                                  ? "bg-orange-100"
+                                  : doc.fileType === "XLSX"
+                                    ? "bg-green-100"
+                                    : "bg-gray-100"
+                              }`}
                           >
                             <FileIcon
-                              className={`h-6 w-6 ${
-                                doc.fileType === "PDF"
-                                  ? "text-red-600"
-                                  : doc.fileType === "DOCX"
-                                    ? "text-blue-600"
-                                    : doc.fileType === "PPTX"
-                                      ? "text-orange-600"
-                                      : doc.fileType === "XLSX"
-                                        ? "text-green-600"
-                                        : "text-gray-600"
-                              }`}
+                              className={`h-6 w-6 ${doc.fileType === "PDF"
+                                ? "text-red-600"
+                                : doc.fileType === "DOCX"
+                                  ? "text-blue-600"
+                                  : doc.fileType === "PPTX"
+                                    ? "text-orange-600"
+                                    : doc.fileType === "XLSX"
+                                      ? "text-green-600"
+                                      : "text-gray-600"
+                                }`}
                             />
                           </div>
                           <div>
@@ -2310,7 +2301,7 @@ export default function TeacherDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2518,13 +2509,12 @@ function UploadDocumentModal({
         <div className="space-y-4">
           {/* Drag & Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-              isDragging
-                ? "border-blue-500 bg-blue-50"
-                : selectedFile
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-300 hover:border-gray-400"
-            }`}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
+              ? "border-blue-500 bg-blue-50"
+              : selectedFile
+                ? "border-green-500 bg-green-50"
+                : "border-gray-300 hover:border-gray-400"
+              }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -2614,11 +2604,10 @@ function UploadDocumentModal({
                     key={cls._id}
                     type="button"
                     onClick={() => toggleClass(cls._id)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      selectedClassIds.includes(cls._id)
-                        ? "bg-blue-600 text-white"
-                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                    }`}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
                     {cls.name}
                   </button>
