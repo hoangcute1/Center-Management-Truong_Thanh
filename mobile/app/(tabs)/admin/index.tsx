@@ -12,7 +12,7 @@ import {
   Alert,
   Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -180,6 +180,7 @@ const subjectColors = [
 ];
 
 export default function AdminDashboardScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const {
     classes,
@@ -312,24 +313,40 @@ export default function AdminDashboardScreen() {
   const maxRevenue = Math.max(...revenueByMonth.map((item) => item.value));
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isLoading || classesLoading || incidentsLoading}
             onRefresh={onRefresh}
+            tintColor="#8B5CF6"
           />
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Overscroll Filler */}
+        <View
+          style={{
+            position: "absolute",
+            top: -1000,
+            left: 0,
+            right: 0,
+            height: 1000,
+            backgroundColor: "#8B5CF6", // Matches header top color
+          }}
+        />
+
         {/* Welcome Header */}
         <LinearGradient
           colors={["#8B5CF6", "#7C3AED"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.welcomeGradient}
+          style={[styles.welcomeGradient, { paddingTop: insets.top + 20 }]}
         >
           <View style={styles.welcomeContent}>
             <View style={styles.welcomeLeft}>
@@ -635,7 +652,7 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -652,7 +669,6 @@ const styles = StyleSheet.create({
   },
   // Welcome Header
   welcomeGradient: {
-    paddingTop: 20,
     paddingBottom: 24,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,

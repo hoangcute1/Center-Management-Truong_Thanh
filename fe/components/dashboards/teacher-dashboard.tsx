@@ -1346,7 +1346,7 @@ export default function TeacherDashboard({
     toast.info("Đang đăng xuất...", {
       position: "top-right",
       autoClose: 250,
-      hideProgressBar: false,
+      hideProgressBar: true,
       closeOnClick: true,
       pauseOnHover: false,
       draggable: true,
@@ -1572,6 +1572,7 @@ export default function TeacherDashboard({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
