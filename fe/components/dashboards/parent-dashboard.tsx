@@ -426,6 +426,17 @@ export default function ParentDashboard({
       }))
     : courses;
 
+  const classNameLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    (dashboardData?.classes ?? []).forEach((classItem) => {
+      const classId = classItem?._id || (classItem as any)?.id;
+      if (classId && classItem?.name) {
+        map.set(String(classId), classItem.name);
+      }
+    });
+    return map;
+  }, [dashboardData?.classes]);
+
   const attendanceStats = dashboardData?.attendanceStats || {
     present: 28,
     absent: 2,
@@ -1318,9 +1329,9 @@ export default function ParentDashboard({
                         Tối đa 4 bài mới nhất
                       </p>
                     </div>
-                    <span className="text-xs font-semibold text-blue-600">
+                    {/* <span className="text-xs font-semibold text-blue-600">
                       {latestAssessments.length}
-                    </span>
+                    </span> */}
                   </div>
                   <div className="space-y-3">
                     {latestAssessments.length === 0 && (
@@ -1339,13 +1350,27 @@ export default function ParentDashboard({
                             month: "2-digit",
                           })
                         : "Chưa rõ ngày";
+                      const resolvedClassName = (() => {
+                        if (
+                          grade.className &&
+                          grade.className !== "Lớp học" &&
+                          grade.className !== "N/A"
+                        ) {
+                          return grade.className;
+                        }
+                        if (grade.classId) {
+                          const lookup = classNameLookup.get(String(grade.classId));
+                          if (lookup) return lookup;
+                        }
+                        return "Lớp học";
+                      })();
                       return (
                         <div
                           key={grade._id}
                           className="rounded-xl bg-gray-50 border border-gray-100 p-3"
                         >
                           <p className="text-sm font-semibold text-gray-900">
-                            {grade.className || "Lớp học"}
+                            {resolvedClassName}
                           </p>
                           <p className="text-xs text-gray-500">{grade.title || "Bài đánh giá"}</p>
                           <div className="flex items-center justify-between text-xs mt-3">
