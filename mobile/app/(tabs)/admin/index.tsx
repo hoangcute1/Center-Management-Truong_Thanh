@@ -553,10 +553,10 @@ export default function AdminDashboardScreen() {
                 <LinearGradient
                   colors={
                     index % 3 === 0
-                      ? ["#3B82F6", "#2563EB"]
+                      ? ["#3B82F6", "#3B82F6"]
                       : index % 3 === 1
-                        ? ["#10B981", "#059669"]
-                        : ["#F59E0B", "#D97706"]
+                        ? ["#10B981", "#10B981"]
+                        : ["#F59E0B", "#F59E0B"]
                   }
                   style={styles.classIcon}
                 >

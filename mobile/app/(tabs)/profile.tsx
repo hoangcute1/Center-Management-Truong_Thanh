@@ -21,13 +21,13 @@ import api from "@/lib/api";
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
-      return { label: "Học sinh", colors: ["#3B82F6", "#2563EB"], icon: "school" };
+      return { label: "Học sinh", colors: ["#3B82F6", "#3B82F6"], icon: "school" };
     case "teacher":
-      return { label: "Giáo viên", colors: ["#10B981", "#059669"], icon: "person" };
+      return { label: "Giáo viên", colors: ["#10B981", "#10B981"], icon: "person" };
     case "parent":
-      return { label: "Phụ huynh", colors: ["#F59E0B", "#D97706"], icon: "people" };
+      return { label: "Phụ huynh", colors: ["#F59E0B", "#F59E0B"], icon: "people" };
     case "admin":
-      return { label: "Quản trị viên", colors: ["#8B5CF6", "#7C3AED"], icon: "settings" };
+      return { label: "Quản trị viên", colors: ["#8B5CF6", "#8B5CF6"], icon: "settings" };
     default:
       return { label: role, colors: ["#6B7280", "#4B5563"], icon: "person" };
   }
@@ -193,19 +193,19 @@ export default function ProfileScreen() {
           icon: "help-circle-outline" as const,
           label: "Trợ giúp",
           color: "#10B981",
-          onPress: () => {},
+          onPress: () => { },
         },
         {
           icon: "chatbubble-outline" as const,
           label: "Liên hệ hỗ trợ",
           color: "#EC4899",
-          onPress: () => {},
+          onPress: () => { },
         },
         {
           icon: "information-circle-outline" as const,
           label: "Về ứng dụng",
           color: "#6B7280",
-          onPress: () => {},
+          onPress: () => { },
         },
       ],
     },

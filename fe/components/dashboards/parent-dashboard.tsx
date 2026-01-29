@@ -21,6 +21,7 @@ import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import api from "@/lib/api";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { Bounce, ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -36,7 +37,7 @@ const dayNames = [
 ];
 
 interface ParentDashboardProps {
-  user: { id: string; name: string; email: string; role: string };
+  user: { id: string; name: string; email: string; role: string; phone?: string; avatarUrl?: string };
   onLogout: () => void;
 }
 
@@ -218,10 +219,13 @@ function SettingsModal({
     phone?: string;
     parentCode?: string;
     childEmail?: string;
+    avatarUrl?: string;
   };
   onClose: () => void;
 }) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -237,6 +241,7 @@ function SettingsModal({
     if (file) {
       const url = URL.createObjectURL(file);
       setAvatarPreview(url);
+      setSelectedFile(file);
     }
   };
 
@@ -259,9 +264,22 @@ function SettingsModal({
         return;
       }
 
+      let avatarUrl = user.avatarUrl;
+
+      if (selectedFile) {
+        try {
+          avatarUrl = await uploadToCloudinary(selectedFile);
+        } catch (error) {
+          toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       await api.patch(`/users/${userId}`, {
         name: formData.name,
         phone: formData.phone,
+        avatarURL: avatarUrl,
       });
 
       toast.success("Cập nhật thông tin thành công!", {
@@ -326,7 +344,14 @@ function SettingsModal({
         {/* Avatar */}
         <div className="flex flex-col items-center justify-center py-6">
           <div className="relative">
-            <div className="w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center">
+            <div
+              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              onClick={() => {
+                if (!isEditing && avatarPreview) {
+                  setShowImagePreview(true);
+                }
+              }}
+            >
               {avatarPreview ? (
                 <img
                   src={avatarPreview}
@@ -359,6 +384,28 @@ function SettingsModal({
             onChange={handleFileChange}
           />
         </div>
+
+        {/* Image Preview Modal */}
+        {showImagePreview && avatarPreview && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowImagePreview(false)}
+          >
+            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={avatarPreview}
+                alt="Profile Large"
+                className="w-full h-auto max-h-[90vh] object-cover rounded-3xl shadow-2xl border-[6px] border-white"
+              />
+              <button
+                onClick={() => setShowImagePreview(false)}
+                className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Form Inputs */}
         <div className="space-y-4 text-sm">
@@ -665,6 +712,24 @@ export default function ParentDashboard({
         .catch((err: any) => console.error("Failed to fetch full user details:", err));
     }
   }, [authUser, user.id, fetchDashboardData]);
+
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+
+  // Sync avatarPreview when user prop changes
+  useEffect(() => {
+    if (user.avatarUrl) {
+      setAvatarPreview(user.avatarUrl);
+    }
+  }, [user.avatarUrl]);
+
+  // Sync avatarPreview when fullUserDetails is loaded
+  useEffect(() => {
+    if (fullUserDetails?.avatarURL) {
+      setAvatarPreview(fullUserDetails.avatarURL);
+    } else if (fullUserDetails?.avatarUrl) {
+      setAvatarPreview(fullUserDetails.avatarUrl);
+    }
+  }, [fullUserDetails]);
 
   // Debug: log attendance records for parent
   useEffect(() => {
@@ -1059,8 +1124,16 @@ export default function ParentDashboard({
                 className="relative group focus:outline-none"
               >
                 {/* Avatar chính */}
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-blue-500">
-                  {user.name.charAt(0)}
+                <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
                 </div>
 
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
