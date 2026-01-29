@@ -434,6 +434,20 @@ export default function ParentDashboard({
     rate: 93,
   };
 
+  const gradePercentages = (dashboardData?.recentGrades ?? [])
+    .map((grade) =>
+      typeof grade.percentage === "number" && !Number.isNaN(grade.percentage)
+        ? grade.percentage
+        : null
+    )
+    .filter((value): value is number => value !== null);
+
+  const overviewAverageScore = gradePercentages.length
+    ? gradePercentages.reduce((sum, value) => sum + value, 0) /
+        gradePercentages.length /
+        10
+    : null;
+
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
@@ -446,18 +460,10 @@ export default function ParentDashboard({
         },
         {
           label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + g.percentage,
-                    0
-                  ) /
-                  dashboardData.recentGrades.length /
-                  10
-                ).toFixed(1)
-              : "N/A",
-          note: "Kết quả học tập",
+          value: overviewAverageScore !== null
+            ? overviewAverageScore.toFixed(1)
+            : "N/A",
+          note: overviewAverageScore !== null ? "Kết quả học tập" : "Chưa có dữ liệu điểm",
           icon: "⭐",
           color: "from-emerald-500 to-emerald-600",
         },
