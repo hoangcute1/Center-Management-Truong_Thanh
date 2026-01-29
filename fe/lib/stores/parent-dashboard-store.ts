@@ -43,10 +43,17 @@ export interface ChildGrade {
   _id: string;
   title: string;
   className: string;
-  score: number;
-  maxScore: number;
-  percentage: number;
-  assessedAt: string;
+  classId?: string | null;
+  teacherName?: string | null;
+  score: number | null;
+  maxScore: number | null;
+  percentage: number | null;
+  assessedAt: string | null;
+  weight?: number | null;
+  type?: string | null;
+  feedback?: string | null;
+  dueDate?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface ParentDashboardData {
@@ -246,15 +253,80 @@ export const useParentDashboardStore = create<
             : assessmentsRes.value.data.assessments || []
           : [];
 
-      const recentGrades = assessmentsRaw.map((a: any) => ({
-        _id: a._id,
-        title: a.title,
-        className: a.class?.name || "N/A",
-        score: a.score,
-        maxScore: a.maxScore,
-        percentage: (a.score / a.maxScore) * 100,
-        assessedAt: a.assessedAt,
-      }));
+      const recentGrades = assessmentsRaw
+        .map((a: any) => {
+          const score = typeof a.score === "number" ? a.score : null;
+          const maxScore = typeof a.maxScore === "number" ? a.maxScore : null;
+          const calculatedPercentage =
+            score !== null && maxScore && maxScore > 0
+              ? Math.round(((score / maxScore) * 100 + Number.EPSILON) * 10) / 10
+              : null;
+          const payloadPercentage =
+            typeof a.percentage === "number"
+              ? a.percentage
+              : typeof a.percentage === "string"
+                ? Number(a.percentage)
+                : null;
+          const rawPercentage =
+            typeof payloadPercentage === "number" && !Number.isNaN(payloadPercentage)
+              ? Math.round(((payloadPercentage + Number.EPSILON) * 10)) / 10
+              : null;
+          const percentage = calculatedPercentage ?? rawPercentage;
+          const assessedAt =
+            a.assessedAt ||
+            a.submittedAt ||
+            a.dueDate ||
+            a.updatedAt ||
+            a.createdAt ||
+            null;
+          const rawClassName =
+            a.class?.name ||
+            a.className ||
+            a.class?.className ||
+            a.subject ||
+            null;
+          const className =
+            rawClassName && rawClassName !== "N/A" ? rawClassName : "Lớp học";
+          const maybeClassId =
+            typeof a.classId !== "undefined" && a.classId !== null
+              ? a.classId
+              : a.class?._id;
+          const classId =
+            typeof maybeClassId === "string"
+              ? maybeClassId
+              : typeof maybeClassId?.toString === "function"
+                ? maybeClassId.toString()
+                : null;
+          const teacherName =
+            a.class?.teacher?.name ||
+            a.class?.teacherId?.name ||
+            a.teacher?.name ||
+            a.teacherId?.name ||
+            a.teacherName ||
+            null;
+
+          return {
+            _id: a._id,
+            title: a.title,
+            className,
+            classId,
+            teacherName,
+            score,
+            maxScore,
+            percentage,
+            assessedAt,
+            weight: typeof a.weight === "number" ? a.weight : null,
+            type: a.type || null,
+            feedback: a.feedback || null,
+            dueDate: a.dueDate || null,
+            submittedAt: a.submittedAt || null,
+          };
+        })
+        .sort((a: any, b: any) => {
+          const aTime = a.assessedAt ? new Date(a.assessedAt).getTime() : 0;
+          const bTime = b.assessedAt ? new Date(b.assessedAt).getTime() : 0;
+          return bTime - aTime;
+        });
 
       // Process attendance stats
       const attendanceStats =
