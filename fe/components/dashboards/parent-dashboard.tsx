@@ -102,12 +102,41 @@ const courses = [
   },
 ];
 
-const progressData = [
-  { week: "Tuần 1", score: 7.2 },
-  { week: "Tuần 2", score: 7.4 },
-  { week: "Tuần 3", score: 7.6 },
-  { week: "Tuần 4", score: 7.8 },
-];
+type ProgressPoint = { week: string; score: number };
+
+const getWeekNumber = (date: Date) => {
+  const tempDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = tempDate.getUTCDay() || 7;
+  tempDate.setUTCDate(tempDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return weekNo;
+};
+
+const getWeekRangeLabel = (date: Date) => {
+  const monday = new Date(date);
+  const day = monday.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  monday.setDate(monday.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const format = (d: Date) =>
+    d.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  return `${format(monday)} - ${format(sunday)}`;
+};
+
+const getWeekMeta = (date: Date) => {
+  const weekNumber = getWeekNumber(date);
+  const paddedWeek = weekNumber.toString().padStart(2, "0");
+  return {
+    key: `${date.getFullYear()}-W${paddedWeek}`,
+    label: `Tuần ${weekNumber} (${getWeekRangeLabel(date)})`,
+  };
+};
 
 const weeklySchedule = [
   {
@@ -202,7 +231,15 @@ const contacts = [
   { name: "Thầy Lê Văn E", subject: "Dạy môn Anh văn" },
 ];
 
-function DetailModal({ onClose }: { onClose: () => void }) {
+function DetailModal({
+  onClose,
+  progressData,
+  hasProgressData,
+}: {
+  onClose: () => void;
+  progressData: ProgressPoint[];
+  hasProgressData: boolean;
+}) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
@@ -241,30 +278,36 @@ function DetailModal({ onClose }: { onClose: () => void }) {
           <Card className="p-4">
             <p className="font-semibold text-gray-900 mb-3">Tiến độ học tập</p>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={progressData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="week"
-                    tick={{ fontSize: 12, fill: "#4b5563" }}
-                  />
-                  <YAxis
-                    domain={[0, 12]}
-                    tick={{ fontSize: 12, fill: "#4b5563" }}
-                  />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#2563eb"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {hasProgressData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={progressData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fontSize: 12, fill: "#4b5563" }}
+                    />
+                    <YAxis
+                      domain={[0, 12]}
+                      tick={{ fontSize: 12, fill: "#4b5563" }}
+                    />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#2563eb"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-500">
+                  Chưa có dữ liệu điểm để hiển thị.
+                </div>
+              )}
             </div>
           </Card>
 
@@ -716,9 +759,135 @@ export default function ParentDashboard({
     <Badge variant="warning">Chưa thanh toán</Badge>
   );
 
-  const progressAverage = useMemo(
-    () => progressData[progressData.length - 1].score,
-    []
+  const { progressSeries, hasProgressData } = useMemo(() => {
+    const grades = dashboardData?.recentGrades || [];
+    const validGrades = grades.filter(
+      (grade) =>
+        typeof grade?.percentage === "number" &&
+        !Number.isNaN(grade.percentage) &&
+        Boolean(grade?.assessedAt)
+    );
+
+    if (!validGrades.length) {
+      return {
+        progressSeries: [],
+        hasProgressData: false,
+      };
+    }
+
+    const weeklyMap = new Map<
+      string,
+      { label: string; total: number; count: number }
+    >();
+
+    validGrades.forEach((grade) => {
+      const assessedAt = new Date(grade.assessedAt!);
+      const { key, label } = getWeekMeta(assessedAt);
+      if (!weeklyMap.has(key)) {
+        weeklyMap.set(key, { label, total: 0, count: 0 });
+      }
+      const bucket = weeklyMap.get(key)!;
+      bucket.total += grade.percentage as number;
+      bucket.count += 1;
+    });
+
+    const series = Array.from(weeklyMap.entries())
+      .sort((a, b) => (a[0] > b[0] ? 1 : -1))
+      .map(([, bucket]) => ({
+        week: bucket.label,
+        score:
+          Math.round(
+            ((bucket.total / bucket.count) / 10 + Number.EPSILON) * 10
+          ) / 10,
+      }))
+      .filter((point) => !Number.isNaN(point.score));
+
+    if (!series.length) {
+      return {
+        progressSeries: [],
+        hasProgressData: false,
+      };
+    }
+
+    return {
+      progressSeries: series.slice(-6),
+      hasProgressData: true,
+    };
+  }, [dashboardData?.recentGrades]);
+
+  const progressAverage = useMemo(() => {
+    const latestPoint = progressSeries[progressSeries.length - 1];
+    return typeof latestPoint?.score === "number"
+      ? Number(latestPoint.score.toFixed(1))
+      : null;
+  }, [progressSeries]);
+
+  const progressTrend = useMemo(() => {
+    if (progressSeries.length < 2) return null;
+    const prev = progressSeries[progressSeries.length - 2].score;
+    const current = progressSeries[progressSeries.length - 1].score;
+    return Number((current - prev).toFixed(1));
+  }, [progressSeries]);
+
+  const latestAssessments = useMemo(
+    () => (dashboardData?.recentGrades || []).slice(0, 4),
+    [dashboardData?.recentGrades]
+  );
+
+  const progressSummaryCards = useMemo(
+    () => [
+      {
+        label: "Điểm trung bình",
+        value: hasProgressData && progressAverage !== null ? `${progressAverage}` : "N/A",
+        note: hasProgressData ? "Trung bình 5 tuần gần nhất" : "Chưa có dữ liệu điểm",
+        bg: "from-blue-50 to-indigo-50",
+        accent: "text-blue-600",
+      },
+      {
+        label: "Biến động tuần",
+        value:
+          progressTrend === null
+            ? "--"
+            : progressTrend > 0
+            ? `+${progressTrend}`
+            : `${progressTrend}`,
+        note:
+          progressTrend === null
+            ? "Chưa xác định"
+            : progressTrend > 0
+            ? "Tiến bộ so với tuần trước"
+            : progressTrend < 0
+            ? "Cần hỗ trợ thêm"
+            : "Ổn định so với tuần trước",
+        bg:
+          progressTrend === null
+            ? "from-gray-50 to-gray-100"
+            : progressTrend >= 0
+            ? "from-emerald-50 to-green-50"
+            : "from-rose-50 to-red-50",
+        accent:
+          progressTrend === null
+            ? "text-gray-600"
+            : progressTrend >= 0
+            ? "text-emerald-600"
+            : "text-red-600",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${attendanceStats.rate || 0}%`,
+        note: `${attendanceStats.present}/${attendanceStats.total} buổi đã tham dự`,
+        bg: "from-amber-50 to-orange-50",
+        accent: "text-amber-600",
+      },
+    ],
+    [
+      attendanceStats.present,
+      attendanceStats.rate,
+      attendanceStats.total,
+      hasProgressData,
+      progressAverage,
+      progressTrend,
+    ]
   );
 
   return (
@@ -1065,39 +1234,130 @@ export default function ParentDashboard({
           </TabsContent>
 
           <TabsContent value="progress" className="mt-6">
-            <Card className="p-5">
-              <p className="font-semibold text-gray-900 mb-3">
-                Tiến độ học tập con
-              </p>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={progressData}
-                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="week"
-                      tick={{ fontSize: 12, fill: "#4b5563" }}
-                    />
-                    <YAxis
-                      domain={[0, 12]}
-                      tick={{ fontSize: 12, fill: "#4b5563" }}
-                    />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      stroke="#2563eb"
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+            <Card className="p-5 space-y-6">
+              <div className="flex flex-col gap-2">
+                <p className="font-semibold text-gray-900 text-lg">
+                  Tiến độ học tập của {childData.name}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Tổng hợp điểm số, biến động và những bài được chấm gần nhất để phụ huynh chủ động nắm bắt.
+                </p>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Điểm trung bình tuần gần nhất: {progressAverage}
-              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {progressSummaryCards.map((card) => (
+                  <div
+                    key={card.label}
+                    className={`rounded-2xl border border-gray-100 bg-gradient-to-br ${card.bg} p-4 shadow-sm`}
+                  >
+                    <p className="text-xs font-semibold text-gray-500">
+                      {card.label}
+                    </p>
+                    <p className={`text-2xl font-bold mt-2 ${card.accent}`}>
+                      {card.value}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{card.note}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 rounded-2xl border border-gray-100 p-4 bg-white shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-semibold text-gray-900">Biểu đồ tiến độ</p>
+                      <p className="text-xs text-gray-500">
+                        Trung bình từng tuần (quy đổi về thang 10)
+                      </p>
+                    </div>
+                    {hasProgressData && (
+                      <span className="text-xs font-medium text-gray-500">
+                        {progressSeries.length} tuần gần nhất
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-72">
+                    {hasProgressData ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={progressSeries}
+                          margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="week" tick={{ fontSize: 12, fill: "#4b5563" }} />
+                          <YAxis domain={[0, 12]} tick={{ fontSize: 12, fill: "#4b5563" }} />
+                          <Tooltip />
+                          <Line
+                            type="monotone"
+                            dataKey="score"
+                            stroke="#2563eb"
+                            strokeWidth={3}
+                            dot={{ r: 4 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        Chưa có bài đánh giá nào để hiển thị biểu đồ.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">Bài được chấm gần đây</p>
+                      <p className="text-xs text-gray-500">
+                        Tối đa 4 bài mới nhất
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-blue-600">
+                      {latestAssessments.length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {latestAssessments.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-gray-200 p-4 text-xs text-gray-500 text-center">
+                        Giáo viên chưa cập nhật điểm mới.
+                      </div>
+                    )}
+                    {latestAssessments.map((grade) => {
+                      const percentage =
+                        typeof grade.percentage === "number"
+                          ? Math.round((grade.percentage + Number.EPSILON) * 10) / 10
+                          : null;
+                      const assessedDate = grade.assessedAt
+                        ? new Date(grade.assessedAt).toLocaleDateString("vi-VN", {
+                            day: "2-digit",
+                            month: "2-digit",
+                          })
+                        : "Chưa rõ ngày";
+                      return (
+                        <div
+                          key={grade._id}
+                          className="rounded-xl bg-gray-50 border border-gray-100 p-3"
+                        >
+                          <p className="text-sm font-semibold text-gray-900">
+                            {grade.className || "Lớp học"}
+                          </p>
+                          <p className="text-xs text-gray-500">{grade.title || "Bài đánh giá"}</p>
+                          <div className="flex items-center justify-between text-xs mt-3">
+                            <span className="font-semibold text-blue-600">
+                              {percentage !== null
+                                ? `${percentage}% (${grade.score ?? "?"}/${grade.maxScore ?? "?"})`
+                                : grade.score !== null && grade.maxScore !== null
+                                ? `${grade.score}/${grade.maxScore}`
+                                : "Chưa có điểm"}
+                            </span>
+                            <span className="text-gray-500">{assessedDate}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </Card>
           </TabsContent>
 
@@ -1221,7 +1481,13 @@ export default function ParentDashboard({
           onClose={() => setChatWith(null)}
         />
       )}
-      {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
+      {showDetail && (
+        <DetailModal
+          onClose={() => setShowDetail(false)}
+          progressData={progressSeries}
+          hasProgressData={hasProgressData}
+        />
+      )}
     </div>
   );
 }
