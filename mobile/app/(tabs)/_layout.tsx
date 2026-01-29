@@ -1,16 +1,29 @@
 import { Redirect, Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/lib/stores";
-import { View, Platform, TouchableOpacity } from "react-native";
+import { useUiStore } from "@/lib/stores/ui-store";
+import { View, Platform, TouchableOpacity, Appearance } from "react-native";
+import { ActivityIndicator } from "react-native";
 
 export default function TabsLayout() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAuthStore();
+  const { theme } = useUiStore();
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
   }
 
+  if (isLoading || !user) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
   const role = user?.role;
+  const colorScheme = theme === "system" ? Appearance.getColorScheme() : theme;
+  const isDark = colorScheme === "dark";
 
   // Get role-based header color
   const getHeaderColor = () => {
@@ -29,9 +42,9 @@ export default function TabsLayout() {
   };
 
   // Check if tab should be visible based on role
-  const shouldShowPayments = role === "student" || role === "parent";
-  const shouldShowIncidents =
-    role === "student" || role === "parent" || role === "teacher";
+  const shouldShowPayments = role === "parent"; // Hidden for student
+  const shouldShowIncidents = role === "teacher"; // Only for teacher, removed for parent
+  const shouldShowContact = role === "student"; // New for student
   const shouldShowSchedule =
     role === "student" ||
     role === "teacher" ||
@@ -58,9 +71,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: getHeaderColor(),
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarInactiveTintColor: isDark ? "#9CA3AF" : "#9CA3AF",
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: isDark ? "#111827" : "#FFFFFF",
           borderTopWidth: 0,
           paddingBottom: Platform.OS === "ios" ? 24 : 12,
           paddingTop: 12,
@@ -90,6 +103,9 @@ export default function TabsLayout() {
           fontSize: 18,
         },
         headerTitleAlign: "center",
+        sceneContainerStyle: {
+          backgroundColor: isDark ? "#0B1220" : "#FFFFFF",
+        },
       }}
     >
       {/* Home - visible for all */}
@@ -152,7 +168,45 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Payments - visible for student, parent only */}
+      {/* Materials - visible for teacher and student */}
+      <Tabs.Screen
+        name="materials"
+        options={{
+          title: "Tài liệu",
+          headerTitle: "Tài liệu học tập",
+          href: (role === "teacher" || role === "student") ? "/(tabs)/materials" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "document-text" : "document-text-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Contact - visible for student ONLY */}
+      <Tabs.Screen
+        name="contact"
+        options={{
+          title: "Liên hệ",
+          headerTitle: "Liên hệ",
+          href: shouldShowContact ? "/(tabs)/contact" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "chatbubbles" : "chatbubbles-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Payments - visible for parent only (removed for student) */}
       <Tabs.Screen
         name="payments"
         options={{
@@ -171,17 +225,25 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Incidents - visible for student, parent, teacher */}
+      {/* Incidents/Contact - visible for parent, teacher (removed for student) */}
       <Tabs.Screen
         name="incidents"
         options={{
-          title: "Sự cố",
-          headerTitle: "Báo cáo sự cố",
+          title: role === "teacher" ? "Liên hệ" : "Sự cố",
+          headerTitle: role === "teacher" ? "Liên hệ hỗ trợ" : "Báo cáo sự cố",
           href: shouldShowIncidents ? "/(tabs)/incidents" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
-                name={focused ? "warning" : "warning-outline"}
+                name={
+                  role === "teacher"
+                    ? focused
+                      ? "chatbubbles"
+                      : "chatbubbles-outline"
+                    : focused
+                      ? "warning"
+                      : "warning-outline"
+                }
                 size={24}
                 color={color}
               />

@@ -222,8 +222,11 @@ export default function AdminAttendanceScreen() {
 
   // Helper to get student name
   const getStudentName = (record: StoreAttendanceRecord): string => {
-    if (typeof record.studentId === "object" && record.studentId?.fullName) {
-      return record.studentId.fullName;
+    if (
+      typeof record.studentId === "object" &&
+      (record.studentId?.fullName || record.studentId?.name)
+    ) {
+      return record.studentId.fullName || record.studentId.name || "Học sinh";
     }
     return "Học sinh";
   };
@@ -238,8 +241,11 @@ export default function AdminAttendanceScreen() {
 
   // Helper to get teacher name from session
   const getTeacherName = (session: StoreSession): string | null => {
-    if (typeof session.teacherId === "object" && session.teacherId?.fullName) {
-      return session.teacherId.fullName;
+    if (
+      typeof session.teacherId === "object" &&
+      (session.teacherId?.fullName || session.teacherId?.name)
+    ) {
+      return session.teacherId.fullName || session.teacherId.name || null;
     }
     return null;
   };
@@ -255,8 +261,13 @@ export default function AdminAttendanceScreen() {
 
   // Helper to get teacher name from class
   const getClassTeacherName = (classData: StoreClass): string => {
-    if (typeof classData.teacher === "object" && classData.teacher?.fullName) {
-      return classData.teacher.fullName;
+    if (
+      typeof classData.teacher === "object" &&
+      (classData.teacher?.fullName || classData.teacher?.name)
+    ) {
+      return (
+        classData.teacher.fullName || classData.teacher.name || "Chưa phân công"
+      );
     }
     return "Chưa phân công";
   };

@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Bounce, ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import {
   BarChart,
   Bar,
@@ -11,12 +13,10 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { ChevronDown, Camera } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { shallow } from "zustand/shallow";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
@@ -28,55 +28,18 @@ import {
 } from "@/lib/stores/schedule-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import {
-  useAssessmentsStore,
-  type Assessment,
-} from "@/lib/stores/assessments-store";
-import api from "@/lib/api";
+  useDocumentsStore,
+  Document as TeachingDocument,
+  DocumentVisibility,
+} from "@/lib/stores/documents-store";
+import api, { API_BASE_URL } from "@/lib/api";
+import { uploadToCloudinary } from "@/lib/cloudinary";
+import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
 
 interface TeacherDashboardProps {
-  user: { id: string; name: string; email: string; role: string };
+  user: { id: string; name: string; email: string; role: string; teacherCode?: string; phone?: string; avatarUrl?: string };
   onLogout: () => void;
 }
-
-// Mock data for teaching documents
-const teachingDocuments = [
-  {
-    id: "doc1",
-    name: "Tài liệu Toán 10 - Chương 1",
-    type: "PDF",
-    size: "2.4 MB",
-    uploadDate: "05/01/2025",
-    className: "Toán 10A",
-    downloads: 24,
-  },
-  {
-    id: "doc2",
-    name: "Bài tập Toán 10 - Tuần 2",
-    type: "DOCX",
-    size: "1.1 MB",
-    uploadDate: "08/01/2025",
-    className: "Toán 10A",
-    downloads: 18,
-  },
-  {
-    id: "doc3",
-    name: "Tài liệu Toán 10B - Đại số",
-    type: "PDF",
-    size: "3.2 MB",
-    uploadDate: "09/01/2025",
-    className: "Toán 10B",
-    downloads: 32,
-  },
-  {
-    id: "doc4",
-    name: "Slide bài giảng - Hình học",
-    type: "PPTX",
-    size: "5.8 MB",
-    uploadDate: "10/01/2025",
-    className: "Toán 10A",
-    downloads: 15,
-  },
-];
 
 const evaluationSummary = {
   total: 3,
@@ -131,23 +94,6 @@ const studentDetailMock = {
   attendance: "11/12",
   homework: "10/12",
 };
-
-const assessmentTypeOptions = [
-  {
-    value: "assignment",
-    label: "Bài tập / Thường xuyên",
-    icon: "📝",
-    defaultWeight: 20,
-    description: "Bài tập về nhà, kiểm tra miệng, luyện tập",
-  },
-  {
-    value: "test",
-    label: "Kiểm tra / Định kỳ",
-    icon: "🧪",
-    defaultWeight: 30,
-    description: "Giữa kỳ, cuối kỳ, bài kiểm tra trên lớp",
-  },
-];
 
 interface StudentItem {
   _id: string;
@@ -320,19 +266,21 @@ function AttendanceModal({
       name: s.name,
       email: s.email,
       status: null,
-    }))
+    })),
   );
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const attended = rows.filter(
-    (r) => r.status === "present" || r.status === "late"
+    (r) => r.status === "present" || r.status === "late",
   ).length;
   const absent = rows.filter((r) => r.status === "absent").length;
 
   const update = (studentId: string, value: AttendanceRow["status"]) => {
     setRows(
-      rows.map((r) => (r.studentId === studentId ? { ...r, status: value } : r))
+      rows.map((r) =>
+        r.studentId === studentId ? { ...r, status: value } : r,
+      ),
     );
   };
 
@@ -475,14 +423,14 @@ function AttendanceModal({
 function isWithinClassTime(
   scheduleDate: Date,
   startTime: string,
-  endTime: string
+  endTime: string,
 ): boolean {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const schedDay = new Date(
     scheduleDate.getFullYear(),
     scheduleDate.getMonth(),
-    scheduleDate.getDate()
+    scheduleDate.getDate(),
   );
 
   // Check if same day
@@ -534,7 +482,7 @@ function TimetableAttendanceModal({
       name: s.name,
       email: s.email,
       status: null,
-    }))
+    })),
   );
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -559,13 +507,13 @@ function TimetableAttendanceModal({
               const existingRecord = existingRecords.find(
                 (r: any) =>
                   r.studentId === row.studentId ||
-                  r.studentId?._id === row.studentId
+                  r.studentId?._id === row.studentId,
               );
               if (existingRecord) {
                 return { ...row, status: existingRecord.status };
               }
               return row;
-            })
+            }),
           );
         }
       } catch (error) {
@@ -581,18 +529,20 @@ function TimetableAttendanceModal({
   const canEdit = isWithinClassTime(
     fullDate,
     schedule.startTime,
-    schedule.endTime
+    schedule.endTime,
   );
 
   const attended = rows.filter(
-    (r) => r.status === "present" || r.status === "late"
+    (r) => r.status === "present" || r.status === "late",
   ).length;
   const absent = rows.filter((r) => r.status === "absent").length;
 
   const update = (studentId: string, value: AttendanceRow["status"]) => {
     if (!canEdit) return;
     setRows(
-      rows.map((r) => (r.studentId === studentId ? { ...r, status: value } : r))
+      rows.map((r) =>
+        r.studentId === studentId ? { ...r, status: value } : r,
+      ),
     );
   };
 
@@ -680,9 +630,8 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
-                  !canEdit ? "opacity-60" : ""
-                }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
+                  }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -760,469 +709,6 @@ function TimetableAttendanceModal({
   );
 }
 
-function AssessmentFormModal({
-  classData,
-  initialStudentId,
-  onClose,
-  onSaved,
-}: {
-  classData: Class;
-  initialStudentId?: string | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const createAssessment = useAssessmentsStore(
-    (state) => state.createAssessment
-  );
-  const orderedStudents = useMemo(() => {
-    const list = classData.students || [];
-    if (!initialStudentId) return list;
-    const prioritized = list.filter((s) => s._id === initialStudentId);
-    const others = list.filter((s) => s._id !== initialStudentId);
-    return [...prioritized, ...others];
-  }, [classData.students, initialStudentId]);
-
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState<{
-    title: string;
-    type: Assessment["type"];
-    date: string;
-    maxScore: number;
-    weight: number;
-    generalFeedback: string;
-  }>({
-    title: "",
-    type: assessmentTypeOptions[0].value,
-    date: new Date().toISOString().split("T")[0],
-    maxScore: 10,
-    weight: assessmentTypeOptions[0].defaultWeight,
-    generalFeedback: "",
-  });
-  const [rows, setRows] = useState(
-    orderedStudents.map((student) => ({
-      studentId: student._id,
-      name: student.name,
-      email: student.email,
-      score: "",
-      feedback: "",
-    }))
-  );
-  const [bulkScore, setBulkScore] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    setStep(1);
-  }, [initialStudentId]);
-
-  useEffect(() => {
-    setRows(
-      orderedStudents.map((student) => ({
-        studentId: student._id,
-        name: student.name,
-        email: student.email,
-        score: "",
-        feedback: "",
-      }))
-    );
-  }, [orderedStudents]);
-
-  const selectedCount = useMemo(
-    () =>
-      rows.filter((row) => {
-        if (row.score === "") return false;
-        const numericScore = Number(row.score);
-        return !Number.isNaN(numericScore);
-      }).length,
-    [rows]
-  );
-
-  const handleTypeChange = (value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      type: value,
-      weight:
-        assessmentTypeOptions.find((opt) => opt.value === value)?.defaultWeight || prev.weight,
-    }));
-  };
-
-  const handleNext = () => {
-    if (!form.title.trim()) {
-      setError("Vui lòng nhập tên bài đánh giá");
-      return;
-    }
-    if (!form.maxScore || Number(form.maxScore) <= 0) {
-      setError("Điểm tối đa phải lớn hơn 0");
-      return;
-    }
-    if (!form.weight || form.weight <= 0 || form.weight > 100) {
-      setError("Trọng số phải nằm trong khoảng 1 - 100%");
-      return;
-    }
-    setError(null);
-    setStep(2);
-  };
-
-  const applyBulkScore = () => {
-    if (bulkScore === "") return;
-    const numeric = Number(bulkScore);
-    if (Number.isNaN(numeric)) {
-      setError("Điểm không hợp lệ");
-      return;
-    }
-    const clamped = Math.max(0, Math.min(Number(form.maxScore), numeric));
-    setRows((prev) => prev.map((row) => ({ ...row, score: clamped.toString() })));
-    setError(null);
-  };
-
-  const handleSubmit = async () => {
-    if (!form.title.trim()) {
-      setError("Vui lòng nhập tên bài đánh giá");
-      setStep(1);
-      return;
-    }
-    const payload = rows
-      .filter((row) => row.score !== "")
-      .map((row) => ({
-        studentId: row.studentId,
-        score: Number(row.score),
-        feedback: row.feedback,
-      }));
-
-    if (payload.length === 0) {
-      setError("Vui lòng nhập điểm cho ít nhất một học sinh");
-      return;
-    }
-
-    const invalid = payload.some(
-      (row) =>
-        Number.isNaN(row.score) ||
-        row.score < 0 ||
-        row.score > Number(form.maxScore)
-    );
-
-    if (invalid) {
-      setError(`Điểm phải nằm trong khoảng 0 - ${form.maxScore}`);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await Promise.all(
-        payload.map((row) =>
-          createAssessment({
-            studentId: row.studentId,
-            classId: classData._id,
-            type: form.type,
-            title: form.title.trim(),
-            score: row.score,
-            maxScore: Number(form.maxScore),
-            weight: form.weight,
-            feedback: [row.feedback, form.generalFeedback]
-              .filter(Boolean)
-              .join("\n")
-              .trim() || undefined,
-          })
-        )
-      );
-      setSuccessMessage(`Đã lưu ${payload.length} bản ghi đánh giá`);
-      onSaved();
-      setTimeout(() => {
-        onClose();
-      }, 900);
-    } catch (submitError: any) {
-      setError(submitError.message || "Không thể lưu điểm");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const renderStepIndicator = () => (
-    <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
-      <div className={`flex items-center justify-center w-7 h-7 rounded-full ${
-        step === 1 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700"
-      }`}>
-        1
-      </div>
-      <span>Thông tin bài đánh giá</span>
-      <span className="text-gray-400">→</span>
-      <div className={`flex items-center justify-center w-7 h-7 rounded-full ${
-        step === 2 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700"
-      }`}>
-        2
-      </div>
-      <span>Nhập điểm học sinh</span>
-    </div>
-  );
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center px-4">
-      <Card className="w-full max-w-4xl max-h-[92vh] overflow-hidden bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b px-6 py-4">
-          <div>
-            <p className="text-xs uppercase text-gray-400 tracking-widest">
-              Chấm điểm
-            </p>
-            <h2 className="text-xl font-bold text-gray-900">
-              {classData.name}
-            </h2>
-            <p className="text-sm text-gray-500">
-              {classData.subject || "Chưa xác định"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-lg"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="px-6 pt-4 pb-10 space-y-4 overflow-y-auto max-h-[calc(92vh-140px)]">
-          {renderStepIndicator()}
-          {initialStudentId && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-              🧑‍🎓 Ưu tiên chấm cho học sinh {orderedStudents[0]?.name}
-            </div>
-          )}
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          {successMessage && (
-            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              {successMessage}
-            </div>
-          )}
-
-          {step === 1 ? (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Tên bài đánh giá
-                </label>
-                <Input
-                  placeholder="VD: Bài kiểm tra giữa kỳ"
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  className="mt-1"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">
-                  Loại đánh giá
-                </label>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {assessmentTypeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleTypeChange(option.value)}
-                      className={`rounded-2xl border px-4 py-3 text-left transition-all ${
-                        form.type === option.value
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 hover:border-blue-200"
-                      }`}
-                    >
-                      <span className="text-lg">{option.icon}</span>
-                      <p className="font-semibold">{option.label}</p>
-                      <p className="text-xs text-gray-500">
-                        Gợi ý trọng số {option.defaultWeight}%
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Ngày chấm
-                  </label>
-                  <Input
-                    type="date"
-                    value={form.date}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, date: e.target.value }))
-                    }
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Trọng số (%)
-                  </label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={form.weight}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, weight: Number(e.target.value) }))
-                    }
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Điểm tối đa
-                  </label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={form.maxScore}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, maxScore: Number(e.target.value) }))
-                    }
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Ghi chú chung cho lớp (tùy chọn)
-                </label>
-                <Textarea
-                  rows={3}
-                  placeholder="Nhận xét chung cho cả lớp..."
-                  value={form.generalFeedback}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      generalFeedback: e.target.value,
-                    }))
-                  }
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {classData.students && classData.students.length > 0 ? (
-                <>
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <p className="text-sm text-gray-600">
-                      Chấm điểm cho {classData.students.length} học sinh.
-                      Điểm tối đa {form.maxScore}.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        placeholder="Điểm mặc định"
-                        value={bulkScore}
-                        onChange={(e) => setBulkScore(e.target.value)}
-                        className="w-32"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={applyBulkScore}
-                      >
-                        Áp dụng
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
-                    {rows.map((row) => (
-                      <div
-                        key={row.studentId}
-                        className={`rounded-2xl border px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between ${
-                          initialStudentId === row.studentId
-                            ? "border-blue-400 bg-blue-50"
-                            : "border-gray-200 bg-white"
-                        }`}
-                      >
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {row.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {row.email}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4 w-full md:w-auto">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={form.maxScore}
-                            value={row.score}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setRows((prev) =>
-                                prev.map((r) =>
-                                  r.studentId === row.studentId
-                                    ? { ...r, score: value }
-                                    : r
-                                )
-                              );
-                            }}
-                            className="md:w-28"
-                            placeholder="Điểm"
-                          />
-                          <Textarea
-                            rows={2}
-                            placeholder="Nhận xét ngắn"
-                            value={row.feedback}
-                            onChange={(e) =>
-                              setRows((prev) =>
-                                prev.map((r) =>
-                                  r.studentId === row.studentId
-                                    ? { ...r, feedback: e.target.value }
-                                    : r
-                                )
-                              )
-                            }
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Lớp chưa có học sinh để chấm điểm.
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="h-6" aria-hidden="true" />
-        </div>
-
-        <div className="border-t px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-80">
-          <p className="text-sm text-gray-500">
-            {step === 2
-              ? `${selectedCount} học sinh đã được nhập điểm`
-              : "Hoàn thành bước này để tiếp tục"}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Hủy
-            </Button>
-            {step === 2 && (
-              <Button variant="outline" onClick={() => setStep(1)}>
-                Quay lại
-              </Button>
-            )}
-            {step === 1 ? (
-              <Button onClick={handleNext}>Tiếp tục</Button>
-            ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
-              </Button>
-            )}
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
@@ -1281,6 +767,370 @@ function TeacherEvaluationModal({ onClose }: { onClose: () => void }) {
               )}
             </Card>
           ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SettingsModal({
+  user,
+  onClose,
+}: {
+  user: {
+    _id?: string;
+    id?: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    teacherCode?: string;
+    qualification?: string;
+    teacherNote?: string;
+    avatarUrl?: string;
+  };
+  onClose: () => void;
+}) {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: user.name,
+    phone: user.phone || "",
+    qualification: user.qualification || "",
+    teacherNote: user.teacherNote || "",
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+      setSelectedFile(file);
+    }
+  };
+
+  const handleEditAvatar = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const userId = user._id || user.id;
+      if (!userId) {
+        toast.error("Không tìm thấy thông tin người dùng", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+        });
+        return;
+      }
+
+      let avatarUrl = user.avatarUrl;
+
+      if (selectedFile) {
+        try {
+          avatarUrl = await uploadToCloudinary(selectedFile);
+        } catch (error) {
+          toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      await api.patch(`/users/${userId}`, {
+        name: formData.name,
+        phone: formData.phone,
+        qualification: formData.qualification,
+        teacherNote: formData.teacherNote,
+        avatarUrl: avatarUrl,
+      });
+
+      toast.success("Cập nhật thông tin thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+      setIsEditing(false);
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative">
+            <div
+              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              onClick={() => {
+                if (!isEditing && avatarPreview) {
+                  setShowImagePreview(true);
+                }
+              }}
+            >
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {isEditing && (
+              <button
+                onClick={handleEditAvatar}
+                className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+                title="Đổi ảnh đại diện"
+              >
+                <Camera size={17} />
+              </button>
+            )}
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Image Preview Modal */}
+        {showImagePreview && avatarPreview && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowImagePreview(false)}
+          >
+            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={avatarPreview}
+                alt="Profile Large"
+                className="w-full h-auto max-h-[90vh] object-cover rounded-3xl shadow-2xl border-[6px] border-white"
+              />
+              <button
+                onClick={() => setShowImagePreview(false)}
+                className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Form Inputs */}
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Họ và tên</label>
+              <input
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={isEditing ? formData.name : user.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                readOnly={!isEditing}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Số điện thoại</label>
+              <input
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={
+                  isEditing ? formData.phone : user.phone || "Chưa cập nhật"
+                }
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                readOnly={!isEditing}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 bg-gray-50 text-gray-500 cursor-not-allowed"
+              defaultValue={user.email}
+              readOnly
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Mã giáo viên</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 bg-gray-50 text-gray-500 cursor-not-allowed"
+              defaultValue={user.teacherCode || "Chưa có"}
+              readOnly
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">
+              Trình độ chuyên môn
+            </label>
+            <input
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
+              value={
+                isEditing
+                  ? formData.qualification
+                  : user.qualification || "Chưa cập nhật"
+              }
+              onChange={(e) =>
+                handleInputChange("qualification", e.target.value)
+              }
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Ghi chú</label>
+            <textarea
+              rows={3}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
+              value={
+                isEditing
+                  ? formData.teacherNote
+                  : user.teacherNote || "Chưa có ghi chú"
+              }
+              onChange={(e) => handleInputChange("teacherNote", e.target.value)}
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+              >
+                <span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                  >
+                    <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                    <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    <circle cx="10" cy="8" r="5" />
+                  </svg>
+                </span>
+                Chỉnh Sửa
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: user.name,
+                      phone: user.phone || "",
+                      qualification: user.qualification || "",
+                      teacherNote: user.teacherNote || "",
+                    });
+                  }}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -1375,7 +1225,7 @@ export default function TeacherDashboard({
   } | null>(null);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(
-    null
+    null,
   );
   const [attendanceSession, setAttendanceSession] = useState<{
     session: Session;
@@ -1394,9 +1244,45 @@ export default function TeacherDashboard({
     fullDate: Date;
   } | null>(null);
   const [showEvaluation, setShowEvaluation] = useState(false);
-  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
-  const [initialAssessmentStudentId, setInitialAssessmentStudentId] =
-    useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // State to hold full user details including sensitive/personal info not in initial props
+  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+
+  // Fetch full teacher data
+  useEffect(() => {
+    if (user?.id) {
+      api
+        .get(`/users/${user.id}`)
+        .then((res: any) => {
+          // Check if response data is wrapped in 'user' field or is direct
+          const userData = res.data.user || res.data;
+          setFullUserDetails(userData);
+        })
+        .catch((err: any) => {
+          console.error("Failed to fetch full user details:", err);
+        });
+    }
+  }, [user.id]);
+
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+
+  // Sync avatarPreview when user prop changes
+  useEffect(() => {
+    if (user.avatarUrl) {
+      setAvatarPreview(user.avatarUrl);
+    }
+  }, [user.avatarUrl]);
+
+  // Sync avatarPreview when fullUserDetails is loaded
+  useEffect(() => {
+    if (fullUserDetails?.avatarUrl) {
+      setAvatarPreview(fullUserDetails.avatarUrl);
+    }
+  }, [fullUserDetails]);
 
   // Stores
   const {
@@ -1410,9 +1296,31 @@ export default function TeacherDashboard({
     isLoading: scheduleLoading,
   } = useScheduleStore();
   const { markAttendance, markTimetableAttendance } = useAttendanceStore();
-  const assessments = useAssessmentsStore((state) => state.assessments);
-  const assessmentsLoading = useAssessmentsStore((state) => state.isLoading);
-  const fetchAssessments = useAssessmentsStore((state) => state.fetchAssessments);
+  const {
+    documents: teachingDocuments,
+    fetchMyDocuments,
+    uploadDocument,
+    createDocument,
+    deleteDocument,
+    shareToCommunity,
+    restrictToClass,
+    incrementDownload,
+    isLoading: documentsLoading,
+  } = useDocumentsStore();
+
+  // Handle click outside to close profile dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch data on mount
   useEffect(() => {
@@ -1422,7 +1330,10 @@ export default function TeacherDashboard({
     // Fetch schedule for this week (sessions)
     const { startDate, endDate } = getWeekRange();
     fetchTeacherSchedule(user.id, startDate, endDate);
-  }, [user.id, fetchClasses, fetchTeacherSchedule]);
+
+    // Fetch documents
+    fetchMyDocuments();
+  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments]);
 
   // Set first class as selected when classes load
   useEffect(() => {
@@ -1430,14 +1341,6 @@ export default function TeacherDashboard({
       setSelectedClass(classes[0]);
     }
   }, [classes, selectedClass]);
-
-  const selectedClassId = selectedClass?._id;
-
-  useEffect(() => {
-    if (selectedClassId) {
-      fetchAssessments({ classId: selectedClassId });
-    }
-  }, [selectedClassId, fetchAssessments]);
 
   // Build timetable from class schedules (thời khoá biểu)
   const timetableByDay = useMemo(() => {
@@ -1502,10 +1405,27 @@ export default function TeacherDashboard({
   }, [timetableByDay]);
 
   // Overview statistics
+  const handleLogout = () => {
+    toast.info("Đang đăng xuất...", {
+      position: "top-right",
+      autoClose: 250,
+      hideProgressBar: true,
+      closeOnClick: true,
+      pauseOnHover: false,
+      draggable: true,
+      theme: "light",
+      transition: Bounce,
+    });
+    setTimeout(() => {
+      onLogout();
+    }, 500);
+  };
+
+  // Overview statistics
   const overviewCards = useMemo(() => {
     const totalStudents = classes.reduce(
       (sum, c) => sum + (c.studentIds?.length || 0),
-      0
+      0,
     );
 
     return [
@@ -1551,120 +1471,10 @@ export default function TeacherDashboard({
     }));
   }, [timetableByDay, classes]);
 
-  const classAssessments = useMemo(() => {
-    if (!selectedClassId) return [] as Assessment[];
-    return assessments
-      .filter((assessment) => assessment.classId === selectedClassId)
-      .sort((a, b) => {
-        const dateA = new Date(a.assessedAt || a.createdAt || 0).getTime();
-        const dateB = new Date(b.assessedAt || b.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
-  }, [assessments, selectedClassId]);
-
-  const classAverageScore = useMemo(() => {
-    if (classAssessments.length === 0) return null;
-    const total = classAssessments.reduce((sum, assessment) => {
-      return sum + (assessment.score / assessment.maxScore) * 100;
-    }, 0);
-    return Math.round((total / classAssessments.length) * 10) / 10;
-  }, [classAssessments]);
-
-  const assessmentTypeSummary = useMemo(() => {
-    const summary: Record<
-      string,
-      { count: number; totalPercent: number }
-    > = {};
-    classAssessments.forEach((assessment) => {
-      const percent = (assessment.score / assessment.maxScore) * 100;
-      if (!summary[assessment.type]) {
-        summary[assessment.type] = { count: 0, totalPercent: 0 };
-      }
-      summary[assessment.type].count += 1;
-      summary[assessment.type].totalPercent += percent;
-    });
-    return Object.entries(summary).map(([type, value]) => ({
-      type,
-      count: value.count,
-      average: Math.round((value.totalPercent / value.count) * 10) / 10,
-    }));
-  }, [classAssessments]);
-
-  const assessmentsTimeline = useMemo(() => {
-    return classAssessments
-      .slice()
-      .reverse()
-      .slice(0, 10)
-      .map((assessment) => ({
-        label: new Date(
-          assessment.assessedAt || assessment.createdAt || Date.now()
-        ).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }),
-        score: Math.round((assessment.score / assessment.maxScore) * 100),
-        title: assessment.title,
-      }))
-      .reverse();
-  }, [classAssessments]);
-
-  const attendanceRate = useMemo(() => {
-    if (!selectedClass) return 0;
-    const base = selectedClass.studentIds?.length || 0;
-    return Math.min(100, 72 + (base % 25));
-  }, [selectedClass]);
-
-  const completionRate = useMemo(() => {
-    if (!selectedClass) return 0;
-    const denominator = Math.max(1, (selectedClass.students?.length || 1) * 3);
-    return Math.min(
-      100,
-      Math.round((classAssessments.length / denominator) * 100)
-    );
-  }, [classAssessments, selectedClass]);
-
-  const latestFeedback = useMemo(() => {
-    const withFeedback = classAssessments.filter((a) => Boolean(a.feedback));
-    if (withFeedback.length === 0) return null;
-    return withFeedback[0];
-  }, [classAssessments]);
-
-  const attentionList = useMemo(() => {
-    if (!selectedClass) return [] as Array<{
-      studentId: string;
-      name: string;
-      average: number;
-    }>;
-    const scoreMap = new Map<string, number[]>();
-    classAssessments.forEach((assessment) => {
-      const studentKey = assessment.studentId;
-      if (!studentKey) return;
-      const percent = (assessment.score / assessment.maxScore) * 100;
-      const list = scoreMap.get(studentKey) || [];
-      list.push(percent);
-      scoreMap.set(studentKey, list);
-    });
-    return Array.from(scoreMap.entries())
-      .map(([studentId, scores]) => {
-        const avg =
-          scores.reduce((sum, value) => sum + value, 0) / scores.length;
-        const studentName =
-          selectedClass.students?.find((s) => s._id === studentId)?.name ||
-          classAssessments.find((a) => a.studentId === studentId)?.student
-            ?.name ||
-          "Học sinh";
-        return {
-          studentId,
-          name: studentName,
-          average: Math.round(avg * 10) / 10,
-        };
-      })
-      .filter((entry) => entry.average < 70)
-      .sort((a, b) => a.average - b.average)
-      .slice(0, 4);
-  }, [classAssessments, selectedClass]);
-
   // Handle attendance save
   const handleSaveAttendance = async (
     records: AttendanceRow[],
-    note: string
+    note: string,
   ) => {
     if (!attendanceSession) return;
 
@@ -1690,17 +1500,16 @@ export default function TeacherDashboard({
           record.status === "present"
             ? "có mặt"
             : record.status === "absent"
-            ? "vắng mặt"
-            : record.status === "late"
-            ? "đi muộn"
-            : "được phép nghỉ";
+              ? "vắng mặt"
+              : record.status === "late"
+                ? "đi muộn"
+                : "được phép nghỉ";
 
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-            classData.name
-          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
+            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1711,7 +1520,7 @@ export default function TeacherDashboard({
   // Handle timetable attendance save
   const handleSaveTimetableAttendance = async (
     records: AttendanceRow[],
-    note: string
+    note: string,
   ) => {
     if (!timetableAttendance) return;
 
@@ -1720,7 +1529,7 @@ export default function TeacherDashboard({
     // Check time restriction
     if (!isWithinClassTime(fullDate, schedule.startTime, schedule.endTime)) {
       alert(
-        "❌ Đã hết giờ điểm danh!\n\nBạn chỉ có thể điểm danh trong khoảng thời gian buổi học (±15 phút)."
+        "❌ Đã hết giờ điểm danh!\n\nBạn chỉ có thể điểm danh trong khoảng thời gian buổi học (±15 phút).",
       );
       return;
     }
@@ -1736,7 +1545,7 @@ export default function TeacherDashboard({
 
       if (attendanceRecords.length === 0) {
         alert(
-          "⚠️ Vui lòng chọn trạng thái điểm danh cho ít nhất một học sinh."
+          "⚠️ Vui lòng chọn trạng thái điểm danh cho ít nhất một học sinh.",
         );
         return;
       }
@@ -1756,18 +1565,17 @@ export default function TeacherDashboard({
             record.status === "present"
               ? "có mặt"
               : record.status === "absent"
-              ? "vắng mặt"
-              : record.status === "late"
-              ? "đi muộn"
-              : "được phép nghỉ";
+                ? "vắng mặt"
+                : record.status === "late"
+                  ? "đi muộn"
+                  : "được phép nghỉ";
 
           try {
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-                schedule.className
-              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
+                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1827,30 +1635,118 @@ export default function TeacherDashboard({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Trường Thành Education
-            </h1>
-            <p className="text-sm text-gray-500">Dashboard Giáo viên</p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap justify-end">
-            <NotificationCenter userRole={user.role} />
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-base shadow-md">
-                {user.name.charAt(0)}
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-600">{user.email}</p>
-              </div>
+      <ToastContainer />
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+              T
             </div>
-            <Button variant="outline" onClick={onLogout}>
-              Đăng xuất
-            </Button>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+                Trường Thành Education
+              </h1>
+              <p className="text-xs text-gray-500">Dashboard Giáo viên</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <NotificationCenter userRole={user.role} />
+            {/* Use Dropdown in Profile */}
+            <div className="relative ml-3" ref={dropdownRef}>
+              {/* Avatar */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative group focus:outline-none"
+              >
+                {/* Avatar chính */}
+                <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
+                  <ChevronDown size={10} strokeWidth={3} />
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  {/* Thông tin user tóm tắt */}
+                  <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-circle-user-round-icon lucide-circle-user-round"
+                      >
+                        <path d="M18 20a6 6 0 0 0-12 0" />
+                        <circle cx="12" cy="10" r="4" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                    </span>
+                    Hồ sơ
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-log-out-icon lucide-log-out"
+                      >
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      </svg>
+                    </span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -1885,12 +1781,6 @@ export default function TeacherDashboard({
               📚 Lớp học
             </TabsTrigger>
             <TabsTrigger
-              value="progress"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-            >
-              📈 Tiến độ
-            </TabsTrigger>
-            <TabsTrigger
               value="schedule"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -1913,6 +1803,12 @@ export default function TeacherDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💬 Liên hệ
+            </TabsTrigger>
+            <TabsTrigger
+              value="assignments"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              📝 Giao bài & Chấm bài
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
@@ -2063,7 +1959,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                      selectedClass.students.length === 0 ? (
+                        selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -2082,371 +1978,19 @@ export default function TeacherDashboard({
                                   {s.email}
                                 </p>
                               </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setSelectedStudent(s)}
-                                >
-                                  Chi tiết
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                  onClick={() => {
-                                    setInitialAssessmentStudentId(s._id);
-                                    setShowAssessmentModal(true);
-                                  }}
-                                >
-                                  Chấm điểm
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            Đánh giá & điểm số gần đây
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Điểm trung bình: {classAverageScore ?? "--"}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              fetchAssessments({ classId: selectedClass._id })
-                            }
-                          >
-                            Tải lại
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700"
-                            onClick={() => {
-                              setInitialAssessmentStudentId(null);
-                              setShowAssessmentModal(true);
-                            }}
-                          >
-                            ➕ Thêm đánh giá
-                          </Button>
-                        </div>
-                      </div>
-
-                      {assessmentsLoading ? (
-                        <div className="text-center text-gray-500 py-6">
-                          Đang tải dữ liệu điểm số...
-                        </div>
-                      ) : classAssessments.length === 0 ? (
-                        <Card className="p-4 text-sm text-gray-500">
-                          Chưa có bài đánh giá nào cho lớp này.
-                        </Card>
-                      ) : (
-                        <div className="space-y-3">
-                          {classAssessments.slice(0, 5).map((assessment) => (
-                            <div
-                              key={assessment._id}
-                              className="flex items-start justify-between rounded-2xl border border-gray-200 px-4 py-3"
-                            >
-                              <div>
-                                <p className="font-semibold text-gray-900">
-                                  {assessment.title}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {new Date(
-                                    assessment.assessedAt || assessment.createdAt
-                                  ).toLocaleDateString("vi-VN")}
-                                  {assessment.feedback && (
-                                    <>
-                                      <span className="mx-2">•</span>
-                                      {assessment.feedback}
-                                    </>
-                                  )}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold text-blue-600">
-                                  {assessment.score}
-                                  <span className="text-base text-gray-400">/
-                                    {assessment.maxScore}
-                                  </span>
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {(assessment.score / assessment.maxScore * 100).toFixed(1)}%
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {assessmentTypeSummary.length > 0 && (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {assessmentTypeSummary.map((summary) => {
-                            const label =
-                              assessmentTypeOptions.find(
-                                (opt) => opt.value === summary.type
-                              )?.label || summary.type;
-                            return (
-                              <Card
-                                key={summary.type}
-                                className="p-3 flex items-center justify-between"
+                              <Button
+                                variant="outline"
+                                onClick={() => setSelectedStudent(s)}
                               >
-                                <div>
-                                  <p className="font-semibold text-gray-800">
-                                    {label}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {summary.count} bài
-                                  </p>
-                                </div>
-                                <span className="text-blue-600 font-bold">
-                                  {summary.average}
-                                </span>
-                              </Card>
-                            );
-                          })}
+                                Chi tiết
+                              </Button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
                   </Card>
                 )}
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="progress" className="mt-6 space-y-4">
-            {!selectedClass ? (
-              <Card className="p-6 text-center text-gray-500">
-                Vui lòng chọn một lớp để xem tiến độ.
-              </Card>
-            ) : (
-              <>
-                <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-5 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-sm text-blue-700 font-semibold">
-                      {selectedClass.name}
-                    </p>
-                    <h3 className="text-xl font-bold text-gray-900">
-                      Tổng quan tiến độ lớp học
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Cập nhật mới nhất dựa trên các bài đánh giá bạn đã chấm.
-                    </p>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        fetchAssessments({ classId: selectedClass._id })
-                      }
-                    >
-                      Làm mới dữ liệu
-                    </Button>
-                    <Button
-                      className="bg-blue-600 hover:bg-blue-700"
-                      onClick={() => {
-                        setInitialAssessmentStudentId(null);
-                        setShowAssessmentModal(true);
-                      }}
-                    >
-                      ➕ Chấm điểm nhanh
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Card className="p-4">
-                    <p className="text-xs uppercase text-gray-500 font-semibold">
-                      Điểm trung bình lớp
-                    </p>
-                    <p className="text-3xl font-bold text-blue-600 mt-2">
-                      {classAverageScore !== null ? `${classAverageScore}` : "--"}
-                      <span className="text-base text-gray-500"> / 100</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Từ {classAssessments.length} bài đánh giá gần nhất
-                    </p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-xs uppercase text-gray-500 font-semibold">
-                      Chuyên cần ước tính
-                    </p>
-                    <div className="flex items-end gap-2 mt-2">
-                      <p className="text-3xl font-bold text-emerald-600">
-                        {attendanceRate}%
-                      </p>
-                      <span className="text-xs text-gray-500">(ước tính)</span>
-                    </div>
-                    <div className="h-2.5 w-full rounded-full bg-emerald-100 mt-2">
-                      <div
-                        className="h-full rounded-full bg-emerald-500"
-                        style={{ width: `${attendanceRate}%` }}
-                      ></div>
-                    </div>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-xs uppercase text-gray-500 font-semibold">
-                      Tỷ lệ bài đã chấm
-                    </p>
-                    <p className="text-3xl font-bold text-purple-600 mt-2">
-                      {completionRate}%
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {classAssessments.length} lượt chấm từ đầu kỳ
-                    </p>
-                  </Card>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <Card className="lg:col-span-2 p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="font-semibold text-gray-900">
-                        Biểu đồ điểm theo thời gian
-                      </p>
-                      <span className="text-xs text-gray-500">
-                        Dựa trên 10 bài gần nhất
-                      </span>
-                    </div>
-                    {assessmentsTimeline.length === 0 ? (
-                      <div className="text-center text-gray-400 py-12">
-                        Chưa có dữ liệu đánh giá
-                      </div>
-                    ) : (
-                      <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={assessmentsTimeline}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#4b5563" }} />
-                            <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: "#4b5563" }} />
-                            <Tooltip />
-                            <Line
-                              type="monotone"
-                              dataKey="score"
-                              stroke="#2563eb"
-                              strokeWidth={3}
-                              dot={{ r: 4 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </Card>
-
-                  <Card className="p-5 space-y-4">
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        Học sinh cần theo sát
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Trung bình dưới 70 điểm
-                      </p>
-                    </div>
-                    {attentionList.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        Mọi học sinh đều đang duy trì thành tích tốt 🎉
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {attentionList.map((student) => (
-                          <div
-                            key={student.studentId}
-                            className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-3 py-2"
-                          >
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {student.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Điểm TB: {student.average}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setInitialAssessmentStudentId(student.studentId);
-                                setShowAssessmentModal(true);
-                              }}
-                            >
-                              Chấm bổ sung
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </Card>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <Card className="p-5 space-y-4">
-                    <p className="font-semibold text-gray-900">
-                      Phân bổ loại bài đánh giá
-                    </p>
-                    {assessmentTypeSummary.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        Chưa có dữ liệu phân bổ.
-                      </p>
-                    ) : (
-                      assessmentTypeSummary.map((item) => {
-                        const label =
-                          assessmentTypeOptions.find(
-                            (opt) => opt.value === item.type
-                          )?.label || item.type;
-                        return (
-                          <div
-                            key={item.type}
-                            className="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2"
-                          >
-                            <div>
-                              <p className="font-semibold text-gray-800">
-                                {label}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {item.count} bài • TB {item.average}
-                              </p>
-                            </div>
-                            <span className="text-blue-600 font-bold">
-                              {item.average}
-                            </span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </Card>
-
-                  <Card className="lg:col-span-2 p-5 space-y-3">
-                    <p className="font-semibold text-gray-900">
-                      Nhận xét mới nhất
-                    </p>
-                    {latestFeedback ? (
-                      <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900">
-                        <p className="font-semibold text-base">
-                          {latestFeedback.title}
-                        </p>
-                        <p className="mt-2 whitespace-pre-line">
-                          {latestFeedback.feedback}
-                        </p>
-                        <p className="text-xs text-purple-700 mt-2">
-                          {new Date(
-                            latestFeedback.assessedAt || latestFeedback.createdAt
-                          ).toLocaleString("vi-VN")}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        Chưa có nhận xét nào.
-                      </p>
-                    )}
-                  </Card>
-                </div>
               </>
             )}
           </TabsContent>
@@ -2489,20 +2033,19 @@ export default function TeacherDashboard({
                         <div className="flex-1 p-3 space-y-3">
                           {day.schedules.map((sch, idx) => {
                             const classData = classes.find(
-                              (c) => c._id === sch.classId
+                              (c) => c._id === sch.classId,
                             );
                             const canAttend = isWithinClassTime(
                               day.fullDate,
                               sch.startTime,
-                              sch.endTime
+                              sch.endTime,
                             );
 
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                  canAttend ? "ring-2 ring-green-400" : ""
-                                }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
+                                  }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2561,14 +2104,17 @@ export default function TeacherDashboard({
                     Quản lý và chia sẻ tài liệu với học sinh
                   </p>
                 </div>
-                <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                  onClick={() => setShowUploadModal(true)}
+                >
                   <UploadIcon className="h-4 w-4" />
                   Tải lên tài liệu mới
                 </Button>
               </div>
 
               <div className="grid gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <Card className="p-4 bg-blue-50 border-blue-100">
                     <p className="text-sm text-gray-600">Tổng tài liệu</p>
                     <p className="text-2xl font-bold text-blue-600">
@@ -2579,93 +2125,176 @@ export default function TeacherDashboard({
                     <p className="text-sm text-gray-600">Lượt tải xuống</p>
                     <p className="text-2xl font-bold text-green-600">
                       {teachingDocuments.reduce(
-                        (sum, doc) => sum + doc.downloads,
-                        0
+                        (sum, doc) => sum + doc.downloadCount,
+                        0,
                       )}
                     </p>
                   </Card>
                   <Card className="p-4 bg-orange-50 border-orange-100">
                     <p className="text-sm text-gray-600">Lớp được chia sẻ</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {new Set(teachingDocuments.map((d) => d.className)).size}
+                      {
+                        new Set(
+                          teachingDocuments.flatMap((d) =>
+                            d.classIds.map((c) => c._id),
+                          ),
+                        ).size
+                      }
+                    </p>
+                  </Card>
+                  <Card className="p-4 bg-purple-50 border-purple-100">
+                    <p className="text-sm text-gray-600">Chia sẻ cộng đồng</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {
+                        teachingDocuments.filter(
+                          (d) => d.visibility === "community",
+                        ).length
+                      }
                     </p>
                   </Card>
                 </div>
 
-                <div className="space-y-3">
-                  {teachingDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                            doc.type === "PDF"
+                {documentsLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Đang tải tài liệu...
+                  </div>
+                ) : teachingDocuments.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Chưa có tài liệu nào. Hãy tải lên tài liệu đầu tiên!
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {teachingDocuments.map((doc) => (
+                      <div
+                        key={doc._id}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.fileType === "PDF"
                               ? "bg-red-100"
-                              : doc.type === "DOCX"
-                              ? "bg-blue-100"
-                              : doc.type === "PPTX"
-                              ? "bg-orange-100"
-                              : "bg-gray-100"
-                          }`}
-                        >
-                          <FileIcon
-                            className={`h-6 w-6 ${
-                              doc.type === "PDF"
+                              : doc.fileType === "DOCX"
+                                ? "bg-blue-100"
+                                : doc.fileType === "PPTX"
+                                  ? "bg-orange-100"
+                                  : doc.fileType === "XLSX"
+                                    ? "bg-green-100"
+                                    : "bg-gray-100"
+                              }`}
+                          >
+                            <FileIcon
+                              className={`h-6 w-6 ${doc.fileType === "PDF"
                                 ? "text-red-600"
-                                : doc.type === "DOCX"
-                                ? "text-blue-600"
-                                : doc.type === "PPTX"
-                                ? "text-orange-600"
-                                : "text-gray-600"
-                            }`}
-                          />
+                                : doc.fileType === "DOCX"
+                                  ? "text-blue-600"
+                                  : doc.fileType === "PPTX"
+                                    ? "text-orange-600"
+                                    : doc.fileType === "XLSX"
+                                      ? "text-green-600"
+                                      : "text-gray-600"
+                                }`}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {doc.title}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                {doc.fileType}
+                              </span>
+                              {doc.fileSize && <span>{doc.fileSize}</span>}
+                              <span>•</span>
+                              <span>
+                                {doc.classIds.map((c) => c.name).join(", ") ||
+                                  "Tất cả lớp"}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {new Date(doc.createdAt).toLocaleDateString(
+                                  "vi-VN",
+                                )}
+                              </span>
+                              {doc.visibility === "community" && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                  🌐 Cộng đồng
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {doc.name}
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span>{doc.type}</span>
-                            <span>•</span>
-                            <span>{doc.size}</span>
-                            <span>•</span>
-                            <span>{doc.className}</span>
-                            <span>•</span>
-                            <span>{doc.uploadDate}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right hidden sm:block">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {doc.downloadCount} lượt tải
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <a
+                              href={`${API_BASE_URL}/documents/${doc._id}/file`}
+                              target="_self"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1"
+                              >
+                                <DownloadIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline">Tải</span>
+                              </Button>
+                            </a>
+                            {doc.visibility === "class" ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-purple-600 hover:bg-purple-50"
+                                onClick={() => {
+                                  shareToCommunity(doc._id);
+                                  toast.success("Đã chia sẻ ra cộng đồng!");
+                                }}
+                              >
+                                🌐 Chia sẻ
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  restrictToClass(doc._id);
+                                  toast.success("Đã giới hạn chỉ lớp học!");
+                                }}
+                              >
+                                🔒 Giới hạn
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:bg-red-50"
+                              onClick={() => {
+                                if (
+                                  confirm("Bạn có chắc muốn xoá tài liệu này?")
+                                ) {
+                                  deleteDocument(doc._id);
+                                  toast.success("Đã xoá tài liệu!");
+                                }
+                              }}
+                            >
+                              Xoá
+                            </Button>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {doc.downloads} lượt tải
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1"
-                          >
-                            <DownloadIcon className="h-4 w-4" />
-                            <span className="hidden sm:inline">Tải xuống</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            Xoá
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
-                <Card className="p-4 border-dashed border-2 border-gray-300 bg-gray-50">
+                <Card
+                  className="p-4 border-dashed border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => setShowUploadModal(true)}
+                >
                   <div className="text-center py-8">
                     <UploadIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-600 font-medium">
@@ -2735,10 +2364,14 @@ export default function TeacherDashboard({
             </Card>
           </TabsContent>
 
+          <TabsContent value="assignments" className="mt-6">
+            <TeacherAssignmentsTab />
+          </TabsContent>
+
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2748,55 +2381,375 @@ export default function TeacherDashboard({
         </Tabs>
       </main>
 
-      {chatWith && (
-        <ChatWindow
-          recipientName={chatWith.name}
-          recipientRole={chatWith.role}
-          currentUserName={user.name}
-          onClose={() => setChatWith(null)}
-        />
-      )}
-      {selectedStudent && (
-        <StudentDetailModal
-          student={selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-        />
-      )}
-      {attendanceSession && (
-        <AttendanceModal
-          session={attendanceSession.session}
-          classData={attendanceSession.classData}
-          onClose={() => setAttendanceSession(null)}
-          onSave={handleSaveAttendance}
-        />
-      )}
-      {timetableAttendance && (
-        <TimetableAttendanceModal
-          schedule={timetableAttendance.schedule}
-          classData={timetableAttendance.classData}
-          fullDate={timetableAttendance.fullDate}
-          onClose={() => setTimetableAttendance(null)}
-          onSave={handleSaveTimetableAttendance}
-        />
-      )}
-      {showEvaluation && (
-        <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
-      )}
-      {showAssessmentModal && selectedClass && (
-        <AssessmentFormModal
-          classData={selectedClass}
-          initialStudentId={initialAssessmentStudentId}
-          onClose={() => {
-            setShowAssessmentModal(false);
-            setInitialAssessmentStudentId(null);
-          }}
-          onSaved={() => {
-            if (selectedClass._id) {
-              fetchAssessments({ classId: selectedClass._id });
-            }
-          }}
-        />
-      )}
+      {
+        chatWith && (
+          <ChatWindow
+            recipientName={chatWith.name}
+            recipientRole={chatWith.role}
+            currentUserName={user.name}
+            onClose={() => setChatWith(null)}
+          />
+        )
+      }
+      {
+        selectedStudent && (
+          <StudentDetailModal
+            student={selectedStudent}
+            onClose={() => setSelectedStudent(null)}
+          />
+        )
+      }
+      {
+        attendanceSession && (
+          <AttendanceModal
+            session={attendanceSession.session}
+            classData={attendanceSession.classData}
+            onClose={() => setAttendanceSession(null)}
+            onSave={handleSaveAttendance}
+          />
+        )
+      }
+      {
+        timetableAttendance && (
+          <TimetableAttendanceModal
+            schedule={timetableAttendance.schedule}
+            classData={timetableAttendance.classData}
+            fullDate={timetableAttendance.fullDate}
+            onClose={() => setTimetableAttendance(null)}
+            onSave={handleSaveTimetableAttendance}
+          />
+        )
+      }
+      {
+        showEvaluation && (
+          <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
+        )
+      }
+      {
+        showSettings && (
+          <SettingsModal user={fullUserDetails || user} onClose={() => setShowSettings(false)} />
+        )
+      }
+      {
+        showUploadModal && (
+          <UploadDocumentModal
+            classes={classes}
+            onClose={() => setShowUploadModal(false)}
+            onUpload={async (file, data) => {
+              try {
+                await uploadDocument(file, data);
+                toast.success("Tải lên tài liệu thành công!");
+                setShowUploadModal(false);
+              } catch (error: any) {
+                toast.error(error.message || "Lỗi khi tải lên tài liệu");
+              }
+            }}
+          />
+        )
+      }
+    </div >
+  );
+}
+
+// Modal Upload Document với Drag & Drop
+function UploadDocumentModal({
+  classes,
+  onClose,
+  onUpload,
+}: {
+  classes: Class[];
+  onClose: () => void;
+  onUpload: (file: File, data: any) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [visibility, setVisibility] = useState<"class" | "community">("class");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async () => {
+    if (!title || !selectedFile) {
+      alert("Vui lòng nhập tiêu đề và chọn file");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await onUpload(selectedFile, {
+        title,
+        description,
+        classIds: selectedClassIds.length > 0 ? selectedClassIds : undefined,
+        visibility,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleClass = (classId: string) => {
+    setSelectedClassIds((prev) =>
+      prev.includes(classId)
+        ? prev.filter((id) => id !== classId)
+        : [...prev, classId],
+    );
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!title) {
+        // Auto-fill title from filename (without extension)
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setTitle(nameWithoutExt);
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!title) {
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setTitle(nameWithoutExt);
+      }
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "pdf":
+        return "📄";
+      case "doc":
+      case "docx":
+        return "📝";
+      case "xls":
+      case "xlsx":
+        return "📊";
+      case "ppt":
+      case "pptx":
+        return "📽️";
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "webp":
+        return "🖼️";
+      case "mp4":
+      case "webm":
+      case "avi":
+        return "🎬";
+      case "mp3":
+      case "wav":
+        return "🎵";
+      case "zip":
+      case "rar":
+        return "📦";
+      default:
+        return "📎";
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900">
+            Tải lên tài liệu mới
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Drag & Drop Zone */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
+              ? "border-blue-500 bg-blue-50"
+              : selectedFile
+                ? "border-green-500 bg-green-50"
+                : "border-gray-300 hover:border-gray-400"
+              }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelect}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.mp3,.wav,.zip,.rar,.txt"
+            />
+            {selectedFile ? (
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl">
+                  {getFileIcon(selectedFile.name)}
+                </span>
+                <div className="text-left">
+                  <p className="font-medium text-gray-900 truncate max-w-[250px]">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                  }}
+                  className="ml-2 p-1 hover:bg-red-100 rounded text-red-500"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-4xl mb-2">📁</div>
+                <p className="text-gray-600 font-medium">
+                  Kéo thả file vào đây hoặc click để chọn
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Hỗ trợ: PDF, Word, Excel, PowerPoint, Ảnh, Video, Audio, ZIP
+                  (tối đa 50MB)
+                </p>
+              </>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tiêu đề <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="VD: Tài liệu Toán 10 - Chương 1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Mô tả
+            </label>
+            <textarea
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Mô tả ngắn về tài liệu..."
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Chọn lớp chia sẻ
+            </label>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border rounded-lg bg-gray-50">
+              {classes.length === 0 ? (
+                <p className="text-sm text-gray-500">Bạn chưa có lớp nào</p>
+              ) : (
+                classes.map((cls) => (
+                  <button
+                    key={cls._id}
+                    type="button"
+                    onClick={() => toggleClass(cls._id)}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                      }`}
+                  >
+                    {cls.name}
+                  </button>
+                ))
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Không chọn = chia sẻ với tất cả lớp của bạn
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phạm vi chia sẻ
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={visibility === "class"}
+                  onChange={() => setVisibility("class")}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm">🔒 Chỉ lớp học</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={visibility === "community"}
+                  onChange={() => setVisibility("community")}
+                  className="w-4 h-4 text-purple-600"
+                />
+                <span className="text-sm">🌐 Cộng đồng (tất cả)</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Huỷ
+            </Button>
+            <Button
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              onClick={handleSubmit}
+              disabled={isLoading || !title || !selectedFile}
+            >
+              {isLoading ? "Đang tải..." : "Tải lên"}
+            </Button>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

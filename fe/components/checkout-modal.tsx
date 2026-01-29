@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useOrdersStore, Order } from "@/lib/stores/orders-store";
 import { usePaymentsStore } from "@/lib/stores/payments-store";
+import { notify } from "@/lib/notify";
 
 interface ClassInfo {
   _id: string;
@@ -100,7 +101,9 @@ export default function CheckoutModal({
 
   const handleCreateOrder = async () => {
     if (selectedClassIds.length === 0) {
-      setError("Vui lòng chọn ít nhất 1 lớp học");
+      const msg = "Vui lòng chọn ít nhất 1 lớp học";
+      setError(msg);
+      notify.warning(msg);
       return;
     }
 
@@ -119,6 +122,7 @@ export default function CheckoutModal({
       setStep("payment");
     } catch (err: any) {
       setError(err.message);
+      notify.error(err.message);
     }
   };
 
@@ -130,7 +134,7 @@ export default function CheckoutModal({
       setStep("processing");
 
       const method = paymentMethod === "vnpay" ? "vnpay_test" : "cash";
-      
+
       const response = await createPayment({
         requestIds: currentOrder.requestIds || [], // Ensure Order has requestIds
         method,
@@ -140,12 +144,12 @@ export default function CheckoutModal({
       if (method === "vnpay_test") {
         // Redirect to VNPay
         if (response.paymentUrl) {
-           window.location.href = response.paymentUrl;
+          window.location.href = response.paymentUrl;
         } else {
-           throw new Error("Không nhận được link thanh toán VNPay");
+          throw new Error("Không nhận được link thanh toán VNPay");
         }
       } else {
-        alert(
+        notify.success(
           "Đã tạo yêu cầu thanh toán tiền mặt.\nVui lòng đến quầy thu ngân để thanh toán."
         );
         onSuccess?.(currentOrder);
@@ -153,6 +157,7 @@ export default function CheckoutModal({
       }
     } catch (err: any) {
       setError(err.message);
+      notify.error(err.message);
       setStep("payment");
     }
   };
@@ -213,11 +218,10 @@ export default function CheckoutModal({
                   {classes.map((cls) => (
                     <label
                       key={cls._id}
-                      className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        selectedClassIds.includes(cls._id)
+                      className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedClassIds.includes(cls._id)
                           ? "border-blue-500 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <input
@@ -324,11 +328,10 @@ export default function CheckoutModal({
 
                 {/* VNPay */}
                 <label
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    paymentMethod === "vnpay"
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "vnpay"
                       ? "border-blue-500 bg-blue-50"
                       : "border-gray-200 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -352,11 +355,10 @@ export default function CheckoutModal({
 
                 {/* Cash */}
                 <label
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    paymentMethod === "cash"
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "cash"
                       ? "border-green-500 bg-green-50"
                       : "border-gray-200 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -389,11 +391,10 @@ export default function CheckoutModal({
                 <Button
                   onClick={handlePayment}
                   disabled={!paymentMethod || isLoading}
-                  className={`flex-1 ${
-                    paymentMethod === "vnpay"
+                  className={`flex-1 ${paymentMethod === "vnpay"
                       ? "bg-red-600 hover:bg-red-700"
                       : "bg-green-600 hover:bg-green-700"
-                  }`}
+                    }`}
                 >
                   {isLoading ? (
                     <>

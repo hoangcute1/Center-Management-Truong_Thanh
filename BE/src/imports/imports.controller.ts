@@ -12,7 +12,13 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ImportsService } from './imports.service';
 import { ImportUsersDto } from './dto/import-users.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -20,11 +26,12 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 
-@ApiTags('imports')
+@ApiTags('Imports')
+@ApiBearerAuth()
 @Controller('imports')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ImportsController {
-  constructor(private readonly importsService: ImportsService) {}
+  constructor(private readonly importsService: ImportsService) { }
 
   @Post('users')
   @Roles(UserRole.Admin)

@@ -114,16 +114,54 @@ export default function ClassesScreen() {
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
 
   const isAdmin = user?.role === "admin";
+  const isParent = user?.role === "parent";
   const teachers = users.filter((u) => u.role === "teacher");
 
+  // State to store child info for parent
+  const [childId, setChildId] = useState<string | null>(null);
+
+  // Fetch child info for parent
+  const fetchChildId = async () => {
+    if (user?.role === "parent" && user?.childEmail) {
+      try {
+        const response = await api.get("/users/child-by-email", {
+          params: { email: user.childEmail },
+        });
+        if (response.data?._id) {
+          setChildId(response.data._id);
+          return response.data._id;
+        }
+      } catch (error) {
+        console.error("Error fetching child info:", error);
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
-    fetchClasses();
-    fetchBranches();
-    fetchUsers();
+    const loadData = async () => {
+      if (isParent) {
+        const cId = await fetchChildId();
+        if (cId) {
+          await fetchClasses(undefined, cId);
+        } else {
+          await fetchClasses();
+        }
+      } else {
+        await fetchClasses();
+      }
+      fetchBranches();
+      fetchUsers();
+    };
+    loadData();
   }, []);
 
   const onRefresh = async () => {
-    await fetchClasses();
+    if (isParent && childId) {
+      await fetchClasses(undefined, childId);
+    } else {
+      await fetchClasses();
+    }
   };
 
   const filteredClasses = classes.filter((c) => {
@@ -259,9 +297,13 @@ export default function ClassesScreen() {
   const getTeacherName = (classItem: Class): string => {
     if (
       typeof classItem.teacherId === "object" &&
-      classItem.teacherId?.fullName
+      (classItem.teacherId?.fullName || classItem.teacherId?.name)
     ) {
-      return classItem.teacherId.fullName;
+      return (
+        classItem.teacherId.fullName ||
+        classItem.teacherId.name ||
+        "Chưa phân công"
+      );
     }
     if (classItem.teacher?.name) return classItem.teacher.name;
     return "Chưa phân công";
@@ -873,7 +915,9 @@ export default function ClassesScreen() {
                   >
                     {createForm.teacherId
                       ? teachers.find((t) => t._id === createForm.teacherId)
-                          ?.fullName
+                          ?.fullName ||
+                        teachers.find((t) => t._id === createForm.teacherId)
+                          ?.name
                       : "Chọn giáo viên"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -1196,7 +1240,7 @@ export default function ClassesScreen() {
                           styles.pickerItemTextActive,
                       ]}
                     >
-                      {item.fullName}
+                      {item.fullName || item.name || "Giáo viên"}
                     </Text>
                     <Text style={styles.pickerItemSubtext}>{item.email}</Text>
                   </View>

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -9,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -20,10 +22,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { User } from './schemas/user.schema';
 import type { UserDocument } from './schemas/user.schema';
 
+@ApiTags('Users')
+@ApiBearerAuth()
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Post()
   @Roles(UserRole.Admin)
@@ -102,9 +106,25 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles(UserRole.Admin)
-  findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
+  @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Student, UserRole.Parent)
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: UserDocument,
+  ) {
+    // Admin và Teacher có thể xem bất kỳ ai
+    if (
+      currentUser.role === UserRole.Admin ||
+      currentUser.role === UserRole.Teacher
+    ) {
+      return this.usersService.findById(id);
+    }
+
+    // Student và Parent chỉ có thể xem chính mình
+    if (currentUser._id.toString() === id) {
+      return this.usersService.findById(id);
+    }
+
+    throw new ForbiddenException('You can only view your own profile');
   }
 
   @Patch(':id')

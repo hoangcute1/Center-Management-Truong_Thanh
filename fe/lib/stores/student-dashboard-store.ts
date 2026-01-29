@@ -42,17 +42,10 @@ export interface StudentDashboardData {
     _id: string;
     title: string;
     className: string;
-    classId: string | null;
-    teacherName: string | null;
-    score: number | null;
-    maxScore: number | null;
-    percentage: number | null;
-    weight: number | null;
-    assessedAt: string | null;
-    type?: string;
-    feedback?: string;
-    dueDate?: string | null;
-    submittedAt?: string | null;
+    score: number;
+    maxScore: number;
+    percentage: number;
+    assessedAt: string;
   }>;
   attendanceStats: {
     present: number;
@@ -134,61 +127,15 @@ export const useStudentDashboardStore = create<
             : assessmentsRes.value.data.assessments || []
           : [];
 
-      const recentGrades = assessmentsRaw
-        .map((a: any) => {
-          const score = typeof a.score === "number" ? a.score : null;
-          const maxScore = typeof a.maxScore === "number" ? a.maxScore : null;
-          const percentage =
-            score !== null && maxScore && maxScore > 0
-              ? Math.round(((score / maxScore) * 100 + Number.EPSILON) * 10) /
-                10
-              : null;
-          const assessedAt =
-            a.submittedAt ||
-            a.dueDate ||
-            a.updatedAt ||
-            a.createdAt ||
-            null;
-          const maybeClassId =
-            typeof a.classId !== "undefined" && a.classId !== null
-              ? a.classId
-              : a.class?._id;
-          const classId =
-            typeof maybeClassId === "string"
-              ? maybeClassId
-              : typeof maybeClassId?.toString === "function"
-                ? maybeClassId.toString()
-                : null;
-          const teacherName =
-            a.class?.teacher?.name ||
-            a.class?.teacherId?.name ||
-            a.teacher?.name ||
-            a.teacherId?.name ||
-            a.teacherName ||
-            null;
-
-          return {
-            _id: a._id,
-            title: a.title,
-            className: a.class?.name || a.className || "N/A",
-            classId,
-            teacherName,
-            score,
-            maxScore,
-            percentage,
-            weight: typeof a.weight === "number" ? a.weight : null,
-            assessedAt,
-            type: a.type,
-            feedback: a.feedback,
-            dueDate: a.dueDate || null,
-            submittedAt: a.submittedAt || null,
-          };
-        })
-        .sort((a: any, b: any) => {
-          const aTime = a.assessedAt ? new Date(a.assessedAt).getTime() : 0;
-          const bTime = b.assessedAt ? new Date(b.assessedAt).getTime() : 0;
-          return bTime - aTime;
-        });
+      const recentGrades = assessmentsRaw.map((a: any) => ({
+        _id: a._id,
+        title: a.title,
+        className: a.class?.name || "N/A",
+        score: a.score,
+        maxScore: a.maxScore,
+        percentage: (a.score / a.maxScore) * 100,
+        assessedAt: a.assessedAt,
+      }));
 
       // Process attendance stats
       const attendanceStats =
@@ -219,11 +166,7 @@ export const useStudentDashboardStore = create<
             _id: c._id,
             name: c.name,
             description: c.description,
-            teacherName:
-              c.teacher?.name ||
-              c.teacherId?.name ||
-              c.teacherName ||
-              "N/A",
+            teacherName: c.teacherId?.name || c.teacher?.name || "Chưa có GV",
             schedule: c.schedule || [],
             studentCount: c.studentIds?.length || 0,
             progress: 75, // TODO: Calculate from sessions

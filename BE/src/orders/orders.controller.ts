@@ -9,6 +9,7 @@ import {
   Request,
   Delete,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,10 +18,12 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 import { OrderStatus } from './schemas/order.schema';
 
+@ApiTags('Orders')
+@ApiBearerAuth()
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
   @Post()
   @Roles(UserRole.Student, UserRole.Parent, UserRole.Admin)
@@ -31,10 +34,7 @@ export class OrdersController {
 
   @Get('me')
   @Roles(UserRole.Student, UserRole.Parent)
-  async findMyOrders(
-    @Request() req,
-    @Query('status') status?: OrderStatus,
-  ) {
+  async findMyOrders(@Request() req, @Query('status') status?: OrderStatus) {
     return this.ordersService.findByStudent(req.user._id, status);
   }
 

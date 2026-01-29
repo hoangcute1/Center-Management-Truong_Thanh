@@ -78,7 +78,7 @@ interface ClassesState {
   isLoading: boolean;
   error: string | null;
 
-  fetchClasses: (branchId?: string) => Promise<void>;
+  fetchClasses: (branchId?: string, studentId?: string) => Promise<void>;
   fetchClassById: (id: string) => Promise<void>;
   createClass: (data: CreateClassData) => Promise<Class>;
   updateClass: (id: string, data: UpdateClassData) => Promise<Class>;
@@ -114,10 +114,13 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchClasses: async (branchId?: string) => {
+  fetchClasses: async (branchId?: string, studentId?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const params = branchId ? { branchId } : {};
+      const params: Record<string, string> = {};
+      if (branchId) params.branchId = branchId;
+      if (studentId) params.studentId = studentId;
+
       const response = await api.get("/classes", { params });
       const classes = Array.isArray(response.data)
         ? response.data

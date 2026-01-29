@@ -71,7 +71,18 @@ export class Payment {
 
   @Prop()
   failReason?: string;
+
+  // ===== Finance - Branch Snapshot =====
+  @Prop({ type: Types.ObjectId, ref: 'Branch' })
+  branchId?: Types.ObjectId; // Snapshot của student.branchId khi tạo payment
+
+  @Prop()
+  branchName?: string; // Snapshot của branch.name khi tạo payment
+
+  @Prop()
+  subjectName?: string; // Snapshot môn học (nối chuỗi nếu nhiều môn)
 }
+
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);
 PaymentSchema.index({ studentId: 1, createdAt: -1 });

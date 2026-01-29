@@ -35,6 +35,10 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsEnum(Gender)
   gender?: Gender;
 
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
   // Thông tin phụ huynh của học sinh
   @IsOptional()
   @IsString()

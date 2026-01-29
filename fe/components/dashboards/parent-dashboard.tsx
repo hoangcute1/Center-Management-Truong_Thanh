@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -18,8 +18,12 @@ import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
 import { useParentDashboardStore } from "@/lib/stores/parent-dashboard-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
-import { AlertTriangle, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import api from "@/lib/api";
+import { uploadToCloudinary } from "@/lib/cloudinary";
+import { Bounce, ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Day names for schedule
 const dayNames = [
@@ -33,7 +37,7 @@ const dayNames = [
 ];
 
 interface ParentDashboardProps {
-  user: { id: string; name: string; email: string; role: string };
+  user: { id: string; name: string; email: string; role: string; phone?: string; avatarUrl?: string };
   onLogout: () => void;
 }
 
@@ -102,41 +106,12 @@ const courses = [
   },
 ];
 
-type ProgressPoint = { week: string; score: number };
-
-const getWeekNumber = (date: Date) => {
-  const tempDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = tempDate.getUTCDay() || 7;
-  tempDate.setUTCDate(tempDate.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return weekNo;
-};
-
-const getWeekRangeLabel = (date: Date) => {
-  const monday = new Date(date);
-  const day = monday.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  monday.setDate(monday.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const format = (d: Date) =>
-    d.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-  return `${format(monday)} - ${format(sunday)}`;
-};
-
-const getWeekMeta = (date: Date) => {
-  const weekNumber = getWeekNumber(date);
-  const paddedWeek = weekNumber.toString().padStart(2, "0");
-  return {
-    key: `${date.getFullYear()}-W${paddedWeek}`,
-    label: `Tuần ${weekNumber} (${getWeekRangeLabel(date)})`,
-  };
-};
+const progressData = [
+  { week: "Tuần 1", score: 7.2 },
+  { week: "Tuần 2", score: 7.4 },
+  { week: "Tuần 3", score: 7.6 },
+  { week: "Tuần 4", score: 7.8 },
+];
 
 const weeklySchedule = [
   {
@@ -231,15 +206,325 @@ const contacts = [
   { name: "Thầy Lê Văn E", subject: "Dạy môn Anh văn" },
 ];
 
-function DetailModal({
+function SettingsModal({
+  user,
   onClose,
-  progressData,
-  hasProgressData,
 }: {
+  user: {
+    _id?: string;
+    id?: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    parentCode?: string;
+    childEmail?: string;
+    avatarUrl?: string;
+  };
   onClose: () => void;
-  progressData: ProgressPoint[];
-  hasProgressData: boolean;
 }) {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: user.name,
+    phone: user.phone || "",
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+      setSelectedFile(file);
+    }
+  };
+
+  const handleEditAvatar = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const userId = user._id || user.id;
+      if (!userId) {
+        toast.error("Không tìm thấy thông tin người dùng");
+        return;
+      }
+
+      let avatarUrl = user.avatarUrl;
+
+      if (selectedFile) {
+        try {
+          avatarUrl = await uploadToCloudinary(selectedFile);
+        } catch (error) {
+          toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      await api.patch(`/users/${userId}`, {
+        name: formData.name,
+        phone: formData.phone,
+        avatarURL: avatarUrl,
+      });
+
+      toast.success("Cập nhật thông tin thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+      setIsEditing(false);
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative">
+            <div
+              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              onClick={() => {
+                if (!isEditing && avatarPreview) {
+                  setShowImagePreview(true);
+                }
+              }}
+            >
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-4xl font-bold select-none">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {isEditing && (
+              <button
+                onClick={handleEditAvatar}
+                className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+                title="Đổi ảnh đại diện"
+              >
+                <Camera size={17} />
+              </button>
+            )}
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Image Preview Modal */}
+        {showImagePreview && avatarPreview && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowImagePreview(false)}
+          >
+            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={avatarPreview}
+                alt="Profile Large"
+                className="w-full h-auto max-h-[90vh] object-cover rounded-3xl shadow-2xl border-[6px] border-white"
+              />
+              <button
+                onClick={() => setShowImagePreview(false)}
+                className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Form Inputs */}
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Họ và tên</label>
+              <input
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={isEditing ? formData.name : user.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                readOnly={!isEditing}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Số điện thoại</label>
+              <input
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
+                value={
+                  isEditing ? formData.phone : user.phone || "Chưa cập nhật"
+                }
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                readOnly={!isEditing}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+              defaultValue={user.email}
+              readOnly
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Mã phụ huynh</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+                defaultValue={user.parentCode || "Chưa có"}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-gray-700 font-medium">Email con</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+                defaultValue={user.childEmail || "Chưa có"}
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+              >
+                <span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                  >
+                    <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                    <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    <circle cx="10" cy="8" r="5" />
+                  </svg>
+                </span>
+                Chỉnh Sửa
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: user.name,
+                      phone: user.phone || "",
+                    });
+                  }}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function DetailModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
@@ -278,36 +563,30 @@ function DetailModal({
           <Card className="p-4">
             <p className="font-semibold text-gray-900 mb-3">Tiến độ học tập</p>
             <div className="h-64">
-              {hasProgressData ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={progressData}
-                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="week"
-                      tick={{ fontSize: 12, fill: "#4b5563" }}
-                    />
-                    <YAxis
-                      domain={[0, 12]}
-                      tick={{ fontSize: 12, fill: "#4b5563" }}
-                    />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      stroke="#2563eb"
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-500">
-                  Chưa có dữ liệu điểm để hiển thị.
-                </div>
-              )}
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={progressData}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="week"
+                    tick={{ fontSize: 12, fill: "#4b5563" }}
+                  />
+                  <YAxis
+                    domain={[0, 12]}
+                    tick={{ fontSize: 12, fill: "#4b5563" }}
+                  />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </Card>
 
@@ -374,6 +653,20 @@ export default function ParentDashboard({
     role: string;
   } | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close profile dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch real data from API
   const {
@@ -388,12 +681,23 @@ export default function ParentDashboard({
   }, [fetchChildrenRequests]);
 
   const allRequests = childrenRequests.flatMap((c) => c.requests);
-  const pendingPayments = allRequests.filter((r) => r.status === 'pending' || r.status === 'overdue');
-  const paidPayments = allRequests.filter((r) => r.status === 'paid');
+  const pendingPayments = allRequests.filter(
+    (r) => r.status === "pending" || r.status === "overdue",
+  );
+  const paidPayments = allRequests.filter((r) => r.status === "paid");
 
-  const totalPendingAmount = pendingPayments.reduce((sum, r) => sum + r.finalAmount, 0);
-  const totalPaidAmount = paidPayments.reduce((sum, r) => sum + r.finalAmount, 0);
+  const totalPendingAmount = pendingPayments.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
+  const totalPaidAmount = paidPayments.reduce(
+    (sum, r) => sum + r.finalAmount,
+    0,
+  );
   const { user: authUser } = useAuthStore();
+
+  // State to hold full user details including sensitive/personal info not in initial props
+  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
 
   // Fetch data on mount
   useEffect(() => {
@@ -401,15 +705,38 @@ export default function ParentDashboard({
     const childEmail = (authUser as any)?.childEmail;
     if (parentId) {
       fetchDashboardData(parentId, childEmail).catch(console.error);
+
+      // Fetch full user details for profile
+      api.get(`/users/${parentId}`)
+        .then((res: any) => setFullUserDetails(res.data))
+        .catch((err: any) => console.error("Failed to fetch full user details:", err));
     }
   }, [authUser, user.id, fetchDashboardData]);
+
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+
+  // Sync avatarPreview when user prop changes
+  useEffect(() => {
+    if (user.avatarUrl) {
+      setAvatarPreview(user.avatarUrl);
+    }
+  }, [user.avatarUrl]);
+
+  // Sync avatarPreview when fullUserDetails is loaded
+  useEffect(() => {
+    if (fullUserDetails?.avatarURL) {
+      setAvatarPreview(fullUserDetails.avatarURL);
+    } else if (fullUserDetails?.avatarUrl) {
+      setAvatarPreview(fullUserDetails.avatarUrl);
+    }
+  }, [fullUserDetails]);
 
   // Debug: log attendance records for parent
   useEffect(() => {
     if (dashboardData?.attendanceRecords?.length) {
       console.log(
         "Parent - Attendance Records:",
-        dashboardData.attendanceRecords
+        dashboardData.attendanceRecords,
       );
     }
   }, [dashboardData?.attendanceRecords]);
@@ -418,24 +745,13 @@ export default function ParentDashboard({
   const childData = dashboardData?.child || child;
   const classesData = dashboardData?.classes?.length
     ? dashboardData.classes.map((c) => ({
-        subject: c.name,
-        total: 12,
-        attended: 10,
-        score: 8.0,
-        teacher: c.teacherName,
-      }))
+      subject: c.name,
+      total: 12,
+      attended: 10,
+      score: 8.0,
+      teacher: c.teacherName,
+    }))
     : courses;
-
-  const classNameLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    (dashboardData?.classes ?? []).forEach((classItem) => {
-      const classId = classItem?._id || (classItem as any)?.id;
-      if (classId && classItem?.name) {
-        map.set(String(classId), classItem.name);
-      }
-    });
-    return map;
-  }, [dashboardData?.classes]);
 
   const attendanceStats = dashboardData?.attendanceStats || {
     present: 28,
@@ -445,54 +761,48 @@ export default function ParentDashboard({
     rate: 93,
   };
 
-  const gradePercentages = (dashboardData?.recentGrades ?? [])
-    .map((grade) =>
-      typeof grade.percentage === "number" && !Number.isNaN(grade.percentage)
-        ? grade.percentage
-        : null
-    )
-    .filter((value): value is number => value !== null);
-
-  const overviewAverageScore = gradePercentages.length
-    ? gradePercentages.reduce((sum, value) => sum + value, 0) /
-        gradePercentages.length /
-        10
-    : null;
-
   // Dynamic overview stats
   const dynamicOverviewStats = dashboardData
     ? [
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Điểm TB",
-          value: overviewAverageScore !== null
-            ? overviewAverageScore.toFixed(1)
+      {
+        label: "Khóa học",
+        value: dashboardData.classes.length,
+        note: "Đang theo học",
+        icon: "📚",
+        color: "from-blue-500 to-blue-600",
+      },
+      {
+        label: "Điểm TB",
+        value:
+          dashboardData.recentGrades.length > 0
+            ? (
+              dashboardData.recentGrades.reduce(
+                (acc, g) => acc + g.percentage,
+                0,
+              ) /
+              dashboardData.recentGrades.length /
+              10
+            ).toFixed(1)
             : "N/A",
-          note: overviewAverageScore !== null ? "Kết quả học tập" : "Chưa có dữ liệu điểm",
-          icon: "⭐",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Buổi học",
-          value: attendanceStats.total,
-          note: `${attendanceStats.present} buổi tham dự`,
-          icon: "📅",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${attendanceStats.rate}%`,
-          note: "Tỉ lệ tham gia",
-          icon: "🏆",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
+        note: "Kết quả học tập",
+        icon: "⭐",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        label: "Buổi học",
+        value: attendanceStats.total,
+        note: `${attendanceStats.present} buổi tham dự`,
+        icon: "📅",
+        color: "from-amber-500 to-orange-500",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${attendanceStats.rate}%`,
+        note: "Tỉ lệ tham gia",
+        icon: "🏆",
+        color: "from-purple-500 to-purple-600",
+      },
+    ]
     : overviewStats;
 
   // Build timetable from classes (child's enrolled classes)
@@ -530,7 +840,7 @@ export default function ParentDashboard({
             classInfo: classItem,
             schedule: sched,
           });
-        }
+        },
       );
     });
 
@@ -667,7 +977,7 @@ export default function ParentDashboard({
                     }
                   }
                   return false;
-                }
+                },
               );
 
               // If not found by classId match, try just by date
@@ -684,7 +994,7 @@ export default function ParentDashboard({
                       );
                     }
                     return false;
-                  }
+                  },
                 );
               }
 
@@ -701,7 +1011,7 @@ export default function ParentDashboard({
                       sessionDate.getDate() === targetDay &&
                       s.classId === classItem._id
                     );
-                  }
+                  },
                 );
                 if (sessionRecord) {
                   attendanceStatus = sessionRecord.attendanceStatus || null;
@@ -721,53 +1031,61 @@ export default function ParentDashboard({
                 attendanceStatus,
               });
             }
-          }
+          },
         );
       });
 
       result.push({
         date: currentDate,
         dayName: dayNames[dayOfWeek],
-        dateStr: currentDate.toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-        }),
-        items,
+        dateStr: `${currentDate.getDate()}/${currentDate.getMonth() + 1}`,
+        items: items.sort((a, b) => a.startTime.localeCompare(b.startTime)),
       });
     }
 
     return result;
-  }, [
-    dashboardData?.classes,
-    dashboardData?.upcomingSessions,
-    dashboardData?.attendanceRecords,
-  ]);
+  }, [dashboardData?.classes, dashboardData?.attendanceRecords, dashboardData?.upcomingSessions]);
 
+  const handleLogout = () => {
+    toast.info("Đang đăng xuất...", {
+      position: "top-right",
+      autoClose: 250,
+      hideProgressBar: true,
+      closeOnClick: true,
+      pauseOnHover: false,
+      draggable: true,
+      theme: "light",
+      transition: Bounce,
+    });
+    setTimeout(() => {
+      onLogout();
+    }, 500);
+  };
   // Weekly schedule with attendance
   const scheduleWithAttendance = dashboardData?.upcomingSessions?.length
     ? dashboardData.upcomingSessions.slice(0, 7).map((s, idx) => {
-        const sessionDate = new Date(s.date);
-        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        return {
-          day: days[sessionDate.getDay()],
-          date: sessionDate.toLocaleDateString("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-          }),
-          code: s.className.substring(0, 7).toUpperCase(),
-          time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}`,
-          room: "Phòng học",
-          teacher: "Giáo viên",
-          status: s.status === "completed" ? "confirmed" : "pending",
-          attendanceStatus: s.attendanceStatus,
-        };
-      })
+      const sessionDate = new Date(s.date);
+      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      return {
+        day: days[sessionDate.getDay()],
+        date: sessionDate.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        code: s.className.substring(0, 7).toUpperCase(),
+        time: `${new Date(s.startTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}-${new Date(s.endTime).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`,
+        room: "Phòng học",
+        teacher: "Giáo viên",
+        status: s.status === "completed" ? "confirmed" : "pending",
+        attendanceStatus: s.attendanceStatus,
+      };
+    })
     : weeklySchedule;
 
   const paidBadge = child.paid ? (
@@ -776,190 +1094,128 @@ export default function ParentDashboard({
     <Badge variant="warning">Chưa thanh toán</Badge>
   );
 
-  const { progressSeries, hasProgressData } = useMemo(() => {
-    const grades = dashboardData?.recentGrades || [];
-    const validGrades = grades.filter(
-      (grade) =>
-        typeof grade?.percentage === "number" &&
-        !Number.isNaN(grade.percentage) &&
-        Boolean(grade?.assessedAt)
-    );
-
-    if (!validGrades.length) {
-      return {
-        progressSeries: [],
-        hasProgressData: false,
-      };
-    }
-
-    const weeklyMap = new Map<
-      string,
-      { label: string; total: number; count: number }
-    >();
-
-    validGrades.forEach((grade) => {
-      const assessedAt = new Date(grade.assessedAt!);
-      const { key, label } = getWeekMeta(assessedAt);
-      if (!weeklyMap.has(key)) {
-        weeklyMap.set(key, { label, total: 0, count: 0 });
-      }
-      const bucket = weeklyMap.get(key)!;
-      bucket.total += grade.percentage as number;
-      bucket.count += 1;
-    });
-
-    const series = Array.from(weeklyMap.entries())
-      .sort((a, b) => (a[0] > b[0] ? 1 : -1))
-      .map(([, bucket]) => ({
-        week: bucket.label,
-        score:
-          Math.round(
-            ((bucket.total / bucket.count) / 10 + Number.EPSILON) * 10
-          ) / 10,
-      }))
-      .filter((point) => !Number.isNaN(point.score));
-
-    if (!series.length) {
-      return {
-        progressSeries: [],
-        hasProgressData: false,
-      };
-    }
-
-    return {
-      progressSeries: series.slice(-6),
-      hasProgressData: true,
-    };
-  }, [dashboardData?.recentGrades]);
-
-  const progressAverage = useMemo(() => {
-    const latestPoint = progressSeries[progressSeries.length - 1];
-    return typeof latestPoint?.score === "number"
-      ? Number(latestPoint.score.toFixed(1))
-      : null;
-  }, [progressSeries]);
-
-  const progressTrend = useMemo(() => {
-    if (progressSeries.length < 2) return null;
-    const prev = progressSeries[progressSeries.length - 2].score;
-    const current = progressSeries[progressSeries.length - 1].score;
-    return Number((current - prev).toFixed(1));
-  }, [progressSeries]);
-
-  const latestAssessments = useMemo(
-    () => (dashboardData?.recentGrades || []).slice(0, 4),
-    [dashboardData?.recentGrades]
-  );
-
-  const progressSummaryCards = useMemo(
-    () => [
-      {
-        label: "Điểm trung bình",
-        value: hasProgressData && progressAverage !== null ? `${progressAverage}` : "N/A",
-        note: hasProgressData ? "Trung bình 5 tuần gần nhất" : "Chưa có dữ liệu điểm",
-        bg: "from-blue-50 to-indigo-50",
-        accent: "text-blue-600",
-      },
-      {
-        label: "Biến động tuần",
-        value:
-          progressTrend === null
-            ? "--"
-            : progressTrend > 0
-            ? `+${progressTrend}`
-            : `${progressTrend}`,
-        note:
-          progressTrend === null
-            ? "Chưa xác định"
-            : progressTrend > 0
-            ? "Tiến bộ so với tuần trước"
-            : progressTrend < 0
-            ? "Cần hỗ trợ thêm"
-            : "Ổn định so với tuần trước",
-        bg:
-          progressTrend === null
-            ? "from-gray-50 to-gray-100"
-            : progressTrend >= 0
-            ? "from-emerald-50 to-green-50"
-            : "from-rose-50 to-red-50",
-        accent:
-          progressTrend === null
-            ? "text-gray-600"
-            : progressTrend >= 0
-            ? "text-emerald-600"
-            : "text-red-600",
-      },
-      {
-        label: "Chuyên cần",
-        value: `${attendanceStats.rate || 0}%`,
-        note: `${attendanceStats.present}/${attendanceStats.total} buổi đã tham dự`,
-        bg: "from-amber-50 to-orange-50",
-        accent: "text-amber-600",
-      },
-    ],
-    [
-      attendanceStats.present,
-      attendanceStats.rate,
-      attendanceStats.total,
-      hasProgressData,
-      progressAverage,
-      progressTrend,
-    ]
+  const progressAverage = useMemo(
+    () => progressData[progressData.length - 1].score,
+    [],
   );
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Trường Thành Education
-            </h1>
-            <p className="text-sm text-gray-500">Dashboard Phụ huynh</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationCenter userRole={user.role} />
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-base shadow-md">
-                {user.name.charAt(0)}
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-600">{user.email}</p>
-              </div>
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
+              T
             </div>
-            <Button variant="outline" onClick={onLogout}>
-              Đăng xuất
-            </Button>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
+                Trường Thành Education
+              </h1>
+              <p className="text-xs text-gray-500">Dashboard Phụ huynh</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <NotificationCenter userRole={user.role} />
+            {/* Use Dropdown in Profile */}
+            <div className="relative ml-3" ref={dropdownRef}>
+              {/* Avatar */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative group focus:outline-none"
+              >
+                {/* Avatar chính */}
+                <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
+                  <ChevronDown size={10} strokeWidth={3} />
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  {/* Thông tin user tóm tắt */}
+                  <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                    </span>
+                    Hồ sơ
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                    </span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         {pendingPayments.length > 0 && (
-          <div 
-            onClick={() => window.location.href = '/payment'}
+          <div
+            onClick={() => (window.location.href = "/payment")}
             className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r cursor-pointer hover:bg-red-100 transition-colors shadow-sm"
           >
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center">
                 <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
                 <div>
-                  <p className="text-sm font-bold text-red-700">Thông báo học phí</p>
-                  <p className="text-sm text-red-600">
-                    Bạn có <span className="font-bold">{pendingPayments.length}</span> khoản cần thanh toán cho con. 
-                    Tổng tiền: <span className="font-bold text-red-800">{totalPendingAmount.toLocaleString('vi-VN')} đ</span>
+                  <p className="text-sm font-bold text-red-700">
+                    Thông báo học phí
                   </p>
-                </div>
-              </div>
-              <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700">
+                  <p className="text-sm text-red-600">
+                    Bạn có{" "}
+                    <span className="font-bold">{pendingPayments.length}</span>{" "}
+                    khoản cần thanh toán cho con. Tổng tiền:{" "}
+                    <span className="font-bold text-red-800">
+                      {totalPendingAmount.toLocaleString("vi-VN")} đ
+                    </span>
+                  </p >
+                </div >
+              </div >
+              <Button
+                size="sm"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
                 Thanh toán ngay
               </Button>
-            </div>
-          </div>
-        )}
+            </div >
+          </div >
+        )
+        }
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
@@ -999,12 +1255,6 @@ export default function ParentDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               💳 Thanh toán
-            </TabsTrigger>
-            <TabsTrigger
-              value="invoice"
-              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-            >
-              🧾 Hóa đơn
             </TabsTrigger>
             <TabsTrigger
               value="contact"
@@ -1066,7 +1316,8 @@ export default function ParentDashboard({
                         Thông tin con
                       </p>
                       <p className="text-sm text-gray-500">
-                        {childData.name} - {(childData as any).grade || "Lớp 10"}
+                        {childData.name} -{" "}
+                        {(childData as any).grade || "Lớp 10"}
                       </p>
                     </div>
                     <Button
@@ -1097,13 +1348,17 @@ export default function ParentDashboard({
                 <Card className="rounded-2xl shadow-sm border border-gray-100 p-6 bg-white">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                       💰 Thông tin học phí
+                      💰 Thông tin học phí
                     </h2>
-                    <Button variant="ghost" size="sm" onClick={() => window.location.href = '/payment'}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => (window.location.href = "/payment")}
+                    >
                       Chi tiết <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-red-50 border border-red-100">
                       <div className="flex items-center justify-between mb-1">
@@ -1113,10 +1368,10 @@ export default function ParentDashboard({
                         </span>
                       </div>
                       <p className="text-2xl font-bold text-red-600 truncate">
-                        {totalPendingAmount.toLocaleString('vi-VN')} đ
+                        {totalPendingAmount.toLocaleString("vi-VN")} đ
                       </p>
                     </div>
-                    
+
                     <div className="p-4 rounded-xl bg-green-50 border border-green-100">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-sm text-gray-600">Đã thanh toán</p>
@@ -1125,7 +1380,7 @@ export default function ParentDashboard({
                         </span>
                       </div>
                       <p className="text-2xl font-bold text-green-600 truncate">
-                        {totalPaidAmount.toLocaleString('vi-VN')} đ
+                        {totalPaidAmount.toLocaleString("vi-VN")} đ
                       </p>
                     </div>
                   </div>
@@ -1147,18 +1402,16 @@ export default function ParentDashboard({
                     return (
                       <div
                         key={dayData.dateStr}
-                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-[220px] ${
-                          isToday
-                            ? "border-emerald-400 ring-2 ring-emerald-200"
-                            : "border-gray-200"
-                        }`}
+                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-[220px] ${isToday
+                          ? "border-emerald-400 ring-2 ring-emerald-200"
+                          : "border-gray-200"
+                          }`}
                       >
                         <div
-                          className={`text-white px-3 py-2 text-center ${
-                            isToday
-                              ? "bg-gradient-to-r from-emerald-600 to-green-600"
-                              : "bg-gradient-to-r from-blue-600 to-indigo-600"
-                          }`}
+                          className={`text-white px-3 py-2 text-center ${isToday
+                            ? "bg-gradient-to-r from-emerald-600 to-green-600"
+                            : "bg-gradient-to-r from-blue-600 to-indigo-600"
+                            }`}
                         >
                           <p className="text-xs font-semibold leading-tight">
                             {dayData.dayName}
@@ -1199,15 +1452,14 @@ export default function ParentDashboard({
                                 {/* Attendance Status */}
                                 {item.attendanceStatus ? (
                                   <div
-                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
-                                      item.attendanceStatus === "present"
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : item.attendanceStatus === "absent"
+                                    className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${item.attendanceStatus === "present"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : item.attendanceStatus === "absent"
                                         ? "bg-red-100 text-red-700"
                                         : item.attendanceStatus === "late"
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-blue-100 text-blue-700"
-                                    }`}
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-blue-100 text-blue-700"
+                                      }`}
                                   >
                                     {item.attendanceStatus === "present" &&
                                       "✅ Có mặt"}
@@ -1251,144 +1503,39 @@ export default function ParentDashboard({
           </TabsContent>
 
           <TabsContent value="progress" className="mt-6">
-            <Card className="p-5 space-y-6">
-              <div className="flex flex-col gap-2">
-                <p className="font-semibold text-gray-900 text-lg">
-                  Tiến độ học tập của {childData.name}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Tổng hợp điểm số, biến động và những bài được chấm gần nhất để phụ huynh chủ động nắm bắt.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {progressSummaryCards.map((card) => (
-                  <div
-                    key={card.label}
-                    className={`rounded-2xl border border-gray-100 bg-gradient-to-br ${card.bg} p-4 shadow-sm`}
+            <Card className="p-5">
+              <p className="font-semibold text-gray-900 mb-3">
+                Tiến độ học tập con
+              </p>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={progressData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
                   >
-                    <p className="text-xs font-semibold text-gray-500">
-                      {card.label}
-                    </p>
-                    <p className={`text-2xl font-bold mt-2 ${card.accent}`}>
-                      {card.value}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">{card.note}</p>
-                  </div>
-                ))}
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fontSize: 12, fill: "#4b5563" }}
+                    />
+                    <YAxis
+                      domain={[0, 12]}
+                      tick={{ fontSize: 12, fill: "#4b5563" }}
+                    />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#2563eb"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-
-              <div className="grid gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2 rounded-2xl border border-gray-100 p-4 bg-white shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="font-semibold text-gray-900">Biểu đồ tiến độ</p>
-                      <p className="text-xs text-gray-500">
-                        Trung bình từng tuần (quy đổi về thang 10)
-                      </p>
-                    </div>
-                    {hasProgressData && (
-                      <span className="text-xs font-medium text-gray-500">
-                        {progressSeries.length} tuần gần nhất
-                      </span>
-                    )}
-                  </div>
-                  <div className="h-72">
-                    {hasProgressData ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={progressSeries}
-                          margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="week" tick={{ fontSize: 12, fill: "#4b5563" }} />
-                          <YAxis domain={[0, 12]} tick={{ fontSize: 12, fill: "#4b5563" }} />
-                          <Tooltip />
-                          <Line
-                            type="monotone"
-                            dataKey="score"
-                            stroke="#2563eb"
-                            strokeWidth={3}
-                            dot={{ r: 4 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-sm text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                        Chưa có bài đánh giá nào để hiển thị biểu đồ.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-gray-100 p-4 bg-white shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">Bài được chấm gần đây</p>
-                      <p className="text-xs text-gray-500">
-                        Tối đa 4 bài mới nhất
-                      </p>
-                    </div>
-                    {/* <span className="text-xs font-semibold text-blue-600">
-                      {latestAssessments.length}
-                    </span> */}
-                  </div>
-                  <div className="space-y-3">
-                    {latestAssessments.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-gray-200 p-4 text-xs text-gray-500 text-center">
-                        Giáo viên chưa cập nhật điểm mới.
-                      </div>
-                    )}
-                    {latestAssessments.map((grade) => {
-                      const percentage =
-                        typeof grade.percentage === "number"
-                          ? Math.round((grade.percentage + Number.EPSILON) * 10) / 10
-                          : null;
-                      const assessedDate = grade.assessedAt
-                        ? new Date(grade.assessedAt).toLocaleDateString("vi-VN", {
-                            day: "2-digit",
-                            month: "2-digit",
-                          })
-                        : "Chưa rõ ngày";
-                      const resolvedClassName = (() => {
-                        if (
-                          grade.className &&
-                          grade.className !== "Lớp học" &&
-                          grade.className !== "N/A"
-                        ) {
-                          return grade.className;
-                        }
-                        if (grade.classId) {
-                          const lookup = classNameLookup.get(String(grade.classId));
-                          if (lookup) return lookup;
-                        }
-                        return "Lớp học";
-                      })();
-                      return (
-                        <div
-                          key={grade._id}
-                          className="rounded-xl bg-gray-50 border border-gray-100 p-3"
-                        >
-                          <p className="text-sm font-semibold text-gray-900">
-                            {resolvedClassName}
-                          </p>
-                          <p className="text-xs text-gray-500">{grade.title || "Bài đánh giá"}</p>
-                          <div className="flex items-center justify-between text-xs mt-3">
-                            <span className="font-semibold text-blue-600">
-                              {percentage !== null
-                                ? `${percentage}% (${grade.score ?? "?"}/${grade.maxScore ?? "?"})`
-                                : grade.score !== null && grade.maxScore !== null
-                                ? `${grade.score}/${grade.maxScore}`
-                                : "Chưa có điểm"}
-                            </span>
-                            <span className="text-gray-500">{assessedDate}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Điểm trung bình tuần gần nhất: {progressAverage}
+              </p>
             </Card>
           </TabsContent>
 
@@ -1409,7 +1556,7 @@ export default function ParentDashboard({
                   </div>
                 </div>
                 <Button
-                  onClick={() => window.location.href = '/payment'}
+                  onClick={() => (window.location.href = "/payment")}
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-200"
                 >
                   Vào trang thanh toán →
@@ -1418,8 +1565,8 @@ export default function ParentDashboard({
 
               {/* Quick Status */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div 
-                  onClick={() => window.location.href = '/payment'}
+                <div
+                  onClick={() => (window.location.href = "/payment")}
                   className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -1427,7 +1574,9 @@ export default function ParentDashboard({
                       📋
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">Danh sách yêu cầu</h3>
+                      <h3 className="font-bold text-gray-900">
+                        Danh sách yêu cầu
+                      </h3>
                       <p className="text-sm text-gray-500">
                         Kiểm tra các khoản cần đóng
                       </p>
@@ -1435,8 +1584,8 @@ export default function ParentDashboard({
                   </div>
                 </div>
 
-                <div 
-                  onClick={() => window.location.href = '/payment'}
+                <div
+                  onClick={() => (window.location.href = "/payment")}
                   className="p-5 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -1444,7 +1593,9 @@ export default function ParentDashboard({
                       history
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">Lịch sử giao dịch</h3>
+                      <h3 className="font-bold text-gray-900">
+                        Lịch sử giao dịch
+                      </h3>
                       <p className="text-sm text-gray-500">
                         Xem lại các khoản đã thanh toán
                       </p>
@@ -1452,15 +1603,6 @@ export default function ParentDashboard({
                   </div>
                 </div>
               </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="invoice" className="mt-6">
-            <Card className="p-5">
-              <p className="font-semibold text-gray-900 mb-2">
-                Danh sách hóa đơn
-              </p>
-              <p className="text-sm text-gray-500">Chưa có hóa đơn nào</p>
             </Card>
           </TabsContent>
 
@@ -1494,7 +1636,7 @@ export default function ParentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -1502,7 +1644,7 @@ export default function ParentDashboard({
             />
           </TabsContent>
         </Tabs>
-      </main>
+      </main >
 
       {chatWith && (
         <ChatWindow
@@ -1512,13 +1654,16 @@ export default function ParentDashboard({
           onClose={() => setChatWith(null)}
         />
       )}
-      {showDetail && (
-        <DetailModal
-          onClose={() => setShowDetail(false)}
-          progressData={progressSeries}
-          hasProgressData={hasProgressData}
-        />
-      )}
-    </div>
+      {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
+      {
+        showSettings && (
+          <SettingsModal
+            user={fullUserDetails || user}
+            onClose={() => setShowSettings(false)}
+          />
+        )
+      }
+      <ToastContainer />
+    </div >
   );
 }

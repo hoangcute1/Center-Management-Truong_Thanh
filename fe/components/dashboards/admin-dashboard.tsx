@@ -1,5 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Bounce, ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import api from "@/lib/api";
 import {
   BarChart,
   Bar,
@@ -18,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChevronDown, Camera } from "lucide-react";
 import NotificationCenter from "@/components/notification-center";
 import ImportUsersModal from "@/components/pages/import-users-modal";
 import ImportStudentsModal from "@/components/pages/import-students-modal";
@@ -29,9 +33,15 @@ import IncidentsManager from "@/components/pages/incidents-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
+import { usePaymentsStore } from "@/lib/stores/payments-store";
+import { useFinanceStore } from "@/lib/stores/finance-store";
+import ExpenseModal from "@/components/modals/expense-modal";
+import { uploadToCloudinary } from "@/lib/cloudinary";
+
+
 
 interface AdminDashboardProps {
-  user: { id: string; name: string; email: string; role: string };
+  user: { id: string; name: string; email: string; role: string; phone?: string; avatarURL?: string };
   onLogout: () => void;
 }
 
@@ -81,43 +91,11 @@ const revenueByMonth = [
   { month: "Tháng 6", revenue: 75 },
 ];
 
-const financeSummary = [
-  {
-    label: "Tổng doanh thu",
-    value: "720 Tr",
-    trend: "+8% so với quý trước",
-    color: "text-green-600",
-    icon: "📈",
-    bgColor: "from-green-500 to-emerald-600",
-  },
-  {
-    label: "Chi phí",
-    value: "185 Tr",
-    trend: "+5% so với quý trước",
-    color: "text-red-500",
-    icon: "📉",
-    bgColor: "from-red-500 to-rose-600",
-  },
-  {
-    label: "Lợi nhuận ròng",
-    value: "535 Tr",
-    trend: "+10% so với quý trước",
-    color: "text-green-600",
-    icon: "💎",
-    bgColor: "from-indigo-500 to-purple-600",
-  },
-];
-
-const financeChart = [
-  { month: "Tháng 1", revenue: 50, cost: 20 },
-  { month: "Tháng 2", revenue: 62, cost: 22 },
-  { month: "Tháng 3", revenue: 58, cost: 20 },
-  { month: "Tháng 4", revenue: 75, cost: 25 },
-  { month: "Tháng 5", revenue: 68, cost: 23 },
-  { month: "Tháng 6", revenue: 82, cost: 28 },
-];
+// Mock data này sẽ được thay thế bằng data thật từ API trong Tab Tài chính
+// financeSummary và financeChart đã bị xóa và thay bằng dữ liệu động
 
 const accounts = {
+
   students: [
     {
       name: "Nguyễn Văn A",
@@ -512,10 +490,10 @@ function UserDetailModal({
                   {user.gender === "male"
                     ? "Nam"
                     : user.gender === "female"
-                    ? "Nữ"
-                    : user.gender === "other"
-                    ? "Khác"
-                    : "Chưa cập nhật"}
+                      ? "Nữ"
+                      : user.gender === "other"
+                        ? "Khác"
+                        : "Chưa cập nhật"}
                 </p>
               </div>
               <div>
@@ -560,8 +538,8 @@ function UserDetailModal({
                     <p className="text-gray-500">Loại học bổng</p>
                     <p className="font-medium text-gray-900">
                       {user.scholarshipType === 'teacher_child' ? '👨‍🏫 Con giáo viên' :
-                       user.scholarshipType === 'poor_family' ? '🏠 Hộ nghèo' :
-                       user.scholarshipType === 'orphan' ? '💙 Con mồ côi' : 'Không xác định'}
+                        user.scholarshipType === 'poor_family' ? '🏠 Hộ nghèo' :
+                          user.scholarshipType === 'orphan' ? '💙 Con mồ côi' : 'Không xác định'}
                     </p>
                   </div>
                   <div>
@@ -574,9 +552,9 @@ function UserDetailModal({
                     <div className="bg-amber-100 rounded-lg p-2">
                       <p className="text-sm text-amber-800">
                         💡 Học sinh được giảm <strong>{user.scholarshipPercent || 0}%</strong> học phí do thuộc diện <strong>
-                        {user.scholarshipType === 'teacher_child' ? 'Con giáo viên' :
-                         user.scholarshipType === 'poor_family' ? 'Hộ nghèo' :
-                         user.scholarshipType === 'orphan' ? 'Con mồ côi' : ''}
+                          {user.scholarshipType === 'teacher_child' ? 'Con giáo viên' :
+                            user.scholarshipType === 'poor_family' ? 'Hộ nghèo' :
+                              user.scholarshipType === 'orphan' ? 'Con mồ côi' : ''}
                         </strong>
                       </p>
                     </div>
@@ -686,19 +664,19 @@ function UserDetailModal({
                   {user.role === "student"
                     ? "Mã số học sinh"
                     : user.role === "teacher"
-                    ? "Mã số giáo viên"
-                    : user.role === "parent"
-                    ? "Mã số phụ huynh"
-                    : "Mã tài khoản"}
+                      ? "Mã số giáo viên"
+                      : user.role === "parent"
+                        ? "Mã số phụ huynh"
+                        : "Mã tài khoản"}
                 </p>
                 <p className="font-medium text-gray-900 font-mono text-lg">
                   {user.role === "student" && user.studentCode
                     ? user.studentCode
                     : user.role === "teacher" && user.teacherCode
-                    ? user.teacherCode
-                    : user.role === "parent" && user.parentCode
-                    ? user.parentCode
-                    : `#${user._id.slice(-8).toUpperCase()}`}
+                      ? user.teacherCode
+                      : user.role === "parent" && user.parentCode
+                        ? user.parentCode
+                        : `#${user._id.slice(-8).toUpperCase()}`}
                 </p>
               </div>
               <div>
@@ -706,12 +684,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : "Không xác định"}
                 </p>
               </div>
@@ -733,12 +711,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.updatedAt
                     ? new Date(user.updatedAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : "Không xác định"}
                 </p>
               </div>
@@ -855,7 +833,7 @@ function EditUserModal({
     };
 
     // Không update email vì email là unique identifier
-    
+
     if (!isParent) {
       if (formData.dateOfBirth) {
         updateData.dateOfBirth = new Date(formData.dateOfBirth);
@@ -1125,11 +1103,10 @@ function EditUserModal({
                           <button
                             type="button"
                             onClick={() => toggleCategory(cat.subjects)}
-                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                              cat.subjects.every((s) => formData.subjects.includes(s))
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) => formData.subjects.includes(s))
+                              ? "bg-purple-600 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
                           >
                             {cat.category}
                           </button>
@@ -1140,11 +1117,10 @@ function EditUserModal({
                               key={subject}
                               type="button"
                               onClick={() => toggleSubject(subject)}
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
-                                formData.subjects.includes(subject)
-                                  ? "bg-purple-500 text-white"
-                                  : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
-                              }`}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${formData.subjects.includes(subject)
+                                ? "bg-purple-500 text-white"
+                                : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
+                                }`}
                             >
                               #{subject}
                             </button>
@@ -1537,13 +1513,12 @@ function AddModal({
                         <button
                           type="button"
                           onClick={() => toggleCategory(cat.subjects)}
-                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                            cat.subjects.every((s) =>
-                              selectedSubjects.includes(s)
-                            )
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          }`}
+                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
+                            selectedSubjects.includes(s)
+                          )
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
                         >
                           {cat.category}
                         </button>
@@ -1562,11 +1537,10 @@ function AddModal({
                             key={subject}
                             type="button"
                             onClick={() => toggleSubject(subject)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                              selectedSubjects.includes(subject)
-                                ? "bg-blue-500 text-white shadow-sm"
-                                : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
-                            }`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${selectedSubjects.includes(subject)
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                              }`}
                           >
                             #{subject}
                           </button>
@@ -1607,6 +1581,300 @@ function AddModal({
           >
             Hủy
           </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SettingsModal({
+  user,
+  onClose,
+}: {
+  user: {
+    _id?: string;
+    id?: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    avatarUrl?: string;
+  };
+  onClose: () => void;
+}) {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: user.name,
+    phone: user.phone || "",
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+      setSelectedFile(file);
+    }
+  };
+
+  const handleEditAvatar = () => {
+    if (isEditing) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const userId = user._id || user.id;
+      if (!userId) {
+        toast.error("Không tìm thấy thông tin người dùng");
+        return;
+      }
+
+      let avatarUrl = user.avatarUrl;
+
+      if (selectedFile) {
+        try {
+          avatarUrl = await uploadToCloudinary(selectedFile);
+        } catch (error) {
+          toast.error("Không thể tải ảnh lên. Vui lòng thử lại.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      await api.patch(`/users/${userId}`, {
+        name: formData.name,
+        phone: formData.phone,
+        avatarUrl: avatarUrl,
+      });
+
+      toast.success("Cập nhật thông tin thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+      setIsEditing(false);
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Cập nhật thất bại", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="relative">
+            <div
+              className={`w-28 h-28 rounded-full overflow-hidden border-[4px] border-white shadow-lg ring-2 ring-blue-100 bg-gray-100 flex items-center justify-center ${!isEditing && avatarPreview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+              onClick={() => {
+                if (!isEditing && avatarPreview) {
+                  setShowImagePreview(true);
+                }
+              }}
+            >
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-white text-gray-700 text-4xl font-bold select-none">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {isEditing && (
+              <button
+                onClick={handleEditAvatar}
+                className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-gray-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+                title="Đổi ảnh đại diện"
+              >
+                <Camera size={17} />
+              </button>
+            )}
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Image Preview Modal */}
+        {showImagePreview && avatarPreview && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowImagePreview(false)}
+          >
+            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={avatarPreview}
+                alt="Profile Large"
+                className="w-full h-auto max-h-[90vh] object-cover rounded-3xl shadow-2xl border-[6px] border-white"
+              />
+              <button
+                onClick={() => setShowImagePreview(false)}
+                className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Form Inputs */}
+        <div className="space-y-4 text-sm">
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Họ và tên</label>
+            <input
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
+              value={isEditing ? formData.name : user.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 bg-gray-50 text-gray-500 cursor-not-allowed"
+              defaultValue={user.email}
+              readOnly
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-gray-700 font-medium">Số điện thoại</label>
+            <input
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
+              value={isEditing ? formData.phone : user.phone || "Chưa cập nhật"}
+              onChange={(e) => handleInputChange("phone", e.target.value)}
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+              >
+                <span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                  >
+                    <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                    <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    <circle cx="10" cy="8" r="5" />
+                  </svg>
+                </span>
+                Chỉnh Sửa
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: user.name,
+                      phone: user.phone || "",
+                    });
+                  }}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={isLoading}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -1751,6 +2019,71 @@ export default function AdminDashboard({
   const [classStudentsModal, setClassStudentsModal] = useState<any>(null);
   const [classSearchQuery, setClassSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // State to hold full user details including sensitive/personal info not in initial props
+  const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+
+  // Fetch full user data
+  useEffect(() => {
+    if (user?.id) {
+      api.get(`/users/${user.id}`)
+        .then((res: any) => {
+          const userData = res.data.user || res.data;
+          setFullUserDetails(userData);
+        })
+        .catch((err: any) => {
+          console.error("Failed to fetch full user details:", err);
+        });
+    }
+  }, [user.id]);
+
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarURL || null);
+
+  // Sync avatarPreview when user prop changes
+  useEffect(() => {
+    if (user.avatarURL) {
+      setAvatarPreview(user.avatarURL);
+    }
+  }, [user.avatarURL]);
+
+  // Sync avatarPreview when fullUserDetails is loaded
+  useEffect(() => {
+    if (fullUserDetails?.avatarURL) {
+      setAvatarPreview(fullUserDetails.avatarURL);
+    } else if (fullUserDetails?.avatarUrl) {
+      setAvatarPreview(fullUserDetails.avatarUrl);
+    }
+  }, [fullUserDetails]);
+
+  const handleLogout = () => {
+    toast.info("Đang đăng xuất...", {
+      position: "top-right",
+      autoClose: 250,
+      hideProgressBar: true,
+      closeOnClick: true,
+      pauseOnHover: false,
+      draggable: true,
+      theme: "light",
+      transition: Bounce,
+    });
+    setTimeout(() => {
+      onLogout();
+    }, 500);
+  };
+
+  // Handle click outside to close profile dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Stores
   const {
@@ -1771,12 +2104,32 @@ export default function AdminDashboard({
     isLoading: usersLoading,
   } = useUsersStore();
 
+  // Finance store (new)
+  const {
+    dashboard: financeDashboard,
+    expenses,
+    isLoading: financeLoading,
+    error: financeError,
+    fetchDashboard,
+    fetchExpenses,
+    createExpense,
+    deleteExpense,
+    clearError: clearFinanceError,
+  } = useFinanceStore();
+
+  // Finance state
+  const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+
   // State for add user modal
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserError, setAddUserError] = useState<string | null>(null);
 
   // Kiểm tra xem user có phải admin không
   const isAdmin = user.role === "admin";
+
+
 
   // State for branch filter - Nếu không phải admin, mặc định là branchId của user
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
@@ -1797,13 +2150,13 @@ export default function AdminDashboard({
   // Apply search filter
   const searchFilteredUsers = searchQuery.trim()
     ? filteredUsers.filter((u) => {
-        const query = searchQuery.toLowerCase().trim();
-        return (
-          u.name?.toLowerCase().includes(query) ||
-          u.email?.toLowerCase().includes(query) ||
-          u.phone?.toLowerCase().includes(query)
-        );
-      })
+      const query = searchQuery.toLowerCase().trim();
+      return (
+        u.name?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        u.phone?.toLowerCase().includes(query)
+      );
+    })
     : filteredUsers;
 
   const apiStudents = searchFilteredUsers.filter((u) => u.role === "student");
@@ -1829,6 +2182,68 @@ export default function AdminDashboard({
       console.log("Could not fetch classes - make sure backend is running");
     });
   }, [fetchBranches, fetchUsers, fetchClasses]);
+
+  // Fetch finance dashboard when switching to finance tab or branch/year changes
+  useEffect(() => {
+    if (activeTab === "finance") {
+      console.log(`🔄 Fetching finance dashboard: branch=${selectedBranch}, year=${selectedYear}`);
+      fetchDashboard(selectedBranch, selectedYear);
+
+      // Fetch expenses only if specific branch selected
+      if (selectedBranch !== "ALL") {
+        fetchExpenses(selectedBranch);
+      }
+    }
+  }, [activeTab, selectedBranch, selectedYear, fetchDashboard, fetchExpenses]);
+
+  // === Finance Helper Functions ===
+  const formatCurrency = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `${(amount / 1000000).toFixed(1)} Tr`;
+    } else if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(0)}K`;
+    }
+    return amount.toLocaleString('vi-VN');
+  };
+
+  const getMonthName = (month: number): string => {
+    const names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    return names[month - 1] || `T${month}`;
+  };
+
+  const handleAddExpense = async (data: { amount: number; description: string; expenseDate: string }) => {
+    try {
+      await createExpense({
+        branchId: selectedBranch,
+        ...data,
+      });
+
+      // Refresh data parallel
+      await Promise.all([
+        fetchDashboard(selectedBranch, selectedYear),
+        selectedBranch !== "ALL" ? fetchExpenses(selectedBranch) : Promise.resolve(),
+      ]);
+
+      // Modal auto closes via onSubmit prop
+    } catch (error) {
+      console.error("Failed to create expense:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm("Bạn có chắc muốn xóa chi phí này?")) return;
+
+    try {
+      await deleteExpense(id);
+
+      // Refresh data
+      await fetchDashboard(selectedBranch, selectedYear);
+      await fetchExpenses(selectedBranch);
+    } catch (error) {
+      console.error("Failed to delete expense:", error);
+    }
+  };
 
   // Handlers for branches
   const handleAddBranch = () => {
@@ -2009,23 +2424,67 @@ export default function AdminDashboard({
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationCenter userRole={user.role} />
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                {user.name.charAt(0)}
-              </div>
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-gray-900">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-500">{user.email}</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={onLogout}
-                className="text-sm border-gray-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            {/* Use Dropdown in Profile */}
+            <div className="relative ml-3" ref={dropdownRef}>
+              {/* Avatar */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="relative group focus:outline-none"
               >
-                Đăng xuất
-              </Button>
+                {/* Avatar chính */}
+                <div className="w-9 h-9 rounded-full bg-white text-gray-700 font-semibold text-sm shadow-md flex items-center justify-center transition-transform ring-2 ring-transparent group-focus:ring-gray-200 overflow-hidden">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center border-[1.5px] border-white text-white shadow-sm">
+                  <ChevronDown size={10} strokeWidth={3} />
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  {/* Thông tin user tóm tắt */}
+                  <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                    </span>
+                    Hồ sơ
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsProfileOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                  >
+                    <span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                    </span>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2406,19 +2865,18 @@ export default function AdminDashboard({
                             </p>
                           </div>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              course.status === "active"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : course.status === "completed"
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${course.status === "active"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : course.status === "completed"
                                 ? "bg-gray-100 text-gray-700"
                                 : "bg-amber-100 text-amber-700"
-                            }`}
+                              }`}
                           >
                             {course.status === "active"
                               ? "Đang mở"
                               : course.status === "completed"
-                              ? "Đã kết thúc"
-                              : "Tạm dừng"}
+                                ? "Đã kết thúc"
+                                : "Tạm dừng"}
                           </span>
                           <Button
                             variant="outline"
@@ -2568,17 +3026,17 @@ export default function AdminDashboard({
                       setShowModal(
                         activeAccountTab === "students"
                           ? {
-                              title: "Thêm học sinh",
-                              fields: [
-                                "Họ và tên",
-                                "Email",
-                                "Số điện thoại",
-                                "Tên phụ huynh",
-                                "SĐT phụ huynh",
-                              ],
-                            }
+                            title: "Thêm học sinh",
+                            fields: [
+                              "Họ và tên",
+                              "Email",
+                              "Số điện thoại",
+                              "Tên phụ huynh",
+                              "SĐT phụ huynh",
+                            ],
+                          }
                           : activeAccountTab === "parents"
-                          ? {
+                            ? {
                               title: "Thêm phụ huynh",
                               fields: [
                                 "Họ và tên",
@@ -2587,7 +3045,7 @@ export default function AdminDashboard({
                                 "Email con (học sinh)",
                               ],
                             }
-                          : {
+                            : {
                               title: "Thêm giáo viên",
                               fields: [
                                 "Họ và tên",
@@ -2608,33 +3066,30 @@ export default function AdminDashboard({
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
                 <button
                   onClick={() => setActiveAccountTab("students")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "students"
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                  }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "students"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:bg-white/50"
+                    }`}
                 >
                   <span>👨‍🎓</span>
                   <span>Học sinh ({apiStudents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("parents")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "parents"
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                  }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "parents"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:bg-white/50"
+                    }`}
                 >
                   <span>👨‍👩‍👧</span>
                   <span>Phụ huynh ({apiParents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("teachers")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "teachers"
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-white/50"
-                  }`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "teachers"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:bg-white/50"
+                    }`}
                 >
                   <span>👨‍🏫</span>
                   <span>Giáo viên ({apiTeachers.length})</span>
@@ -2655,8 +3110,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có học sinh tại cơ sở "${getBranchName(
-                                effectiveBranchFilter
-                              )}"`
+                              effectiveBranchFilter
+                            )}"`
                             : "Chưa có học sinh"}
                         </div>
                       ) : (
@@ -2691,8 +3146,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {s.createdAt
                                   ? new Date(s.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
+                                    "vi-VN"
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -2717,8 +3172,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có phụ huynh tại cơ sở "${getBranchName(
-                                effectiveBranchFilter
-                              )}"`
+                              effectiveBranchFilter
+                            )}"`
                             : "Chưa có phụ huynh"}
                         </div>
                       ) : (
@@ -2752,8 +3207,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {p.createdAt
                                   ? new Date(p.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
+                                    "vi-VN"
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -2778,8 +3233,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có giáo viên tại cơ sở "${getBranchName(
-                                effectiveBranchFilter
-                              )}"`
+                              effectiveBranchFilter
+                            )}"`
                             : "Chưa có giáo viên"}
                         </div>
                       ) : (
@@ -2818,8 +3273,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {t.createdAt
                                   ? new Date(t.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
+                                    "vi-VN"
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -2865,11 +3320,10 @@ export default function AdminDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      rankingView === key
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-gray-600 hover:bg-white/50"
-                    }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-600 hover:bg-white/50"
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -2884,27 +3338,25 @@ export default function AdminDashboard({
                 {leaderboardData[rankingView].map((row) => (
                   <div
                     key={`${rankingView}-${row.rank}-${row.name}`}
-                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                      row.rank === 1
-                        ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                        : row.rank === 2
+                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                      ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                      : row.rank === 2
                         ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                         : row.rank === 3
-                        ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                        : "border-gray-100 bg-white hover:border-blue-200"
-                    }`}
+                          ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                          : "border-gray-100 bg-white hover:border-blue-200"
+                      }`}
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                          row.rank === 1
-                            ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                            : row.rank === 2
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                          ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                          : row.rank === 2
                             ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
                             : row.rank === 3
-                            ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                              ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         {row.rank === 1 && "🏆"}
                         {row.rank === 2 && "🥈"}
@@ -2946,185 +3398,421 @@ export default function AdminDashboard({
             </Card>
           </TabsContent>
 
-          {/* Tab Tài chính */}
+          {/* Tab Tàichính */}
           <TabsContent value="finance" className="mt-6">
-            {/* Finance Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
-              {financeSummary.map((item) => (
-                <Card
-                  key={item.label}
-                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+            {/* Branch Selector & Year Selector */}
+            <div className="mb-6 flex gap-4 items-center">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn cơ sở
+                </label>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="w-full rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${item.bgColor} opacity-90`}
-                  />
-                  <div className="relative p-5 text-white">
-                    <div className="flex items-start justify-between">
+                  <option value="ALL">Tất cả cơ sở</option>
+                  {branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-40">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Năm
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={2026}>2026</option>
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {financeLoading && (
+              <Card className="p-12 text-center bg-white border-0 shadow-lg">
+                <div className="text-6xl mb-4 animate-pulse">💰</div>
+                <p className="text-gray-500 text-lg font-medium">
+                  Đang tải dữ liệu tài chính...
+                </p>
+              </Card>
+            )}
+
+            {/* Error State */}
+            {financeError && !financeLoading && (
+              <Card className="p-12 text-center bg-white border-0 shadow-lg">
+                <div className="text-6xl mb-4">❌</div>
+                <p className="text-red-600 text-lg font-medium mb-2">
+                  {financeError}
+                </p>
+                <Button
+                  onClick={() => {
+                    clearFinanceError();
+                    fetchDashboard(selectedBranch, selectedYear);
+                  }}
+                  className="mt-4"
+                >
+                  Thử lại
+                </Button>
+              </Card>
+            )}
+
+            {/* Dashboard Content */}
+            {!financeLoading && !financeError && financeDashboard && (
+              <>
+                {/* Summary Cards */}
+                <div className="grid gap-4 md:grid-cols-3 mb-6">
+                  {/* Total Revenue */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">
+                            💰 Tổng Thu
+                          </p>
+                          <p className="text-3xl font-bold mt-2">
+                            {formatCurrency(financeDashboard.summary.totalRevenue)}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {financeDashboard.summary.totalRevenue > 0
+                              ? `${selectedBranch === "ALL" ? "Tất cả cơ sở" : "Cơ sở này"}`
+                              : "Chưa có dữ liệu"}
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">📈</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Total Expense */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-pink-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-white/80 text-sm font-medium">
+                              💸 Tổng Chi
+                            </p>
+                            {selectedBranch !== "ALL" && (
+                              <button
+                                onClick={() => setShowExpenseModal(true)}
+                                className="px-4 py-1.5 bg-white text-pink-600 hover:bg-pink-50 border border-white/40 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md flex items-center gap-1"
+                              >
+                                <span className="text-base leading-none">+</span>
+                                <span>Thêm</span>
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-3xl font-bold mt-2">
+                            {formatCurrency(financeDashboard.summary.totalExpense)}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {financeDashboard.summary.totalExpense > 0
+                              ? `Chi phí vận hành`
+                              : "Chưa có chi phí"}
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">💸</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Profit */}
+                  <Card className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${financeDashboard.summary.profit >= 0
+                      ? 'from-blue-500 to-indigo-600'
+                      : 'from-orange-500 to-red-600'
+                      } opacity-90`} />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">
+                            💎 Lợi nhuận
+                          </p>
+                          <p className="text-3xl font-bold mt-2">
+                            {formatCurrency(financeDashboard.summary.profit)}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            = Thu - Chi
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">
+                          {financeDashboard.summary.profit >= 0 ? '📊' : '📉'}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Charts */}
+                <div className="grid gap-6 lg:grid-cols-2 mb-6">
+                  {/* Revenue/Expense by Month Chart */}
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">📈</span>
                       <div>
-                        <p className="text-white/80 text-sm font-medium">
-                          {item.label}
+                        <p className="font-bold text-gray-900">
+                          Thu/Chi theo tháng
                         </p>
-                        <p className="text-3xl font-bold mt-2">{item.value}</p>
-                        <p className="text-white/70 text-xs mt-1">
-                          {item.trend}
+                        <p className="text-xs text-gray-500">
+                          Năm {selectedYear}
                         </p>
                       </div>
-                      <span className="text-4xl opacity-80">{item.icon}</span>
+                    </div>
+                    <div className="h-72">
+                      {financeDashboard.chart.revenueByMonth.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={financeDashboard.chart.revenueByMonth.map((item, idx) => ({
+                              month: getMonthName(item.month),
+                              thu: item.amount / 1000000,
+                              chi: (financeDashboard.chart.expenseByMonth[idx]?.amount || 0) / 1000000,
+                            }))}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis
+                              dataKey="month"
+                              tick={{ fontSize: 11, fill: "#6b7280" }}
+                            />
+                            <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "none",
+                                borderRadius: "12px",
+                                boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                              }}
+                              formatter={(value: number) => [`${value.toFixed(1)} Tr`]}
+                            />
+                            <Bar
+                              dataKey="thu"
+                              fill="#3b82f6"
+                              radius={[4, 4, 0, 0]}
+                              name="Thu"
+                            />
+                            <Bar
+                              dataKey="chi"
+                              fill="#ef4444"
+                              radius={[4, 4, 0, 0]}
+                              name="Chi"
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-400">
+                          📊 Chưa có dữ liệu
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Revenue by Subject Chart */}
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">🎯</span>
+                      <div>
+                        <p className="font-bold text-gray-900">
+                          Thu theo môn học
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Phân bổ doanh thu
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-72">
+                      {financeDashboard.revenueBySubject.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={financeDashboard.revenueBySubject.map((item) => ({
+                                name: item.subject,
+                                value: item.amount,
+                              }))}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              label={({ name, value }: { name: string; value: number }) => {
+                                const total = financeDashboard.revenueBySubject.reduce(
+                                  (sum, s) => sum + s.amount,
+                                  0
+                                );
+                                const percent =
+                                  total > 0
+                                    ? ((value / total) * 100).toFixed(0)
+                                    : 0;
+                                return `${name} ${percent}%`;
+                              }}
+                            >
+                              {financeDashboard.revenueBySubject.map((_, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value: number) => `${formatCurrency(value)}`}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-400">
+                          🎯 Chưa có dữ liệu phân bổ
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Detail Table */}
+                <Card className="p-6 bg-white border-0 shadow-lg mb-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">📋</span>
+                    <div>
+                      <p className="font-bold text-gray-900">
+                        Chi tiết theo tháng
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Bảng phân tích thu/chi
+                      </p>
                     </div>
                   </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* Finance Charts */}
-            <div className="grid gap-6 lg:grid-cols-2 mt-6">
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">📊</span>
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      Doanh thu vs Chi phí
-                    </p>
-                    <p className="text-xs text-gray-500">So sánh theo tháng</p>
-                  </div>
-                </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={financeChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="month"
-                        tick={{ fontSize: 11, fill: "#6b7280" }}
-                      />
-                      <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "white",
-                          border: "none",
-                          borderRadius: "12px",
-                          boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-                        }}
-                      />
-                      <Bar
-                        dataKey="revenue"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        name="Doanh thu"
-                      />
-                      <Bar
-                        dataKey="cost"
-                        fill="#ef4444"
-                        radius={[4, 4, 0, 0]}
-                        name="Chi phí"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">🎯</span>
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      Doanh thu theo khóa học
-                    </p>
-                    <p className="text-xs text-gray-500">Phân bổ tỷ lệ</p>
-                  </div>
-                </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        innerRadius={60}
-                        label={({ name, percent }) =>
-                          `${name} ${(percent * 100).toFixed(0)}%`
-                        }
-                      >
-                        {pieData.map((_, idx) => (
-                          <Cell key={idx} fill={pieColors[idx]} />
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-semibold text-gray-600">
+                            Tháng
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                            Thu
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                            Chi
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                            Lợi nhuận
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {financeDashboard.detailByMonth.map((row) => (
+                          <tr
+                            key={row.month}
+                            className="border-b border-gray-100 hover:bg-gray-50"
+                          >
+                            <td className="py-3 px-4 font-medium text-gray-900">
+                              Tháng {row.month}
+                            </td>
+                            <td className="py-3 px-4 text-right text-blue-600 font-semibold">
+                              {formatCurrency(row.revenue)}
+                            </td>
+                            <td className="py-3 px-4 text-right text-red-500 font-semibold">
+                              {formatCurrency(row.expense)}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${row.profit >= 0
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-red-100 text-red-700'
+                                  }`}
+                              >
+                                {formatCurrency(row.profit)}
+                              </span>
+                            </td>
+                          </tr>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
 
-            {/* Finance Table */}
-            <Card className="p-6 mt-6 bg-white border-0 shadow-lg">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl">📋</span>
-                <div>
-                  <p className="font-bold text-gray-900">
-                    Chi tiết tài chính theo tháng
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Bảng phân tích doanh thu và chi phí
-                  </p>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">
-                        Tháng
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Doanh thu
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Chi phí
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Lợi nhuận
-                      </th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-600">
-                        Tỷ suất
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {financeChart.map((row) => (
-                      <tr
-                        key={row.month}
-                        className="border-b border-gray-100 hover:bg-gray-50"
-                      >
-                        <td className="py-3 px-4 font-medium text-gray-900">
-                          {row.month}
-                        </td>
-                        <td className="py-3 px-4 text-right text-blue-600 font-semibold">
-                          {row.revenue}T
-                        </td>
-                        <td className="py-3 px-4 text-right text-red-500 font-semibold">
-                          {row.cost}T
-                        </td>
-                        <td className="py-3 px-4 text-right text-emerald-600 font-semibold">
-                          {row.revenue - row.cost}T
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                            {Math.round(
-                              ((row.revenue - row.cost) / row.revenue) * 1000
-                            ) / 10}
-                            %
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                {/* Expense History (only if branch != ALL) */}
+                {selectedBranch !== "ALL" && expenses.length > 0 && (
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">📜</span>
+                      <div>
+                        <p className="font-bold text-gray-900">
+                          Lịch sử chi phí
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Danh sách chi phí đã tạo
+                        </p>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600">
+                              Ngày
+                            </th>
+                            <th className="text-left py-3 px-4 font-semibold text-gray-600">
+                              Nội dung
+                            </th>
+                            <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                              Số tiền
+                            </th>
+                            <th className="text-right py-3 px-4 font-semibold text-gray-600">
+                              Thao tác
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expenses.map((expense) => (
+                            <tr
+                              key={expense._id}
+                              className="border-b border-gray-100 hover:bg-gray-50"
+                            >
+                              <td className="py-3 px-4 text-gray-700">
+                                {new Date(expense.expenseDate).toLocaleDateString('vi-VN')}
+                              </td>
+                              <td className="py-3 px-4 text-gray-900">
+                                {expense.description}
+                              </td>
+                              <td className="py-3 px-4 text-right text-red-600 font-semibold">
+                                {expense.amount.toLocaleString('vi-VN')} ₫
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => handleDeleteExpense(expense._id)}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                  🗑️ Xóa
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                )}
+              </>
+            )}
+
+            {/* Expense Modal */}
+            <ExpenseModal
+              isOpen={showExpenseModal}
+              branchId={selectedBranch}
+              onClose={() => setShowExpenseModal(false)}
+              onSubmit={handleAddExpense}
+            />
           </TabsContent>
+
 
           {/* Tab Quản lý cơ sở */}
           <TabsContent value="branches" className="mt-6">
@@ -3188,11 +3876,10 @@ export default function AdminDashboard({
                       </div>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            branch.status === "active"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${branch.status === "active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-600"
+                            }`}
                         >
                           {branch.status === "active"
                             ? "✅ Hoạt động"
@@ -3513,11 +4200,11 @@ export default function AdminDashboard({
           classData={classStudentsModal}
           branchId={
             typeof classStudentsModal.branchId === "object" &&
-            classStudentsModal.branchId
+              classStudentsModal.branchId
               ? classStudentsModal.branchId._id
               : classStudentsModal.branchId ||
-                classStudentsModal.branch?._id ||
-                ""
+              classStudentsModal.branch?._id ||
+              ""
           }
           onClose={() => setClassStudentsModal(null)}
           onUpdate={() => {
@@ -3526,6 +4213,14 @@ export default function AdminDashboard({
           }}
         />
       )}
+
+      {showSettings && (
+        <SettingsModal
+          user={fullUserDetails || user}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+      <ToastContainer />
     </div>
   );
 }

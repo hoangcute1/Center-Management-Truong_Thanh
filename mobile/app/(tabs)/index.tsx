@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,8 +18,10 @@ import {
   useClassesStore,
   usePaymentRequestsStore,
   useIncidentsStore,
+  getUserDisplayName,
 } from "@/lib/stores";
 import { router } from "expo-router";
+import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
 
@@ -51,6 +54,127 @@ const getRoleConfig = (role: string) => {
     default:
       return { label: role, colors: ["#6B7280", "#4B5563"], icon: "person" };
   }
+};
+
+// Animated Quick Action Component
+interface AnimatedQuickActionProps {
+  index: number;
+  colors: [string, string];
+  icon: string;
+  label: string;
+  subtitle: string;
+  onPress: () => void;
+  badge?: number;
+  isCompact?: boolean;
+}
+
+const AnimatedQuickAction = ({
+  index,
+  colors,
+  icon,
+  label,
+  subtitle,
+  onPress,
+  badge,
+  isCompact = false,
+}: AnimatedQuickActionProps) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        delay: index * 80,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        delay: index * 80,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      tension: 300,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 300,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Animated.View
+      style={[
+        isCompact ? styles.quickActionCardCompact : styles.quickActionCard,
+        {
+          opacity: opacityAnim,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+        style={styles.quickActionTouchable}
+      >
+        <LinearGradient
+          colors={colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.quickActionGradient,
+            isCompact && styles.quickActionGradientCompact,
+          ]}
+        >
+          <Ionicons
+            name={icon as any}
+            size={isCompact ? 24 : 28}
+            color="#FFFFFF"
+          />
+          {badge && badge > 0 ? (
+            <View style={styles.actionBadge}>
+              <Text style={styles.actionBadgeText}>
+                {badge > 9 ? "9+" : badge}
+              </Text>
+            </View>
+          ) : null}
+        </LinearGradient>
+        <Text
+          style={[
+            styles.quickActionLabel,
+            isCompact && styles.quickActionLabelCompact,
+          ]}
+        >
+          {label}
+        </Text>
+        <Text
+          style={[
+            styles.quickActionSubtitle,
+            isCompact && styles.quickActionSubtitleCompact,
+          ]}
+        >
+          {subtitle}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
 // Role-specific overview cards
@@ -208,6 +332,7 @@ const getQuickActions = (
         label: "Lịch học",
         subtitle: "Xem lịch tuần",
         colors: ["#3B82F6", "#2563EB"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -215,6 +340,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -229,13 +355,6 @@ const getQuickActions = (
         badge: pendingPayments,
         onPress: () => router.push("/(tabs)/payments"),
       },
-      {
-        icon: "warning" as const,
-        label: "Sự cố",
-        subtitle: "Báo cáo vấn đề",
-        colors: ["#8B5CF6", "#7C3AED"],
-        onPress: () => router.push("/(tabs)/incidents"),
-      },
     ],
     parent: [
       {
@@ -243,6 +362,7 @@ const getQuickActions = (
         label: "Lịch học con",
         subtitle: "Xem lịch học",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -250,6 +370,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Theo dõi lớp",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -269,6 +390,7 @@ const getQuickActions = (
         label: "Sự cố",
         subtitle: "Phản ánh vấn đề",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/incidents"),
       },
     ],
@@ -278,6 +400,7 @@ const getQuickActions = (
         label: "Lịch dạy",
         subtitle: "Xem lịch tuần",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/schedule"),
       },
       {
@@ -285,22 +408,32 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#3B82F6", "#2563EB"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
-        icon: "notifications" as const,
-        label: "Thông báo",
-        subtitle: unreadCount > 0 ? `${unreadCount} chưa đọc` : "Cập nhật",
+        icon: "document-text" as const,
+        label: "Tài liệu",
+        subtitle: "Tài liệu giảng dạy",
         colors: ["#F59E0B", "#D97706"],
-        badge: unreadCount,
-        onPress: () => router.push("/(tabs)/notifications"),
+        badge: 0,
+        onPress: () => router.push("/(tabs)/materials"),
       },
       {
         icon: "warning" as const,
         label: "Sự cố",
-        subtitle: "Báo cáo vấn đề",
-        colors: ["#8B5CF6", "#7C3AED"],
+        subtitle: "Báo cáo sự cố",
+        colors: ["#EF4444", "#DC2626"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/incidents"),
+      },
+      {
+        icon: "star" as const,
+        label: "Đánh giá",
+        subtitle: "Xem đánh giá",
+        colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
+        onPress: () => router.push("/(tabs)/profile"),
       },
     ],
     admin: [
@@ -309,6 +442,7 @@ const getQuickActions = (
         label: "Lớp học",
         subtitle: "Quản lý lớp",
         colors: ["#8B5CF6", "#7C3AED"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
@@ -324,6 +458,7 @@ const getQuickActions = (
         label: "Tài khoản",
         subtitle: "Quản lý",
         colors: ["#10B981", "#059669"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/admin/accounts"),
       },
       {
@@ -331,6 +466,7 @@ const getQuickActions = (
         label: "Quản lý",
         subtitle: "Dashboard",
         colors: ["#F59E0B", "#D97706"],
+        badge: 0,
         onPress: () => router.push("/(tabs)/admin"),
       },
     ],
@@ -352,6 +488,33 @@ export default function HomeScreen() {
   const { myIncidents, fetchMyIncidents } = useIncidentsStore();
 
   const role = user?.role || "student";
+  const [childInfo, setChildInfo] = useState<{
+    _id: string;
+    name: string;
+    email: string;
+  } | null>(null);
+
+  // Fetch child info for parent
+  const fetchChildInfo = useCallback(async () => {
+    if (role === "parent" && user?.childEmail) {
+      try {
+        const response = await api.get("/users/child-by-email", {
+          params: { email: user.childEmail },
+        });
+        if (response.data) {
+          setChildInfo({
+            _id: response.data._id,
+            name: response.data.name || response.data.fullName,
+            email: response.data.email,
+          });
+          return response.data._id;
+        }
+      } catch (error) {
+        console.error("Error fetching child info:", error);
+      }
+    }
+    return null;
+  }, [role, user?.childEmail]);
 
   useEffect(() => {
     loadData();
@@ -359,18 +522,28 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     await fetchNotifications();
-    await fetchClasses();
 
-    if (role === "student") {
-      await fetchMyRequests();
-      await fetchMyIncidents();
-    } else if (role === "parent") {
+    // For parent, get child info first then fetch classes with childId
+    if (role === "parent") {
+      const childId = await fetchChildInfo();
+      if (childId) {
+        await fetchClasses(undefined, childId);
+      } else {
+        await fetchClasses();
+      }
       await fetchChildrenRequests();
       await fetchMyIncidents();
-    } else if (role === "teacher") {
+    } else if (role === "student") {
+      await fetchClasses();
+      await fetchMyRequests();
       await fetchMyIncidents();
+    } else if (role === "teacher") {
+      await fetchClasses();
+      await fetchMyIncidents();
+    } else {
+      await fetchClasses();
     }
-  }, [role]);
+  }, [role, fetchChildInfo]);
 
   const onRefresh = async () => {
     await loadData();
@@ -451,9 +624,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.welcomeText}>
               <Text style={styles.greeting}>Xin chào! 👋</Text>
-              <Text style={styles.userName}>
-                {user?.fullName || "Người dùng"}
-              </Text>
+              <Text style={styles.userName}>{getUserDisplayName(user)}</Text>
               <View style={styles.roleBadge}>
                 <Ionicons
                   name={roleConfig.icon as any}
@@ -489,41 +660,159 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Streak Card - Gamification Element (Student only) */}
+        {role === "student" && (
+          <>
+            <View style={styles.section}>
+              <View style={styles.streakCard}>
+                <LinearGradient
+                  colors={["#FEF3C7", "#FDE68A"]}
+                  style={styles.streakGradient}
+                >
+                  <View style={styles.streakContent}>
+                    <Text style={styles.streakIcon}>🔥</Text>
+                    <View style={styles.streakInfo}>
+                      <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
+                      <Text style={styles.streakValue}>12 ngày liên tục</Text>
+                    </View>
+                    <View style={styles.streakBadge}>
+                      <Ionicons name="flame" size={16} color="#D97706" />
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+            </View>
+          </>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Truy cập nhanh</Text>
-          <View style={styles.quickActionsGrid}>
+          <View
+            style={[
+              styles.quickActionsGrid,
+              quickActions.length === 5 && styles.quickActionsGridFive,
+            ]}
+          >
+            {/* Student Specific Extra Actions - Leaderboard, Grades & Documents */}
+            {role === "student" && (
+              <>
+                <AnimatedQuickAction
+                  index={0}
+                  colors={["#F59E0B", "#D97706"]}
+                  icon="ribbon"
+                  label="Điểm số"
+                  subtitle="Kết quả học tập"
+                  onPress={() => router.push("/grades")}
+                  isCompact={false}
+                />
+
+                <AnimatedQuickAction
+                  index={1}
+                  colors={["#8B5CF6", "#7C3AED"]}
+                  icon="trophy"
+                  label="Bảng xếp hạng"
+                  subtitle="Thành tích thi đua"
+                  onPress={() => router.push("/leaderboard")}
+                  isCompact={false}
+                />
+
+                <AnimatedQuickAction
+                  index={2}
+                  colors={["#EC4899", "#DB2777"]}
+                  icon="document-text"
+                  label="Tài liệu"
+                  subtitle="Học tập & ôn luyện"
+                  onPress={() => {}}
+                  isCompact={false}
+                />
+              </>
+            )}
+
             {quickActions.map((action, index) => (
-              <TouchableOpacity
+              <AnimatedQuickAction
                 key={index}
-                style={styles.quickActionCard}
+                index={index}
+                colors={action.colors as [string, string]}
+                icon={action.icon}
+                label={action.label}
+                subtitle={action.subtitle}
                 onPress={action.onPress}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={action.colors as [string, string]}
-                  style={styles.quickActionGradient}
-                >
-                  <Ionicons name={action.icon} size={28} color="#FFFFFF" />
-                  {action.badge && action.badge > 0 ? (
-                    <View style={styles.actionBadge}>
-                      <Text style={styles.actionBadgeText}>
-                        {action.badge > 9 ? "9+" : action.badge}
-                      </Text>
-                    </View>
-                  ) : null}
-                </LinearGradient>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-                <Text style={styles.quickActionSubtitle}>
-                  {action.subtitle}
-                </Text>
-              </TouchableOpacity>
+                badge={(action as any).badge}
+                isCompact={quickActions.length === 5}
+              />
             ))}
           </View>
         </View>
 
-        {/* My Classes - only for non-admin */}
-        {role !== "admin" && (
+        {/* Child Info Section - for parent only */}
+        {role === "parent" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Thông tin con</Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/classes")}
+                style={styles.seeAllButton}
+              >
+                <Text style={styles.seeAll}>Xem chi tiết</Text>
+                <Ionicons name="chevron-forward" size={16} color="#F59E0B" />
+              </TouchableOpacity>
+            </View>
+
+            {!childInfo && classes.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <LinearGradient
+                  colors={["#FEF3C7", "#FDE68A"]}
+                  style={styles.emptyIconBg}
+                >
+                  <Ionicons name="person-outline" size={40} color="#D97706" />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>Chưa có thông tin</Text>
+                <Text style={styles.emptyText}>
+                  {user?.childEmail
+                    ? "Đang tải thông tin con..."
+                    : "Chưa liên kết tài khoản con"}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.childInfoCard}>
+                <View style={styles.childHeader}>
+                  <LinearGradient
+                    colors={["#F59E0B", "#D97706"]}
+                    style={styles.childAvatarBg}
+                  >
+                    <Ionicons name="person" size={28} color="#FFFFFF" />
+                  </LinearGradient>
+                  <View style={styles.childHeaderInfo}>
+                    <Text style={styles.childName}>
+                      {childInfo?.name || "Con của bạn"}
+                    </Text>
+                    <Text style={styles.childGrade}>
+                      Đang theo học {classes.length} lớp
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.childStats}>
+                  <View style={styles.childStatItem}>
+                    <Text style={styles.childStatValue}>{classes.length}</Text>
+                    <Text style={styles.childStatLabel}>Lớp học</Text>
+                  </View>
+                  <View style={styles.childStatItem}>
+                    <Text style={styles.childStatValue}>8.2</Text>
+                    <Text style={styles.childStatLabel}>Điểm TB</Text>
+                  </View>
+                  <View style={styles.childStatItem}>
+                    <Text style={styles.childStatValue}>95%</Text>
+                    <Text style={styles.childStatLabel}>Chuyên cần</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* My Classes - for student and teacher only */}
+        {(role === "student" || role === "teacher") && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Lớp học của tôi</Text>
@@ -616,29 +905,6 @@ export default function HomeScreen() {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Streak Card - Gamification Element (Student only) */}
-        {role === "student" && (
-          <View style={styles.section}>
-            <View style={styles.streakCard}>
-              <LinearGradient
-                colors={["#FEF3C7", "#FDE68A"]}
-                style={styles.streakGradient}
-              >
-                <View style={styles.streakContent}>
-                  <Text style={styles.streakIcon}>🔥</Text>
-                  <View style={styles.streakInfo}>
-                    <Text style={styles.streakTitle}>Chuỗi điểm danh</Text>
-                    <Text style={styles.streakValue}>12 ngày liên tục</Text>
-                  </View>
-                  <View style={styles.streakBadge}>
-                    <Ionicons name="flame" size={16} color="#D97706" />
-                  </View>
-                </View>
-              </LinearGradient>
-            </View>
           </View>
         )}
 
@@ -820,7 +1086,57 @@ const styles = StyleSheet.create({
   },
   overviewScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  documentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  documentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  documentIconText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  documentInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  documentName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  documentMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  documentClass: {
+    fontSize: 12,
+    color: "#3B82F6",
+    fontWeight: "500",
+  },
+  downloadButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
   },
   overviewCard: {
     backgroundColor: "#FFFFFF",
@@ -888,10 +1204,23 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginHorizontal: -6,
   },
+  quickActionsGridFive: {
+    justifyContent: "flex-start",
+  },
   quickActionCard: {
     width: (width - 56) / 2,
     paddingHorizontal: 6,
     marginBottom: 12,
+    alignItems: "center",
+  },
+  quickActionCardCompact: {
+    width: (width - 64) / 3,
+    paddingHorizontal: 4,
+    marginBottom: 14,
+    alignItems: "center",
+  },
+  quickActionTouchable: {
+    width: "100%",
     alignItems: "center",
   },
   quickActionGradient: {
@@ -908,20 +1237,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  quickActionGradientCompact: {
+    aspectRatio: 1.2,
+    borderRadius: 14,
+    marginBottom: 8,
+  },
   actionBadge: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    top: 8,
+    right: 8,
     backgroundColor: "#EF4444",
     borderRadius: 10,
-    minWidth: 22,
-    height: 22,
+    minWidth: 20,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
   },
   actionBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "bold",
     color: "#FFFFFF",
   },
@@ -931,11 +1265,18 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     textAlign: "center",
   },
+  quickActionLabelCompact: {
+    fontSize: 13,
+  },
   quickActionSubtitle: {
     fontSize: 12,
     color: "#6B7280",
     textAlign: "center",
     marginTop: 2,
+  },
+  quickActionSubtitleCompact: {
+    fontSize: 10,
+    marginTop: 1,
   },
   classCard: {
     backgroundColor: "#FFFFFF",
@@ -1162,5 +1503,149 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6B7280",
     textAlign: "right",
+  },
+  // Student Learning Materials
+  categoryScroll: {
+    marginBottom: 12,
+  },
+  categoryContainer: {
+    paddingRight: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: "#3B82F6",
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6B7280",
+  },
+  categoryChipTextActive: {
+    color: "#FFFFFF",
+  },
+  materialCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  materialIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  materialIconText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  materialInfo: {
+    flex: 1,
+  },
+  materialName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  materialDescription: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 6,
+  },
+  materialMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  materialTag: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  materialTagText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#3B82F6",
+  },
+  materialSize: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+  // Child Info Card for Parent
+  childInfoCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  childHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  childAvatarBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  childHeaderInfo: {
+    flex: 1,
+  },
+  childName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  childGrade: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  childStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  childStatItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  childStatValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#F59E0B",
+    marginBottom: 4,
+  },
+  childStatLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
   },
 });

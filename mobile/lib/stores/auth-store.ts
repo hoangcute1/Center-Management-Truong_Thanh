@@ -6,7 +6,7 @@ export type UserRole = "student" | "teacher" | "parent" | "admin";
 // Helper function to translate error messages to Vietnamese
 export function translateErrorMessage(
   error: any,
-  defaultMessage: string
+  defaultMessage: string,
 ): string {
   const status = error?.response?.status;
   const message = error?.response?.data?.message || error?.message || "";
@@ -85,14 +85,23 @@ export function translateErrorMessage(
 export interface User {
   _id: string;
   email: string;
-  fullName: string;
+  name?: string;
+  fullName?: string;
   phone?: string;
   role: UserRole;
   branchId?: string;
   studentIds?: string[];
   avatarUrl?: string;
   isActive: boolean;
+  childEmail?: string; // Email của con (dành cho phụ huynh)
+  childId?: string; // ID của con (dành cho phụ huynh)
 }
+
+// Helper to get display name from user
+export const getUserDisplayName = (user: User | null): string => {
+  if (!user) return "Người dùng";
+  return user.fullName || user.name || "Người dùng";
+};
 
 interface AuthState {
   user: User | null;
@@ -106,6 +115,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   loadAuthFromStorage: () => Promise<void>;
+  updateUser: (user: User) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
 }
@@ -126,7 +136,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await api.post("/auth/login", { email, password });
       console.log(
         "[AUTH] Login API response received:",
-        response.data?.user?.email
+        response.data?.user?.email,
+      );
+      console.log(
+        "[AUTH] User fullName from API:",
+        response.data?.user?.fullName,
       );
       const { accessToken, refreshToken, user } = response.data;
 
@@ -139,6 +153,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         },
       };
       console.log("[AUTH] Saving auth data to secure storage...");
+      console.log("[AUTH] User data being saved:", JSON.stringify(user));
       await setAuthData(authData);
       console.log("[AUTH] Auth data saved successfully");
 
@@ -158,7 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error("[AUTH] Error status:", error.response?.status);
       const errorMessage = translateErrorMessage(
         error,
-        "Đăng nhập thất bại. Vui lòng thử lại"
+        "Đăng nhập thất bại. Vui lòng thử lại",
       );
       console.log("[AUTH] Translated error message:", errorMessage);
       set({
@@ -200,6 +215,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error("Error loading auth from storage:", error);
       set({ isLoading: false });
     }
+  },
+
+  updateUser: (user: User) => {
+    set({ user });
+    // Also update in storage
+    getAuthData().then((authData) => {
+      if (authData?.state) {
+        setAuthData({
+          state: {
+            ...authData.state,
+            user,
+          },
+        });
+      }
+    });
   },
 
   setError: (error: string | null) => set({ error }),

@@ -10,6 +10,7 @@ import {
   Modal,
   FlatList,
   TextInput,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,7 +21,9 @@ import {
   useClassesStore,
   useBranchesStore,
   useUsersStore,
+  useAttendanceStore,
 } from "@/lib/stores";
+import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
 
@@ -173,7 +176,31 @@ export default function ScheduleScreen() {
   const [selectedClassDetail, setSelectedClassDetail] = useState<any>(null);
   const [showClassDetailModal, setShowClassDetailModal] = useState(false);
 
+  // Teacher attendance states
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [attendanceClassId, setAttendanceClassId] = useState<string | null>(
+    null,
+  );
+  const [attendanceRecords, setAttendanceRecords] = useState<
+    {
+      studentId: string;
+      name: string;
+      email: string;
+      status: "present" | "absent" | "late" | "excused" | null;
+    }[]
+  >([]);
+  const [attendanceNote, setAttendanceNote] = useState("");
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+  const [selectedScheduleItem, setSelectedScheduleItem] =
+    useState<TimetableItem | null>(null);
+
+  // Teacher view mode: week (giống web) hoặc day (xem theo ngày)
+  const [teacherViewMode, setTeacherViewMode] = useState<"week" | "day">(
+    "week",
+  );
+
   const isAdmin = user?.role === "admin";
+  const isTeacher = user?.role === "teacher";
   const isLoading = sessionsLoading || classesLoading;
 
   // Calculate current week based on offset
@@ -187,9 +214,34 @@ export default function ScheduleScreen() {
     return monday;
   }, [weekOffset]);
 
+  // State to store child info for parent
+  const [childId, setChildId] = useState<string | null>(null);
+
+  // State to store attendance records for student/parent
+  const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<any[]>([]);
+
+  // Fetch child info for parent on mount
+  useEffect(() => {
+    const initChildId = async () => {
+      if (user?.role === "parent" && user?.childEmail && !childId) {
+        try {
+          const response = await api.get("/users/child-by-email", {
+            params: { email: user.childEmail },
+          });
+          if (response.data?._id) {
+            setChildId(response.data._id);
+          }
+        } catch (error) {
+          console.error("Error fetching child info:", error);
+        }
+      }
+    };
+    initChildId();
+  }, [user]);
+
   useEffect(() => {
     loadSchedule();
-  }, [user, weekOffset]);
+  }, [user, weekOffset, childId]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -205,8 +257,43 @@ export default function ScheduleScreen() {
       // Fetch classes for teacher/admin to build timetable
       await fetchClasses();
     } else if (user.role === "student") {
+      // Fetch classes to get schedule for student
+      await fetchClasses();
+      // Also fetch sessions for attendance status
       const { startDate, endDate } = getWeekRange(currentWeekStart);
       await fetchStudentSchedule(user._id, startDate, endDate);
+      // Fetch attendance records for student
+      try {
+        const attendanceRes = await api.get("/attendance", {
+          params: { studentId: user._id },
+        });
+        setStudentAttendanceRecords(
+          Array.isArray(attendanceRes.data) ? attendanceRes.data : [],
+        );
+      } catch (error) {
+        console.error("Error fetching attendance records:", error);
+        setStudentAttendanceRecords([]);
+      }
+    } else if (user.role === "parent") {
+      // For parent, need childId to fetch child's classes
+      if (childId) {
+        await fetchClasses(undefined, childId);
+        const { startDate, endDate } = getWeekRange(currentWeekStart);
+        await fetchStudentSchedule(childId, startDate, endDate);
+        // Fetch attendance records for child
+        try {
+          const attendanceRes = await api.get("/attendance", {
+            params: { studentId: childId },
+          });
+          setStudentAttendanceRecords(
+            Array.isArray(attendanceRes.data) ? attendanceRes.data : [],
+          );
+        } catch (error) {
+          console.error("Error fetching attendance records:", error);
+          setStudentAttendanceRecords([]);
+        }
+      }
+      // If no childId yet, wait for it to be fetched
     }
   };
 
@@ -241,6 +328,7 @@ export default function ScheduleScreen() {
   };
 
   // Build timetable for teacher from class schedules
+  // Build timetable for teacher from class schedules
   const teacherTimetable = useMemo((): TimetableItem[] => {
     if (user?.role !== "teacher") return [];
 
@@ -250,7 +338,9 @@ export default function ScheduleScreen() {
     // Filter classes taught by this teacher
     const teacherClasses = classes.filter((cls) => {
       const teacherId =
-        typeof cls.teacherId === "string" ? cls.teacherId : cls.teacherId;
+        typeof cls.teacherId === "object" && cls.teacherId
+          ? (cls.teacherId as any)._id
+          : cls.teacherId;
       return teacherId === user._id;
     });
 
@@ -276,6 +366,85 @@ export default function ScheduleScreen() {
     return timetable;
   }, [classes, selectedDate, user]);
 
+  // Build timetable by week for teacher (giống web)
+  interface DaySchedule {
+    day: string;
+    date: string;
+    schedules: (TimetableItem & { studentCount: number })[];
+    fullDate: Date;
+  }
+
+  const teacherTimetableByWeek = useMemo((): DaySchedule[] => {
+    if (user?.role !== "teacher") return [];
+
+    const dayNamesVN = [
+      "CHỦ NHẬT",
+      "THỨ HAI",
+      "THỨ BA",
+      "THỨ TƯ",
+      "THỨ NĂM",
+      "THỨ SÁU",
+      "THỨ BẢY",
+    ];
+
+    const days: DaySchedule[] = [];
+
+    // Filter classes taught by this teacher
+    const teacherClasses = classes.filter((cls) => {
+      const teacherId =
+        typeof cls.teacherId === "object" && cls.teacherId
+          ? (cls.teacherId as any)._id
+          : cls.teacherId;
+      return teacherId === user._id;
+    });
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(currentWeekStart);
+      date.setDate(currentWeekStart.getDate() + i);
+      const dayIndex = date.getDay();
+
+      // Find all class schedules for this day
+      const daySchedules: (TimetableItem & { studentCount: number })[] = [];
+
+      teacherClasses.forEach((cls) => {
+        if (cls.schedule && cls.schedule.length > 0) {
+          cls.schedule.forEach((sch) => {
+            if (sch.dayOfWeek === dayIndex) {
+              const studentCount =
+                cls.students?.length || cls.studentIds?.length || 0;
+              daySchedules.push({
+                classId: cls._id,
+                className: cls.name,
+                subject: cls.subject || "Chưa xác định",
+                startTime: sch.startTime,
+                endTime: sch.endTime,
+                room: sch.room,
+                studentCount,
+              });
+            }
+          });
+        }
+      });
+
+      // Sort by start time
+      daySchedules.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      days.push({
+        day: dayNamesVN[dayIndex],
+        date: date.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        schedules: daySchedules,
+        fullDate: date,
+      });
+    }
+
+    // Reorder so Monday is first
+    const mondayIndex = days.findIndex((d) => d.day === "THỨ HAI");
+    return [...days.slice(mondayIndex), ...days.slice(0, mondayIndex)];
+  }, [classes, currentWeekStart, user]);
+
   // Build timetable for admin - all classes with filters
   const adminTimetable = useMemo((): TimetableItem[] => {
     if (user?.role !== "admin") return [];
@@ -284,7 +453,7 @@ export default function ScheduleScreen() {
     const timetable: TimetableItem[] = [];
 
     // Apply filters
-    let filteredClasses = classes;
+    let filteredClasses: any[] = classes;
 
     if (selectedBranch) {
       filteredClasses = filteredClasses.filter((cls) => {
@@ -358,7 +527,7 @@ export default function ScheduleScreen() {
   const adminClassList = useMemo(() => {
     if (user?.role !== "admin") return [];
 
-    let filteredClasses = classes;
+    let filteredClasses: any[] = classes;
 
     if (selectedBranch) {
       filteredClasses = filteredClasses.filter((cls) => {
@@ -426,10 +595,151 @@ export default function ScheduleScreen() {
     });
   }, [sessions, selectedDate, user]);
 
+  // Build timetable for student from class schedules (when no sessions available)
+  const studentTimetable = useMemo((): (TimetableItem & {
+    attendanceStatus?: string;
+  })[] => {
+    if (user?.role !== "student" && user?.role !== "parent") return [];
+
+    const dayIndex = selectedDate.getDay();
+    const timetable: (TimetableItem & { attendanceStatus?: string })[] = [];
+
+    // For parent, use childId; for student, use user._id
+    const targetStudentId = user?.role === "parent" ? childId : user?._id;
+
+    // Filter classes where student is enrolled
+    // For parent: API already returns child's classes, so we can use all classes
+    // For student: filter by studentIds
+    const studentClasses =
+      user?.role === "parent"
+        ? classes // Parent: classes already filtered by childId from API
+        : classes.filter((cls) => {
+            // Check if user is in studentIds
+            if (cls.studentIds && cls.studentIds.includes(user._id))
+              return true;
+            // Check if user is in students array
+            if (cls.students && cls.students.some((s) => s._id === user._id))
+              return true;
+            return false;
+          });
+
+    studentClasses.forEach((cls, classIndex) => {
+      const teacherName =
+        typeof cls.teacherId === "object" && cls.teacherId
+          ? (cls.teacherId as any).fullName ||
+            (cls.teacherId as any).name ||
+            "Giáo viên"
+          : "Giáo viên";
+
+      if (cls.schedule && cls.schedule.length > 0) {
+        cls.schedule.forEach((sch) => {
+          if (sch.dayOfWeek === dayIndex) {
+            // Check if there's attendance for this class and date from attendance records
+            let attendanceStatus: string | undefined = undefined;
+
+            // First, try to find attendance from studentAttendanceRecords
+            const attendanceRecord = studentAttendanceRecords.find((r) => {
+              // Check if attendance record matches this class
+              const recordClassId =
+                typeof r.sessionId === "object" && r.sessionId?.classId
+                  ? typeof r.sessionId.classId === "object"
+                    ? r.sessionId.classId._id
+                    : r.sessionId.classId
+                  : null;
+
+              // Also check by date
+              if (r.sessionId?.startTime) {
+                const attDate = new Date(r.sessionId.startTime);
+                return (
+                  (recordClassId === cls._id || r.classId === cls._id) &&
+                  attDate.getDate() === selectedDate.getDate() &&
+                  attDate.getMonth() === selectedDate.getMonth() &&
+                  attDate.getFullYear() === selectedDate.getFullYear()
+                );
+              }
+              return false;
+            });
+
+            if (attendanceRecord) {
+              attendanceStatus = attendanceRecord.status;
+            } else {
+              // Fallback: check session status (but this is not attendance status)
+              const session = sessions.find((s) => {
+                const sessionClassId =
+                  typeof s.classId === "object"
+                    ? (s.classId as any)._id
+                    : s.classId;
+                const sessionDate = new Date(s.startTime);
+                return (
+                  sessionClassId === cls._id &&
+                  sessionDate.getDate() === selectedDate.getDate() &&
+                  sessionDate.getMonth() === selectedDate.getMonth() &&
+                  sessionDate.getFullYear() === selectedDate.getFullYear()
+                );
+              });
+              // Note: session.status is 'pending'/'approved'/'cancelled', not attendance status
+              // So we don't use it for attendance display
+            }
+
+            timetable.push({
+              classId: cls._id,
+              className: cls.name,
+              subject: cls.subject || "Chưa xác định",
+              startTime: sch.startTime,
+              endTime: sch.endTime,
+              room: sch.room,
+              teacherName,
+              colorIndex: classIndex % CLASS_COLORS.length,
+              attendanceStatus,
+            });
+          }
+        });
+      }
+    });
+
+    // Sort by start time
+    timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return timetable;
+  }, [classes, selectedDate, user, sessions, childId, studentAttendanceRecords]);
+
+  // Check if day has classes for student
+  const studentHasClassesOnDate = useCallback(
+    (date: Date) => {
+      if (user?.role !== "student" && user?.role !== "parent") return false;
+
+      const dayIndex = date.getDay();
+
+      // For parent: use all classes (already filtered by childId from API)
+      // For student: filter by studentIds
+      const studentClasses =
+        user?.role === "parent"
+          ? classes
+          : classes.filter((cls) => {
+              if (cls.studentIds && cls.studentIds.includes(user._id))
+                return true;
+              if (cls.students && cls.students.some((s) => s._id === user._id))
+                return true;
+              return false;
+            });
+
+      return studentClasses.some(
+        (cls) =>
+          cls.schedule &&
+          cls.schedule.some((sch) => sch.dayOfWeek === dayIndex),
+      );
+    },
+    [classes, user],
+  );
+
   // Get class name from session
   const getClassName = (session: any) => {
     if (typeof session.classId === "object" && session.classId?.name) {
       return session.classId.name;
+    }
+    // Try to find in classes store
+    if (typeof session.classId === "string") {
+      const cls = classes.find((c) => c._id === session.classId);
+      if (cls) return cls.name;
     }
     return "Chưa xác định";
   };
@@ -438,6 +748,11 @@ export default function ScheduleScreen() {
   const getSubject = (session: any) => {
     if (typeof session.classId === "object" && session.classId?.subject) {
       return session.classId.subject;
+    }
+    // Try to find in classes store
+    if (typeof session.classId === "string") {
+      const cls = classes.find((c) => c._id === session.classId);
+      if (cls && cls.subject) return cls.subject;
     }
     return session.subject || "";
   };
@@ -479,6 +794,177 @@ export default function ScheduleScreen() {
   const handleClassPress = (cls: any) => {
     setSelectedClassDetail(cls);
     setShowClassDetailModal(true);
+  };
+
+  // Helper function to check if current time is within class schedule time
+  const isWithinClassTime = (
+    scheduleDate: Date,
+    startTime: string,
+    endTime: string,
+  ): boolean => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const schedDay = new Date(
+      scheduleDate.getFullYear(),
+      scheduleDate.getMonth(),
+      scheduleDate.getDate(),
+    );
+
+    // Check if same day
+    if (today.getTime() !== schedDay.getTime()) {
+      return false;
+    }
+
+    // Parse times
+    const [startHour, startMin] = startTime.split(":").map(Number);
+    const [endHour, endMin] = endTime.split(":").map(Number);
+
+    const currentHour = now.getHours();
+    const currentMin = now.getMinutes();
+
+    const currentMinutes = currentHour * 60 + currentMin;
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    // Allow 15 minutes before and after class time
+    return (
+      currentMinutes >= startMinutes - 15 && currentMinutes <= endMinutes + 15
+    );
+  };
+
+  // Handle attendance for teacher
+  // State to track which date is being used for attendance
+  const [attendanceDate, setAttendanceDate] = useState<Date>(selectedDate);
+
+  const handleOpenAttendance = async (
+    item: TimetableItem,
+    scheduleDate?: Date,
+  ) => {
+    const classData = classes.find((c) => c._id === item.classId);
+    if (!classData) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin lớp học");
+      return;
+    }
+
+    const students = classData.students || [];
+    if (students.length === 0) {
+      Alert.alert("Thông báo", "Lớp học này chưa có học sinh nào");
+      return;
+    }
+
+    // Use scheduleDate if provided (from week view), otherwise use selectedDate
+    const dateForAttendance = scheduleDate || selectedDate;
+    setAttendanceDate(dateForAttendance);
+
+    // Check if within class time
+    const canAttend = isWithinClassTime(
+      dateForAttendance,
+      item.startTime,
+      item.endTime,
+    );
+    if (!canAttend) {
+      Alert.alert(
+        "Thông báo",
+        `Chỉ có thể điểm danh trong khoảng thời gian học (${item.startTime} - ${item.endTime}). Vui lòng quay lại đúng giờ học.`,
+      );
+      return;
+    }
+
+    setAttendanceClassId(item.classId);
+    setSelectedScheduleItem(item);
+
+    // Initialize attendance records
+    setAttendanceRecords(
+      students.map((s) => ({
+        studentId: s._id,
+        name: s.fullName || s.name || "Học sinh",
+        email: s.email,
+        status: null,
+      })),
+    );
+    setAttendanceNote("");
+
+    // Try to fetch existing attendance for this class and date
+    try {
+      const response = await api.get("/attendance/by-class-date", {
+        params: {
+          classId: item.classId,
+          date: dateForAttendance.toISOString(),
+        },
+      });
+      const existingRecords = response.data || [];
+
+      if (existingRecords.length > 0) {
+        setAttendanceRecords((prevRows) =>
+          prevRows.map((row) => {
+            const existingRecord = existingRecords.find(
+              (r: any) =>
+                r.studentId === row.studentId ||
+                r.studentId?._id === row.studentId,
+            );
+            if (existingRecord) {
+              return { ...row, status: existingRecord.status };
+            }
+            return row;
+          }),
+        );
+      }
+    } catch (error) {
+      console.log("No existing attendance records");
+    }
+
+    setShowAttendanceModal(true);
+  };
+
+  // Update attendance status for a student
+  const updateAttendanceStatus = (
+    studentId: string,
+    status: "present" | "absent" | "late" | "excused" | null,
+  ) => {
+    setAttendanceRecords((prev) =>
+      prev.map((r) => (r.studentId === studentId ? { ...r, status } : r)),
+    );
+  };
+
+  // Save attendance
+  const handleSaveAttendance = async () => {
+    if (!attendanceClassId || !selectedScheduleItem) return;
+
+    setIsSavingAttendance(true);
+    try {
+      const payloadRecords = attendanceRecords
+        .filter((record) => record.status)
+        .map((record) => ({
+          studentId: record.studentId,
+          status: record.status!,
+        }));
+
+      if (payloadRecords.length === 0) {
+        Alert.alert("Thông báo", "Vui lòng chọn trạng thái điểm danh");
+        setIsSavingAttendance(false);
+        return;
+      }
+
+      await api.post("/attendance/timetable", {
+        classId: attendanceClassId,
+        date: attendanceDate.toISOString(),
+        records: payloadRecords,
+        note: attendanceNote || undefined,
+      });
+
+      Alert.alert("Thành công", "Đã lưu điểm danh thành công");
+      setShowAttendanceModal(false);
+    } catch (error: any) {
+      console.error("Error saving attendance:", error);
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message ||
+          error.message ||
+          "Không thể lưu điểm danh. Vui lòng thử lại.",
+      );
+    } finally {
+      setIsSavingAttendance(false);
+    }
   };
 
   // Render admin class card (list view)
@@ -1029,7 +1515,725 @@ export default function ScheduleScreen() {
     );
   }
 
-  // Teacher/Student View (original)
+  // Teacher View with Week/Day toggle
+  if (isTeacher) {
+    return (
+      <SafeAreaView style={styles.container} edges={["left", "right"]}>
+        {/* Teacher Header with View Mode Toggle */}
+        <View style={styles.teacherHeader}>
+          <View style={styles.teacherTitleRow}>
+            <Text style={styles.teacherTitle}>Lịch dạy của tôi</Text>
+            <View style={styles.viewModeToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.viewModeBtn,
+                  teacherViewMode === "week" && styles.viewModeBtnActive,
+                ]}
+                onPress={() => setTeacherViewMode("week")}
+              >
+                <Ionicons
+                  name="grid"
+                  size={16}
+                  color={teacherViewMode === "week" ? "#fff" : "#6B7280"}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.viewModeBtn,
+                  teacherViewMode === "day" && styles.viewModeBtnActive,
+                ]}
+                onPress={() => setTeacherViewMode("day")}
+              >
+                <Ionicons
+                  name="list"
+                  size={16}
+                  color={teacherViewMode === "day" ? "#fff" : "#6B7280"}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Week Navigation */}
+          <View style={styles.weekNavRow}>
+            <TouchableOpacity
+              style={styles.weekNavBtnSmall}
+              onPress={goToPreviousWeek}
+            >
+              <Ionicons name="chevron-back" size={18} color="#6B7280" />
+            </TouchableOpacity>
+            <Text style={styles.weekNavText}>
+              Tuần{" "}
+              {currentWeekStart.toLocaleDateString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+              })}{" "}
+              -{" "}
+              {new Date(
+                currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000,
+              ).toLocaleDateString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+              })}
+            </Text>
+            <TouchableOpacity
+              style={styles.weekNavBtnSmall}
+              onPress={goToNextWeek}
+            >
+              <Ionicons name="chevron-forward" size={18} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* WEEK VIEW - Hiển thị giống web */}
+        {teacherViewMode === "week" ? (
+          <ScrollView
+            style={styles.scheduleList}
+            contentContainerStyle={[
+              styles.scheduleContent,
+              { paddingBottom: 100 },
+            ]}
+            refreshControl={
+              <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+            }
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Stats Row */}
+            <View style={styles.teacherWeekStats}>
+              <View style={styles.statCardSmall}>
+                <LinearGradient
+                  colors={["#3B82F6", "#2563EB"]}
+                  style={styles.statIconSmall}
+                >
+                  <Ionicons name="calendar" size={14} color="#fff" />
+                </LinearGradient>
+                <Text style={styles.statValueSmall}>
+                  {teacherTimetableByWeek.reduce(
+                    (sum, day) => sum + day.schedules.length,
+                    0,
+                  )}
+                </Text>
+                <Text style={styles.statLabelSmall}>Buổi dạy/tuần</Text>
+              </View>
+              <View style={styles.statCardSmall}>
+                <LinearGradient
+                  colors={["#10B981", "#059669"]}
+                  style={styles.statIconSmall}
+                >
+                  <Ionicons name="people" size={14} color="#fff" />
+                </LinearGradient>
+                <Text style={styles.statValueSmall}>
+                  {classes
+                    .filter((c) => {
+                      const teacherId =
+                        typeof c.teacherId === "string"
+                          ? c.teacherId
+                          : c.teacherId;
+                      return teacherId === user._id;
+                    })
+                    .reduce(
+                      (sum, c) =>
+                        sum + (c.students?.length || c.studentIds?.length || 0),
+                      0,
+                    )}
+                </Text>
+                <Text style={styles.statLabelSmall}>Học sinh</Text>
+              </View>
+              <View style={styles.statCardSmall}>
+                <LinearGradient
+                  colors={["#8B5CF6", "#7C3AED"]}
+                  style={styles.statIconSmall}
+                >
+                  <Ionicons name="school" size={14} color="#fff" />
+                </LinearGradient>
+                <Text style={styles.statValueSmall}>
+                  {
+                    classes.filter((c) => {
+                      const teacherId =
+                        typeof c.teacherId === "string"
+                          ? c.teacherId
+                          : c.teacherId;
+                      return teacherId === user._id;
+                    }).length
+                  }
+                </Text>
+                <Text style={styles.statLabelSmall}>Lớp học</Text>
+              </View>
+            </View>
+
+            {/* Week Grid */}
+            <View style={styles.weekGrid}>
+              {teacherTimetableByWeek.map((dayData, dayIdx) => {
+                const isCurrentDay =
+                  dayData.fullDate.toDateString() === new Date().toDateString();
+                return (
+                  <View
+                    key={dayIdx}
+                    style={[
+                      styles.dayColumn,
+                      isCurrentDay && styles.dayColumnToday,
+                    ]}
+                  >
+                    {/* Day Header */}
+                    <LinearGradient
+                      colors={
+                        isCurrentDay
+                          ? ["#10B981", "#059669"]
+                          : ["#3B82F6", "#2563EB"]
+                      }
+                      style={styles.dayHeader}
+                    >
+                      <Text style={styles.dayHeaderText}>
+                        {dayData.day
+                          .replace("THỨ ", "T")
+                          .replace("CHỦ NHẬT", "CN")}
+                      </Text>
+                      <Text style={styles.dayHeaderDate}>{dayData.date}</Text>
+                    </LinearGradient>
+
+                    {/* Day Content */}
+                    {dayData.schedules.length === 0 ? (
+                      <View style={styles.emptyDayContent}>
+                        <Text style={styles.emptyDayText}>-</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.dayContent}>
+                        {dayData.schedules.map((sch, schIdx) => {
+                          const canAttend = isWithinClassTime(
+                            dayData.fullDate,
+                            sch.startTime,
+                            sch.endTime,
+                          );
+
+                          return (
+                            <TouchableOpacity
+                              key={`${sch.classId}-${schIdx}`}
+                              style={[
+                                styles.weekScheduleCard,
+                                canAttend && styles.weekScheduleCardActive,
+                              ]}
+                              onPress={() =>
+                                handleOpenAttendance(sch, dayData.fullDate)
+                              }
+                              activeOpacity={0.7}
+                            >
+                              <Text
+                                style={styles.weekCardClassName}
+                                numberOfLines={1}
+                              >
+                                {sch.className}
+                              </Text>
+                              <Text
+                                style={styles.weekCardSubject}
+                                numberOfLines={1}
+                              >
+                                {sch.subject}
+                              </Text>
+                              {sch.room && (
+                                <View style={styles.weekCardInfoRow}>
+                                  <Ionicons
+                                    name="location"
+                                    size={10}
+                                    color="#6B7280"
+                                  />
+                                  <Text style={styles.weekCardInfoText}>
+                                    {sch.room}
+                                  </Text>
+                                </View>
+                              )}
+                              <View style={styles.weekCardTimeBox}>
+                                <Ionicons
+                                  name="time"
+                                  size={10}
+                                  color="#374151"
+                                />
+                                <Text style={styles.weekCardTime}>
+                                  {sch.startTime} - {sch.endTime}
+                                </Text>
+                              </View>
+                              <View style={styles.weekCardInfoRow}>
+                                <Ionicons
+                                  name="people"
+                                  size={10}
+                                  color="#6B7280"
+                                />
+                                <Text style={styles.weekCardInfoText}>
+                                  {sch.studentCount} học sinh
+                                </Text>
+                              </View>
+                              {canAttend && (
+                                <View style={styles.weekCardActiveIndicator}>
+                                  <Ionicons
+                                    name="checkmark-circle"
+                                    size={12}
+                                    color="#059669"
+                                  />
+                                  <Text style={styles.weekCardActiveText}>
+                                    Đang trong giờ học
+                                  </Text>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        ) : (
+          /* DAY VIEW - Original day-by-day view */
+          <>
+            {/* Week Calendar Header */}
+            <View style={styles.calendarContainer}>
+              <View style={styles.weekRow}>
+                {weekDates.map((date, index) => {
+                  const selected = isSelected(date);
+                  const today = isToday(date);
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.dateCell,
+                        selected && styles.selectedDateCell,
+                      ]}
+                      onPress={() => setSelectedDate(date)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.dayText,
+                          selected && styles.selectedDayText,
+                          today && !selected && styles.todayDayText,
+                        ]}
+                      >
+                        {daysOfWeek[(index + 1) % 7]}
+                      </Text>
+                      <View
+                        style={[
+                          styles.dateCircle,
+                          selected && styles.selectedDateCircle,
+                          today && !selected && styles.todayDateCircle,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dateText,
+                            selected && styles.selectedDateText,
+                            today && !selected && styles.todayDateText,
+                          ]}
+                        >
+                          {formatDate(date)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Selected Date Header */}
+            <View style={styles.selectedDateHeader}>
+              <View style={styles.selectedDateInfo}>
+                <Text style={styles.selectedDateTitle}>
+                  {fullDaysOfWeek[selectedDate.getDay()]}
+                </Text>
+                <Text style={styles.selectedDateSubtitle}>
+                  {selectedDate.toLocaleDateString("vi-VN", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </Text>
+              </View>
+              <View style={styles.sessionCount}>
+                <Text style={styles.sessionCountText}>
+                  {teacherTimetable.length} buổi dạy
+                </Text>
+              </View>
+            </View>
+
+            {/* Schedule List */}
+            <ScrollView
+              style={styles.scheduleList}
+              contentContainerStyle={styles.scheduleContent}
+              refreshControl={
+                <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+              }
+              showsVerticalScrollIndicator={false}
+            >
+              {teacherTimetable.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <LinearGradient
+                    colors={["#F3F4F6", "#E5E7EB"]}
+                    style={styles.emptyIconBg}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={48}
+                      color="#9CA3AF"
+                    />
+                  </LinearGradient>
+                  <Text style={styles.emptyTitle}>Không có lịch dạy</Text>
+                  <Text style={styles.emptyText}>
+                    Bạn không có tiết dạy nào trong ngày này
+                  </Text>
+                </View>
+              ) : (
+                teacherTimetable.map((item, index) => {
+                  const classData = classes.find((c) => c._id === item.classId);
+                  const studentCount =
+                    classData?.students?.length ||
+                    classData?.studentIds?.length ||
+                    0;
+                  const canAttend = isWithinClassTime(
+                    selectedDate,
+                    item.startTime,
+                    item.endTime,
+                  );
+
+                  return (
+                    <View
+                      key={`${item.classId}-${index}`}
+                      style={[
+                        styles.teacherScheduleCard,
+                        canAttend && styles.teacherScheduleCardActive,
+                      ]}
+                    >
+                      <View style={styles.timeColumn}>
+                        <LinearGradient
+                          colors={
+                            canAttend
+                              ? ["#10B981", "#059669"]
+                              : ["#3B82F6", "#2563EB"]
+                          }
+                          style={styles.timeIndicator}
+                        />
+                        <Text style={styles.startTime}>{item.startTime}</Text>
+                        <Text style={styles.endTime}>{item.endTime}</Text>
+                      </View>
+                      <View style={styles.scheduleInfo}>
+                        <View style={styles.scheduleHeader}>
+                          <Text
+                            style={styles.className}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {item.className}
+                          </Text>
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              {
+                                backgroundColor: canAttend
+                                  ? "#D1FAE5"
+                                  : "#DBEAFE",
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={canAttend ? "checkmark-circle" : "time"}
+                              size={10}
+                              color={canAttend ? "#059669" : "#3B82F6"}
+                            />
+                            <Text
+                              style={[
+                                styles.statusText,
+                                { color: canAttend ? "#059669" : "#3B82F6" },
+                              ]}
+                            >
+                              {canAttend ? "Đang diễn ra" : "Sắp tới"}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text
+                          style={styles.subject}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {item.subject}
+                        </Text>
+
+                        {/* Class info */}
+                        <View style={styles.classInfoRow}>
+                          <View style={styles.detailItem}>
+                            <Ionicons
+                              name="people-outline"
+                              size={12}
+                              color="#6B7280"
+                            />
+                            <Text style={styles.detailText}>
+                              {studentCount} học sinh
+                            </Text>
+                          </View>
+                          {item.room && (
+                            <View style={styles.detailItem}>
+                              <Ionicons
+                                name="location-outline"
+                                size={12}
+                                color="#6B7280"
+                              />
+                              <Text style={styles.detailText} numberOfLines={1}>
+                                {item.room}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Attendance button */}
+                        <TouchableOpacity
+                          style={[
+                            styles.attendanceButton,
+                            !canAttend && styles.attendanceButtonDisabled,
+                          ]}
+                          onPress={() => handleOpenAttendance(item)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="checkmark-done-circle"
+                            size={16}
+                            color={canAttend ? "#FFFFFF" : "#9CA3AF"}
+                          />
+                          <Text
+                            style={[
+                              styles.attendanceButtonText,
+                              !canAttend && styles.attendanceButtonTextDisabled,
+                            ]}
+                          >
+                            {canAttend ? "Điểm danh" : "Chưa đến giờ"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </>
+        )}
+
+        {/* Teacher Attendance Modal */}
+        <Modal
+          visible={showAttendanceModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowAttendanceModal(false)}
+        >
+          <SafeAreaView style={styles.attendanceModalContainer}>
+            {/* Modal Header */}
+            <View style={styles.attendanceModalHeader}>
+              <TouchableOpacity
+                onPress={() => setShowAttendanceModal(false)}
+                style={styles.attendanceCloseBtn}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+              <Text style={styles.attendanceModalTitle}>Điểm danh</Text>
+              <View style={{ width: 40 }} />
+            </View>
+
+            {/* Class Info */}
+            {selectedScheduleItem && (
+              <View style={styles.attendanceClassInfo}>
+                <Text style={styles.attendanceClassName}>
+                  {selectedScheduleItem.className}
+                </Text>
+                <Text style={styles.attendanceDateTime}>
+                  {fullDaysOfWeek[attendanceDate.getDay()]},{" "}
+                  {attendanceDate.toLocaleDateString("vi-VN")} •{" "}
+                  {selectedScheduleItem.startTime} -{" "}
+                  {selectedScheduleItem.endTime}
+                </Text>
+              </View>
+            )}
+
+            {/* Stats */}
+            <View style={styles.attendanceStats}>
+              <View style={styles.attendanceStat}>
+                <Text style={styles.attendanceStatValue}>
+                  {attendanceRecords.length}
+                </Text>
+                <Text style={styles.attendanceStatLabel}>Tổng số</Text>
+              </View>
+              <View
+                style={[styles.attendanceStat, { backgroundColor: "#D1FAE5" }]}
+              >
+                <Text
+                  style={[styles.attendanceStatValue, { color: "#059669" }]}
+                >
+                  {
+                    attendanceRecords.filter(
+                      (r) => r.status === "present" || r.status === "late",
+                    ).length
+                  }
+                </Text>
+                <Text style={styles.attendanceStatLabel}>Có mặt</Text>
+              </View>
+              <View
+                style={[styles.attendanceStat, { backgroundColor: "#FEE2E2" }]}
+              >
+                <Text
+                  style={[styles.attendanceStatValue, { color: "#DC2626" }]}
+                >
+                  {
+                    attendanceRecords.filter((r) => r.status === "absent")
+                      .length
+                  }
+                </Text>
+                <Text style={styles.attendanceStatLabel}>Vắng</Text>
+              </View>
+            </View>
+
+            <ScrollView style={styles.attendanceList}>
+              {attendanceRecords.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyTitle}>
+                    Lớp học chưa có học sinh
+                  </Text>
+                </View>
+              ) : (
+                attendanceRecords.map((record) => (
+                  <View key={record.studentId} style={styles.attendanceRow}>
+                    <View style={styles.attendanceStudentInfo}>
+                      <LinearGradient
+                        colors={["#10B981", "#059669"]}
+                        style={styles.attendanceAvatar}
+                      >
+                        <Text style={styles.attendanceAvatarText}>
+                          {record.name.charAt(0).toUpperCase()}
+                        </Text>
+                      </LinearGradient>
+                      <View style={styles.attendanceStudentDetails}>
+                        <Text style={styles.attendanceStudentName}>
+                          {record.name}
+                        </Text>
+                        <Text style={styles.attendanceStudentEmail}>
+                          {record.email}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.attendanceButtons}>
+                      <TouchableOpacity
+                        style={[
+                          styles.attendanceStatusBtn,
+                          record.status === "present" &&
+                            styles.attendanceStatusBtnActive,
+                        ]}
+                        onPress={() =>
+                          updateAttendanceStatus(record.studentId, "present")
+                        }
+                      >
+                        <Ionicons
+                          name="checkmark"
+                          size={16}
+                          color={
+                            record.status === "present" ? "#FFFFFF" : "#10B981"
+                          }
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.attendanceStatusBtn,
+                          styles.attendanceStatusBtnAbsent,
+                          record.status === "absent" &&
+                            styles.attendanceStatusBtnAbsentActive,
+                        ]}
+                        onPress={() =>
+                          updateAttendanceStatus(record.studentId, "absent")
+                        }
+                      >
+                        <Ionicons
+                          name="close"
+                          size={16}
+                          color={
+                            record.status === "absent" ? "#FFFFFF" : "#EF4444"
+                          }
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.attendanceStatusBtn,
+                          styles.attendanceStatusBtnLate,
+                          record.status === "late" &&
+                            styles.attendanceStatusBtnLateActive,
+                        ]}
+                        onPress={() =>
+                          updateAttendanceStatus(record.studentId, "late")
+                        }
+                      >
+                        <Ionicons
+                          name="time"
+                          size={16}
+                          color={
+                            record.status === "late" ? "#FFFFFF" : "#F59E0B"
+                          }
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+
+              {/* Note input */}
+              <View style={styles.attendanceNoteSection}>
+                <Text style={styles.attendanceNoteLabel}>Ghi chú buổi học</Text>
+                <TextInput
+                  style={styles.attendanceNoteInput}
+                  placeholder="Nội dung dạy, bài tập giao..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                  value={attendanceNote}
+                  onChangeText={setAttendanceNote}
+                />
+              </View>
+            </ScrollView>
+
+            {/* Save Button */}
+            <View style={styles.attendanceSaveContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.attendanceSaveBtn,
+                  isSavingAttendance && styles.attendanceSaveBtnDisabled,
+                ]}
+                onPress={handleSaveAttendance}
+                disabled={isSavingAttendance}
+              >
+                <LinearGradient
+                  colors={
+                    isSavingAttendance
+                      ? ["#D1D5DB", "#9CA3AF"]
+                      : ["#10B981", "#059669"]
+                  }
+                  style={styles.attendanceSaveBtnGradient}
+                >
+                  {isSavingAttendance ? (
+                    <Text style={styles.attendanceSaveBtnText}>
+                      Đang lưu...
+                    </Text>
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={20}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.attendanceSaveBtnText}>
+                        Lưu điểm danh
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
+  // Student View (original)
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {/* Week Calendar Header */}
@@ -1053,6 +2257,10 @@ export default function ScheduleScreen() {
           {weekDates.map((date, index) => {
             const selected = isSelected(date);
             const today = isToday(date);
+
+            // Check if there are any classes for this date (from class schedule)
+            const hasClasses = studentHasClassesOnDate(date);
+
             return (
               <TouchableOpacity
                 key={index}
@@ -1086,6 +2294,19 @@ export default function ScheduleScreen() {
                     {formatDate(date)}
                   </Text>
                 </View>
+                {/* Class Indicator Dot */}
+                {hasClasses && (
+                  <View
+                    style={[
+                      styles.sessionDot,
+                      selected
+                        ? { backgroundColor: "#FFFFFF" }
+                        : today
+                          ? { backgroundColor: "#3B82F6" }
+                          : { backgroundColor: "#10B981" },
+                    ]}
+                  />
+                )}
               </TouchableOpacity>
             );
           })}
@@ -1108,10 +2329,7 @@ export default function ScheduleScreen() {
         </View>
         <View style={styles.sessionCount}>
           <Text style={styles.sessionCountText}>
-            {user?.role === "teacher"
-              ? teacherTimetable.length
-              : filteredSessions.length}{" "}
-            buổi {user?.role === "teacher" ? "dạy" : "học"}
+            {studentTimetable.length} buổi học
           </Text>
         </View>
       </View>
@@ -1125,30 +2343,63 @@ export default function ScheduleScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Teacher Timetable View */}
-        {user?.role === "teacher" ? (
-          teacherTimetable.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <LinearGradient
-                colors={["#F3F4F6", "#E5E7EB"]}
-                style={styles.emptyIconBg}
-              >
-                <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>Không có lịch dạy</Text>
-              <Text style={styles.emptyText}>
-                Bạn không có tiết dạy nào trong ngày này
-              </Text>
-            </View>
-          ) : (
-            teacherTimetable.map((item, index) => (
+        {studentTimetable.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <LinearGradient
+              colors={["#F3F4F6", "#E5E7EB"]}
+              style={styles.emptyIconBg}
+            >
+              <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+            </LinearGradient>
+            <Text style={styles.emptyTitle}>Không có lịch học</Text>
+            <Text style={styles.emptyText}>
+              Bạn không có buổi học nào trong ngày này
+            </Text>
+          </View>
+        ) : (
+          studentTimetable.map((item, index) => {
+            const colors = CLASS_COLORS[item.colorIndex || 0];
+            // Determine attendance status display
+            const getAttendanceConfig = (status?: string) => {
+              switch (status) {
+                case "present":
+                  return {
+                    colors: ["#10B981", "#059669"],
+                    icon: "checkmark-circle",
+                    label: "Có mặt",
+                  };
+                case "absent":
+                  return {
+                    colors: ["#EF4444", "#DC2626"],
+                    icon: "close-circle",
+                    label: "Vắng",
+                  };
+                case "late":
+                  return {
+                    colors: ["#F59E0B", "#D97706"],
+                    icon: "time",
+                    label: "Đi trễ",
+                  };
+                case "excused":
+                  return {
+                    colors: ["#8B5CF6", "#7C3AED"],
+                    icon: "document-text",
+                    label: "Có phép",
+                  };
+                default:
+                  return { colors: colors, icon: "calendar", label: "Sắp tới" };
+              }
+            };
+            const attendanceConfig = getAttendanceConfig(item.attendanceStatus);
+
+            return (
               <View
                 key={`${item.classId}-${index}`}
                 style={styles.scheduleCard}
               >
                 <View style={styles.timeColumn}>
                   <LinearGradient
-                    colors={["#3B82F6", "#2563EB"]}
+                    colors={attendanceConfig.colors as [string, string]}
                     style={styles.timeIndicator}
                   />
                   <Text style={styles.startTime}>{item.startTime}</Text>
@@ -1166,12 +2417,21 @@ export default function ScheduleScreen() {
                     <View
                       style={[
                         styles.statusBadge,
-                        { backgroundColor: "#DBEAFE" },
+                        { backgroundColor: `${attendanceConfig.colors[0]}20` },
                       ]}
                     >
-                      <Ionicons name="book" size={10} color="#3B82F6" />
-                      <Text style={[styles.statusText, { color: "#3B82F6" }]}>
-                        Cố định
+                      <Ionicons
+                        name={attendanceConfig.icon as any}
+                        size={10}
+                        color={attendanceConfig.colors[0]}
+                      />
+                      <Text
+                        style={[
+                          styles.statusText,
+                          { color: attendanceConfig.colors[0] },
+                        ]}
+                      >
+                        {attendanceConfig.label}
                       </Text>
                     </View>
                   </View>
@@ -1182,8 +2442,22 @@ export default function ScheduleScreen() {
                   >
                     {item.subject}
                   </Text>
-                  {item.room && (
-                    <View style={styles.scheduleDetails}>
+                  <View style={styles.scheduleDetails}>
+                    <View style={styles.detailItem}>
+                      <Ionicons
+                        name="person-outline"
+                        size={12}
+                        color="#6B7280"
+                      />
+                      <Text
+                        style={styles.detailText}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {item.teacherName || "Giáo viên"}
+                      </Text>
+                    </View>
+                    {item.room && (
                       <View style={styles.detailItem}>
                         <Ionicons
                           name="location-outline"
@@ -1196,116 +2470,6 @@ export default function ScheduleScreen() {
                           ellipsizeMode="tail"
                         >
                           {item.room}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
-              </View>
-            ))
-          )
-        ) : /* Student Sessions View */
-        filteredSessions.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <LinearGradient
-              colors={["#F3F4F6", "#E5E7EB"]}
-              style={styles.emptyIconBg}
-            >
-              <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>Không có lịch học</Text>
-            <Text style={styles.emptyText}>
-              Bạn không có buổi học nào trong ngày này
-            </Text>
-          </View>
-        ) : (
-          filteredSessions.map((session, index) => {
-            const statusConfig = getStatusConfig(session.status);
-            const className = getClassName(session);
-            const subject = getSubject(session);
-            return (
-              <View key={session._id || index} style={styles.scheduleCard}>
-                <View style={styles.timeColumn}>
-                  <LinearGradient
-                    colors={statusConfig.colors as [string, string]}
-                    style={styles.timeIndicator}
-                  />
-                  <Text style={styles.startTime}>
-                    {formatTime(session.startTime)}
-                  </Text>
-                  <Text style={styles.endTime}>
-                    {formatTime(session.endTime)}
-                  </Text>
-                </View>
-                <View style={styles.scheduleInfo}>
-                  <View style={styles.scheduleHeader}>
-                    <Text
-                      style={styles.className}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {className}
-                    </Text>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        { backgroundColor: `${statusConfig.colors[0]}20` },
-                      ]}
-                    >
-                      <Ionicons
-                        name={statusConfig.icon as any}
-                        size={10}
-                        color={statusConfig.colors[0]}
-                      />
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: statusConfig.colors[0] },
-                        ]}
-                      >
-                        {statusConfig.label}
-                      </Text>
-                    </View>
-                  </View>
-                  {subject && (
-                    <Text
-                      style={styles.subject}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {subject}
-                    </Text>
-                  )}
-                  <View style={styles.scheduleDetails}>
-                    {user?.role !== "teacher" && (
-                      <View style={styles.detailItem}>
-                        <Ionicons
-                          name="person-outline"
-                          size={12}
-                          color="#6B7280"
-                        />
-                        <Text
-                          style={styles.detailText}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          Giáo viên
-                        </Text>
-                      </View>
-                    )}
-                    {session.note && (
-                      <View style={styles.detailItem}>
-                        <Ionicons
-                          name="location-outline"
-                          size={12}
-                          color="#6B7280"
-                        />
-                        <Text
-                          style={styles.detailText}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {session.note}
                         </Text>
                       </View>
                     )}
@@ -1407,6 +2571,13 @@ const styles = StyleSheet.create({
   },
   todayDateText: {
     color: "#3B82F6",
+  },
+  sessionDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#10B981",
+    marginTop: 4,
   },
   selectedDateHeader: {
     flexDirection: "row",
@@ -1870,5 +3041,439 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9CA3AF",
     fontStyle: "italic",
+  },
+  // Teacher Schedule Card
+  teacherScheduleCard: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    marginHorizontal: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  classInfoRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 10,
+  },
+  attendanceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#10B981",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    marginTop: 4,
+  },
+  attendanceButtonDisabled: {
+    backgroundColor: "#E5E7EB",
+  },
+  attendanceButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  attendanceButtonTextDisabled: {
+    color: "#9CA3AF",
+  },
+  // Attendance Modal Styles
+  attendanceModalContainer: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  attendanceModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  attendanceCloseBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  attendanceModalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  attendanceClassInfo: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  attendanceClassName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  attendanceDateTime: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  attendanceStats: {
+    flexDirection: "row",
+    padding: 16,
+    gap: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  attendanceStat: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+  },
+  attendanceStatValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  attendanceStatLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  attendanceList: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  attendanceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  attendanceStudentInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  attendanceAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  attendanceAvatarText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  attendanceStudentDetails: {
+    flex: 1,
+  },
+  attendanceStudentName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  attendanceStudentEmail: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  attendanceButtons: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  attendanceStatusBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  attendanceStatusBtnActive: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  attendanceStatusBtnAbsent: {
+    borderColor: "#EF4444",
+  },
+  attendanceStatusBtnAbsentActive: {
+    backgroundColor: "#EF4444",
+    borderColor: "#EF4444",
+  },
+  attendanceStatusBtnLate: {
+    borderColor: "#F59E0B",
+  },
+  attendanceStatusBtnLateActive: {
+    backgroundColor: "#F59E0B",
+    borderColor: "#F59E0B",
+  },
+  attendanceNoteSection: {
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  attendanceNoteLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  attendanceNoteInput: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: "#111827",
+    minHeight: 80,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    textAlignVertical: "top",
+  },
+  attendanceSaveContainer: {
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  attendanceSaveBtn: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  attendanceSaveBtnDisabled: {
+    opacity: 0.7,
+  },
+  attendanceSaveBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 8,
+  },
+  attendanceSaveBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+
+  // ========== TEACHER WEEK VIEW STYLES ==========
+  teacherHeader: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  teacherTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  teacherTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  weekNavRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+  weekNavBtnSmall: {
+    padding: 6,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+  },
+  weekNavText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  teacherWeekStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  statCardSmall: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 4,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  statIconSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  statValueSmall: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  statLabelSmall: {
+    fontSize: 10,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  weekGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  dayColumn: {
+    width: (width - 48) / 2,
+    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  dayColumnToday: {
+    borderWidth: 2,
+    borderColor: "#10B981",
+  },
+  dayHeader: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+  dayHeaderText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  dayHeaderDate: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 1,
+  },
+  emptyDayContent: {
+    paddingVertical: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyDayText: {
+    fontSize: 16,
+    color: "#D1D5DB",
+  },
+  dayContent: {
+    padding: 8,
+    gap: 8,
+  },
+  weekScheduleCard: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+  weekScheduleCardActive: {
+    backgroundColor: "#D1FAE5",
+    borderColor: "#10B981",
+    borderWidth: 2,
+  },
+  weekCardClassName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1E40AF",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  weekCardSubject: {
+    fontSize: 11,
+    color: "#4B5563",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  weekCardInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  weekCardInfoText: {
+    fontSize: 10,
+    color: "#6B7280",
+  },
+  weekCardTimeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 4,
+    marginBottom: 4,
+  },
+  weekCardTime: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  weekCardActiveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    marginTop: 4,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  weekCardActiveText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#059669",
+  },
+  teacherScheduleCardActive: {
+    borderWidth: 2,
+    borderColor: "#10B981",
   },
 });

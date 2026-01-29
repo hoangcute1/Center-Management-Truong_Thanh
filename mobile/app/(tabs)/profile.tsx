@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,47 +6,28 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   Modal,
   TextInput,
   ActivityIndicator,
-  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useAuthStore } from "@/lib/stores";
+import { useAuthStore, getUserDisplayName } from "@/lib/stores";
+import { useUiStore } from "@/lib/stores/ui-store";
 import api from "@/lib/api";
-
-const { width } = Dimensions.get("window");
 
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
-      return {
-        label: "Học sinh",
-        colors: ["#3B82F6", "#2563EB"],
-        icon: "school",
-      };
+      return { label: "Học sinh", colors: ["#3B82F6", "#3B82F6"], icon: "school" };
     case "teacher":
-      return {
-        label: "Giáo viên",
-        colors: ["#10B981", "#059669"],
-        icon: "person",
-      };
+      return { label: "Giáo viên", colors: ["#10B981", "#10B981"], icon: "person" };
     case "parent":
-      return {
-        label: "Phụ huynh",
-        colors: ["#F59E0B", "#D97706"],
-        icon: "people",
-      };
+      return { label: "Phụ huynh", colors: ["#F59E0B", "#F59E0B"], icon: "people" };
     case "admin":
-      return {
-        label: "Quản trị viên",
-        colors: ["#8B5CF6", "#7C3AED"],
-        icon: "settings",
-      };
+      return { label: "Quản trị viên", colors: ["#8B5CF6", "#8B5CF6"], icon: "settings" };
     default:
       return { label: role, colors: ["#6B7280", "#4B5563"], icon: "person" };
   }
@@ -55,28 +36,34 @@ const getRoleConfig = (role: string) => {
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuthStore();
   const roleConfig = getRoleConfig(user?.role || "");
+  const { theme, setTheme, isDark } = useUiStore();
 
-  // Modal states
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Profile form
   const [profileForm, setProfileForm] = useState({
-    fullName: user?.fullName || "",
+    fullName: user?.fullName || user?.name || "",
     phone: user?.phone || "",
   });
 
-  // Password form
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        fullName: user.fullName || user.name || "",
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
-  // Theme setting
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState(theme);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
@@ -101,14 +88,14 @@ export default function ProfileScreen() {
     setIsUpdating(true);
     try {
       await api.patch(`/users/${user?._id}`, {
-        fullName: profileForm.fullName.trim(),
+        name: profileForm.fullName.trim(),
         phone: profileForm.phone.trim() || undefined,
       });
 
-      // Update local state
       if (updateUser) {
         updateUser({
           ...user!,
+          name: profileForm.fullName.trim(),
           fullName: profileForm.fullName.trim(),
           phone: profileForm.phone.trim(),
         });
@@ -174,7 +161,7 @@ export default function ProfileScreen() {
           color: "#3B82F6",
           onPress: () => {
             setProfileForm({
-              fullName: user?.fullName || "",
+              fullName: user?.fullName || user?.name || "",
               phone: user?.phone || "",
             });
             setShowProfileModal(true);
@@ -192,12 +179,6 @@ export default function ProfileScreen() {
       title: "Cài đặt",
       items: [
         {
-          icon: "notifications-outline" as const,
-          label: "Cài đặt thông báo",
-          color: "#F59E0B",
-          onPress: () => {},
-        },
-        {
           icon: "moon-outline" as const,
           label: "Giao diện",
           color: "#6366F1",
@@ -212,31 +193,34 @@ export default function ProfileScreen() {
           icon: "help-circle-outline" as const,
           label: "Trợ giúp",
           color: "#10B981",
-          onPress: () => {},
+          onPress: () => { },
         },
         {
           icon: "chatbubble-outline" as const,
           label: "Liên hệ hỗ trợ",
           color: "#EC4899",
-          onPress: () => {},
+          onPress: () => { },
         },
         {
           icon: "information-circle-outline" as const,
           label: "Về ứng dụng",
           color: "#6B7280",
-          onPress: () => {},
+          onPress: () => { },
         },
       ],
     },
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: isDark ? "#0B1220" : "#F3F4F6" }]}
+      edges={["left", "right"]}
+    >
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
       >
-        {/* Profile Header with Gradient */}
         <LinearGradient
           colors={roleConfig.colors as [string, string]}
           start={{ x: 0, y: 0 }}
@@ -251,7 +235,7 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.userName}>{user?.fullName || "Người dùng"}</Text>
+          <Text style={styles.userName}>{getUserDisplayName(user)}</Text>
           <Text style={styles.userEmail}>{user?.email || ""}</Text>
           <View style={styles.roleBadge}>
             <Ionicons name={roleConfig.icon as any} size={12} color="#FFFFFF" />
@@ -259,16 +243,15 @@ export default function ProfileScreen() {
           </View>
         </LinearGradient>
 
-        {/* User Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Thông tin liên hệ</Text>
+        <View style={[styles.infoCard, { backgroundColor: isDark ? "#111827" : "#FFFFFF" }]}>
+          <Text style={[styles.cardTitle, { color: isDark ? "#E5E7EB" : "#1F2937" }]}>Thông tin liên hệ</Text>
           <View style={styles.infoRow}>
             <View style={[styles.infoIconBg, { backgroundColor: "#EFF6FF" }]}>
               <Ionicons name="mail-outline" size={18} color="#3B82F6" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoText}>
+              <Text style={[styles.infoText, { color: isDark ? "#E5E7EB" : "#374151" }]}>
                 {user?.email || "Chưa cập nhật"}
               </Text>
             </View>
@@ -279,18 +262,17 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Số điện thoại</Text>
-              <Text style={styles.infoText}>
+              <Text style={[styles.infoText, { color: isDark ? "#E5E7EB" : "#374151" }]}>
                 {user?.phone || "Chưa cập nhật"}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Menu Sections */}
         {menuSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.menuSection}>
             <Text style={styles.menuSectionTitle}>{section.title}</Text>
-            <View style={styles.menuCard}>
+            <View style={[styles.menuCard, { backgroundColor: isDark ? "#111827" : "#FFFFFF" }]}>
               {section.items.map((item, index) => (
                 <TouchableOpacity
                   key={index}
@@ -309,7 +291,9 @@ export default function ProfileScreen() {
                   >
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
-                  <Text style={styles.menuItemLabel}>{item.label}</Text>
+                  <Text style={[styles.menuItemLabel, { color: isDark ? "#E5E7EB" : "#374151" }]}>
+                    {item.label}
+                  </Text>
                   <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                 </TouchableOpacity>
               ))}
@@ -317,7 +301,6 @@ export default function ProfileScreen() {
           </View>
         ))}
 
-        {/* Logout Button */}
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -331,15 +314,8 @@ export default function ProfileScreen() {
             <Text style={styles.logoutText}>Đăng xuất</Text>
           </LinearGradient>
         </TouchableOpacity>
-
-        {/* App Version */}
-        <View style={styles.footer}>
-          <Text style={styles.versionText}>Giáo dục Trường Thành</Text>
-          <Text style={styles.versionNumber}>Phiên bản 1.0.0</Text>
-        </View>
       </ScrollView>
 
-      {/* Profile Edit Modal */}
       <Modal
         visible={showProfileModal}
         animationType="slide"
@@ -396,10 +372,7 @@ export default function ProfileScreen() {
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.submitButton,
-                isUpdating && styles.submitButtonDisabled,
-              ]}
+              style={[styles.submitButton, isUpdating && styles.submitButtonDisabled]}
               onPress={handleUpdateProfile}
               disabled={isUpdating}
             >
@@ -416,7 +389,6 @@ export default function ProfileScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Password Change Modal */}
       <Modal
         visible={showPasswordModal}
         animationType="slide"
@@ -510,7 +482,6 @@ export default function ProfileScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Theme Modal */}
       <Modal
         visible={showThemeModal}
         animationType="slide"
@@ -526,59 +497,46 @@ export default function ProfileScreen() {
             <View style={{ width: 24 }} />
           </View>
 
-          <View style={styles.modalContent}>
-            <View style={styles.themeOption}>
-              <View style={styles.themeOptionLeft}>
-                <View
-                  style={[styles.themeIconBg, { backgroundColor: "#FEF3C7" }]}
+          <View style={styles.themeOptions}>
+            {(
+              [
+                { key: "light", label: "Sáng", icon: "sunny-outline" },
+                { key: "dark", label: "Tối", icon: "moon" },
+                { key: "system", label: "Theo hệ thống", icon: "laptop-outline" },
+              ] as const
+            ).map((opt) => {
+              const active = selectedTheme === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.themeOption, active && styles.themeOptionActive]}
+                  onPress={() => {
+                    setSelectedTheme(opt.key);
+                    setTheme(opt.key);
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="sunny" size={24} color="#F59E0B" />
-                </View>
-                <View>
-                  <Text style={styles.themeOptionTitle}>Chế độ sáng</Text>
-                  <Text style={styles.themeOptionDesc}>Giao diện mặc định</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.themeRadio,
-                  !isDarkMode && styles.themeRadioActive,
-                ]}
-                onPress={() => setIsDarkMode(false)}
-              >
-                {!isDarkMode && <View style={styles.themeRadioInner} />}
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.themeOption}>
-              <View style={styles.themeOptionLeft}>
-                <View
-                  style={[styles.themeIconBg, { backgroundColor: "#E0E7FF" }]}
-                >
-                  <Ionicons name="moon" size={24} color="#6366F1" />
-                </View>
-                <View>
-                  <Text style={styles.themeOptionTitle}>Chế độ tối</Text>
-                  <Text style={styles.themeOptionDesc}>
-                    Bảo vệ mắt khi trời tối
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.themeRadio,
-                  isDarkMode && styles.themeRadioActive,
-                ]}
-                onPress={() => setIsDarkMode(true)}
-              >
-                {isDarkMode && <View style={styles.themeRadioInner} />}
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.themeNote}>
-              * Chức năng đang được phát triển. Sẽ sớm có mặt trong các phiên
-              bản tiếp theo.
-            </Text>
+                  <Ionicons
+                    name={opt.icon as any}
+                    size={20}
+                    color={active ? "#10B981" : "#6B7280"}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.themeOptionLabel}>{opt.label}</Text>
+                    <Text style={styles.themeOptionHint}>
+                      {opt.key === "system"
+                        ? "Tự động theo chế độ máy"
+                        : opt.key === "dark"
+                          ? "Giao diện nền tối"
+                          : "Giao diện nền sáng"}
+                    </Text>
+                  </View>
+                  {active && (
+                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </SafeAreaView>
       </Modal>
@@ -589,7 +547,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
   },
   scrollView: {
     flex: 1,
@@ -659,7 +616,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   infoCard: {
-    backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
     marginTop: -16,
     borderRadius: 20,
@@ -673,7 +629,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1F2937",
     marginBottom: 16,
   },
   infoRow: {
@@ -714,7 +669,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   menuCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -765,21 +719,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#EF4444",
   },
-  footer: {
-    alignItems: "center",
-    paddingVertical: 32,
-  },
-  versionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginBottom: 4,
-  },
-  versionNumber: {
-    fontSize: 12,
-    color: "#9CA3AF",
-  },
-  // Modal styles
   modalContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -848,61 +787,32 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  // Theme styles
+  themeOptions: {
+    padding: 16,
+  },
   themeOption: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
     backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  themeOptionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
+  themeOptionActive: {
+    borderColor: "#10B981",
+    backgroundColor: "#ECFDF3",
   },
-  themeIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  themeOptionTitle: {
-    fontSize: 16,
+  themeOptionLabel: {
+    fontSize: 15,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#111827",
   },
-  themeOptionDesc: {
-    fontSize: 13,
+  themeOptionHint: {
+    fontSize: 12,
     color: "#6B7280",
     marginTop: 2,
-  },
-  themeRadio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#D1D5DB",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  themeRadioActive: {
-    borderColor: "#3B82F6",
-  },
-  themeRadioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#3B82F6",
-  },
-  themeNote: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginTop: 24,
-    fontStyle: "italic",
   },
 });

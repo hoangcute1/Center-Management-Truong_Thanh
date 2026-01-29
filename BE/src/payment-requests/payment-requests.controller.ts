@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaymentRequestsService } from './payment-requests.service';
 import { CreateClassPaymentRequestDto } from './dto/create-class-payment-request.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,6 +18,8 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../common/enums/role.enum';
 import { StudentPaymentRequestStatus } from './schemas/student-payment-request.schema';
 
+@ApiTags('Payment Requests')
+@ApiBearerAuth()
 @Controller('payment-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentRequestsController {
@@ -31,6 +34,26 @@ export class PaymentRequestsController {
     @Body() dto: CreateClassPaymentRequestDto,
   ) {
     return this.service.createClassPaymentRequest(dto, req.user._id);
+  }
+
+  @Get('class')
+  @Roles(UserRole.Admin)
+  async getClassPaymentRequests(@Query('classId') classId?: string) {
+    return this.service.getClassPaymentRequests(classId);
+  }
+
+  @Get('class/:classRequestId/students')
+  @Roles(UserRole.Admin)
+  async getClassRequestStudents(
+    @Param('classRequestId') classRequestId: string,
+  ) {
+    return this.service.getStudentsByClassRequest(classRequestId);
+  }
+
+  @Delete('class/:id')
+  @Roles(UserRole.Admin)
+  async cancelClassRequest(@Param('id') id: string) {
+    return this.service.cancelClassPaymentRequest(id);
   }
 
   @Get('my')

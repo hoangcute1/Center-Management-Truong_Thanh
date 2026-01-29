@@ -21,6 +21,12 @@ import { ImportsModule } from './imports/imports.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { PaymentRequestsModule } from './payment-requests/payment-requests.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { FinanceModule } from './finance/finance.module';
+import { AssignmentsModule } from './assignments/assignments.module';
+import { SubmissionsModule } from './submissions/submissions.module';
+import { GradesModule } from './grades/grades.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -41,6 +47,9 @@ import { PaymentsModule } from './payments/payments.module';
     SessionsModule,
     AttendanceModule,
     AssessmentsModule,
+    AssignmentsModule,
+    SubmissionsModule,
+    GradesModule,
     GoalsModule,
     TuitionModule,
     NotificationsModule,
@@ -53,7 +62,11 @@ import { PaymentsModule } from './payments/payments.module';
     IncidentsModule,
     PaymentRequestsModule,
     PaymentsModule,
+    ExpensesModule,
+    FinanceModule,
+    DocumentsModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })

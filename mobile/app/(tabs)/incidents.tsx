@@ -11,6 +11,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   useAuthStore,
   useIncidentsStore,
+  useClassesStore,
   Incident,
   IncidentType,
   IncidentStatus,
@@ -503,8 +505,286 @@ function IncidentDetailModal({
   );
 }
 
+// Teacher Contact Screen Component
+function TeacherContactScreen() {
+  const { user } = useAuthStore();
+  const { classes, fetchClasses, isLoading } = useClassesStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClass, setSelectedClass] = useState<string>("all");
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const onRefresh = async () => {
+    await fetchClasses();
+  };
+
+  // Get all students from classes taught by this teacher
+  const allStudents = classes
+    .filter((cls) => {
+      const teacherId =
+        typeof cls.teacherId === "string" ? cls.teacherId : cls.teacherId;
+      return teacherId === user?._id && cls.students && cls.students.length > 0;
+    })
+    .flatMap((cls) =>
+      (cls.students || []).map((student) => ({
+        ...student,
+        className: cls.name,
+        classId: cls._id,
+      })),
+    );
+
+  // Filter students by search and class
+  const filteredStudents = allStudents.filter((student) => {
+    const name = student.fullName || student.name || "";
+    const matchesSearch =
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesClass =
+      selectedClass === "all" || student.classId === selectedClass;
+    return matchesSearch && matchesClass;
+  });
+
+  // Get unique classes for filter
+  const teacherClasses = classes.filter((cls) => {
+    const teacherId =
+      typeof cls.teacherId === "string" ? cls.teacherId : cls.teacherId;
+    return teacherId === user?._id;
+  });
+
+  const handleCall = (phone?: string) => {
+    if (phone) {
+      Linking.openURL(`tel:${phone}`);
+    } else {
+      Alert.alert("Thông báo", "Học sinh này chưa có số điện thoại");
+    }
+  };
+
+  const handleEmail = (email: string) => {
+    Linking.openURL(`mailto:${email}`);
+  };
+
+  const handleMessage = (phone?: string) => {
+    if (phone) {
+      Linking.openURL(`sms:${phone}`);
+    } else {
+      Alert.alert("Thông báo", "Học sinh này chưa có số điện thoại");
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Card */}
+        <LinearGradient
+          colors={["#10B981", "#059669"]}
+          style={styles.summaryCard}
+        >
+          <View style={styles.summaryContent}>
+            <View style={styles.summaryMain}>
+              <Text style={styles.summaryLabel}>Liên hệ học sinh</Text>
+              <Text style={styles.summaryTitle}>
+                {allStudents.length} học sinh trong {teacherClasses.length} lớp
+              </Text>
+            </View>
+            <View style={styles.contactHeaderIcon}>
+              <Ionicons name="people" size={28} color="#FFFFFF" />
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Search Bar */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Ionicons
+              name="search"
+              size={18}
+              color="#9CA3AF"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm học sinh..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Class Filter */}
+        <View style={styles.filterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
+            <TouchableOpacity
+              style={[
+                styles.filterTab,
+                selectedClass === "all" && styles.filterTabActiveGreen,
+              ]}
+              onPress={() => setSelectedClass("all")}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedClass === "all" && styles.filterTextActive,
+                ]}
+              >
+                Tất cả
+              </Text>
+              <View
+                style={[
+                  styles.filterBadge,
+                  selectedClass === "all" && styles.filterBadgeActiveGreen,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterBadgeText,
+                    selectedClass === "all" && styles.filterBadgeTextActive,
+                  ]}
+                >
+                  {allStudents.length}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            {teacherClasses.map((cls) => (
+              <TouchableOpacity
+                key={cls._id}
+                style={[
+                  styles.filterTab,
+                  selectedClass === cls._id && styles.filterTabActiveGreen,
+                ]}
+                onPress={() => setSelectedClass(cls._id)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    selectedClass === cls._id && styles.filterTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {cls.name}
+                </Text>
+                <View
+                  style={[
+                    styles.filterBadge,
+                    selectedClass === cls._id && styles.filterBadgeActiveGreen,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterBadgeText,
+                      selectedClass === cls._id && styles.filterBadgeTextActive,
+                    ]}
+                  >
+                    {cls.students?.length || 0}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Students List */}
+        <View style={styles.content}>
+          {filteredStudents.length === 0 ? (
+            <View style={styles.emptyState}>
+              <LinearGradient
+                colors={["#F3F4F6", "#E5E7EB"]}
+                style={styles.emptyIcon}
+              >
+                <Ionicons name="people-outline" size={48} color="#9CA3AF" />
+              </LinearGradient>
+              <Text style={styles.emptyTitle}>
+                {searchQuery
+                  ? "Không tìm thấy học sinh"
+                  : "Chưa có học sinh nào"}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery
+                  ? "Thử tìm kiếm với từ khóa khác"
+                  : "Các lớp của bạn chưa có học sinh nào được thêm vào"}
+              </Text>
+            </View>
+          ) : (
+            filteredStudents.map((student, index) => (
+              <View key={`${student._id}-${index}`} style={styles.studentCard}>
+                <View style={styles.studentInfo}>
+                  <LinearGradient
+                    colors={["#10B981", "#059669"]}
+                    style={styles.studentAvatar}
+                  >
+                    <Text style={styles.studentAvatarText}>
+                      {(student.fullName || student.name || "?")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Text>
+                  </LinearGradient>
+                  <View style={styles.studentDetails}>
+                    <Text style={styles.studentName} numberOfLines={1}>
+                      {student.fullName || student.name || "Học sinh"}
+                    </Text>
+                    <Text style={styles.studentClass} numberOfLines={1}>
+                      {student.className}
+                    </Text>
+                    <Text style={styles.studentEmail} numberOfLines={1}>
+                      {student.email}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.contactActions}>
+                  <TouchableOpacity
+                    style={styles.contactButton}
+                    onPress={() => handleEmail(student.email)}
+                  >
+                    <Ionicons name="mail" size={18} color="#3B82F6" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.contactButton}
+                    onPress={() => handleMessage((student as any).phone)}
+                  >
+                    <Ionicons name="chatbubble" size={18} color="#10B981" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.contactButton}
+                    onPress={() => handleCall((student as any).phone)}
+                  >
+                    <Ionicons name="call" size={18} color="#F59E0B" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 export default function IncidentsScreen() {
   const { user } = useAuthStore();
+
+  // If teacher, show contact screen instead
+  if (user?.role === "teacher") {
+    return <TeacherContactScreen />;
+  }
+
   const {
     myIncidents,
     selectedIncident,
@@ -1306,5 +1586,107 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#10B981",
     marginTop: 2,
+  },
+  // Teacher Contact Styles
+  contactHeaderIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111827",
+    paddingVertical: 0,
+  },
+  filterTabActiveGreen: {
+    backgroundColor: "#10B981",
+  },
+  filterBadgeActiveGreen: {
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  studentCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  studentInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  studentAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  studentAvatarText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  studentDetails: {
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  studentClass: {
+    fontSize: 13,
+    color: "#10B981",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  studentEmail: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  contactActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  contactButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
