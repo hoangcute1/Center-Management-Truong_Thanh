@@ -1643,7 +1643,7 @@ function SettingsModal({
         return;
       }
 
-      let avatarUrl = user.avatarURL;
+      let avatarUrl = user.avatarUrl;
 
       if (selectedFile) {
         try {
@@ -1658,7 +1658,7 @@ function SettingsModal({
       await api.patch(`/users/${userId}`, {
         name: formData.name,
         phone: formData.phone,
-        avatarURL: avatarUrl,
+        avatarUrl: avatarUrl,
       });
 
       toast.success("Cập nhật thông tin thành công!", {
