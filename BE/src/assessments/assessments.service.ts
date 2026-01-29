@@ -24,11 +24,15 @@ export class AssessmentsService {
   }
 
   listByClass(classId: string) {
-    return this.model.find({ classId }).exec();
+    return this.model
+      .find({ classId: new Types.ObjectId(classId) })
+      .exec();
   }
 
   listByStudent(studentId: string) {
-    return this.model.find({ studentId }).exec();
+    return this.model
+      .find({ studentId: new Types.ObjectId(studentId) })
+      .exec();
   }
 
   async update(id: string, dto: UpdateAssessmentDto) {

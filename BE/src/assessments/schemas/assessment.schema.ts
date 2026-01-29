@@ -27,6 +27,9 @@ export class Assessment {
   @Prop()
   maxScore?: number;
 
+  @Prop({ type: Number, min: 0, max: 100 })
+  weight?: number;
+
   @Prop()
   dueDate?: Date;
 
