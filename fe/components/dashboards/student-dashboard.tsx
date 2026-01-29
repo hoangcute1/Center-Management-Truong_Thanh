@@ -1407,8 +1407,15 @@ export default function StudentDashboard({
   );
 
   const latestGrade = recentGrades[0];
+  const latestClassName = latestGrade?.className
+    ? (() => {
+        const trimmed = latestGrade.className.trim();
+        return trimmed && trimmed.toUpperCase() !== "N/A" ? trimmed : null;
+      })()
+    : null;
+  const latestGradeTitle = latestGrade?.title?.trim() || "Bài đánh giá";
   const latestTeacherSummary = latestGrade
-    ? `${latestGrade.className} • ${latestGrade.title}`
+    ? [latestClassName, latestGradeTitle].filter(Boolean).join(" • ")
     : "Chưa có bài đánh giá nào";
   const latestTeacherFeedback =
     latestGrade?.feedback || "Giáo viên chưa để lại nhận xét.";
