@@ -1098,7 +1098,7 @@ export default function StudentDashboard({
     const fetchDocuments = async () => {
       try {
         setDocumentsLoading(true);
-        const response = await api.get('/documents/student');
+        const response = await api.get('/documents/for-student');
         setStudentDocuments(response.data);
       } catch (error) {
         console.error('Failed to fetch documents:', error);
@@ -1114,7 +1114,7 @@ export default function StudentDashboard({
   // Function to increment download count
   const incrementDownload = async (documentId: string) => {
     try {
-      await api.post(`/documents/${documentId}/download`);
+      await api.patch(`/documents/${documentId}/download`);
     } catch (error) {
       console.error('Failed to increment download count:', error);
     }
