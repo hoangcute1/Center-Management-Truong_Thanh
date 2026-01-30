@@ -6,14 +6,23 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Grade, GradeDocument, GradeType } from './schemas/grade.schema';
-import { GradingSheet, GradingSheetDocument } from './schemas/grading-sheet.schema';
+import {
+  GradingSheet,
+  GradingSheetDocument,
+} from './schemas/grading-sheet.schema';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
 import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
 import { CreateGradingSheetDto } from './dto/create-grading-sheet.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
 import { UserDocument } from '../users/schemas/user.schema';
-import { Submission, SubmissionDocument } from '../submissions/schemas/submission.schema';
-import { Assignment, AssignmentDocument } from '../assignments/schemas/assignment.schema';
+import {
+  Submission,
+  SubmissionDocument,
+} from '../submissions/schemas/submission.schema';
+import {
+  Assignment,
+  AssignmentDocument,
+} from '../assignments/schemas/assignment.schema';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
 
 @Injectable()
@@ -29,7 +38,7 @@ export class GradesService {
     private readonly assignmentModel: Model<AssignmentDocument>,
     @InjectModel(ClassEntity.name)
     private readonly classModel: Model<ClassDocument>,
-  ) { }
+  ) {}
 
   // ==================== GRADING SHEET METHODS ====================
 
@@ -110,7 +119,7 @@ export class GradesService {
     // Map điểm vào từng học sinh
     const students = (classDoc.studentIds || []).map((student: any) => {
       const grade = grades.find(
-        (g) => g.studentId.toString() === student._id.toString()
+        (g) => g.studentId.toString() === student._id.toString(),
       );
       return {
         _id: student._id,
@@ -141,16 +150,20 @@ export class GradesService {
   async bulkGradeStudents(
     teacher: UserDocument,
     gradingSheetId: string,
-    dto: BulkGradeDto
+    dto: BulkGradeDto,
   ) {
-    const gradingSheet = await this.gradingSheetModel.findById(gradingSheetId).exec();
+    const gradingSheet = await this.gradingSheetModel
+      .findById(gradingSheetId)
+      .exec();
     if (!gradingSheet) {
       throw new NotFoundException('Grading sheet not found');
     }
 
     // Validate teacher có quyền chấm không
     if (gradingSheet.createdBy.toString() !== teacher._id.toString()) {
-      throw new BadRequestException('You do not have permission to grade this sheet');
+      throw new BadRequestException(
+        'You do not have permission to grade this sheet',
+      );
     }
 
     const results: any[] = [];
@@ -159,7 +172,7 @@ export class GradesService {
       // Validate score
       if (gradeDto.score > gradingSheet.maxScore) {
         throw new BadRequestException(
-          `Score for student ${gradeDto.studentId} exceeds maxScore (${gradingSheet.maxScore})`
+          `Score for student ${gradeDto.studentId} exceeds maxScore (${gradingSheet.maxScore})`,
         );
       }
 
@@ -373,5 +386,95 @@ export class GradesService {
       maxPossiblePoints,
     };
   }
-}
 
+  /**
+   * Xếp hạng học sinh trong lớp dựa trên điểm trung bình
+   */
+  async getClassRanking(classId: string) {
+    // Lấy danh sách học sinh của lớp
+    const classDoc = await this.classModel
+      .findById(classId)
+      .populate('studentIds', 'name email studentCode avatar')
+      .exec();
+
+    if (!classDoc) {
+      throw new NotFoundException('Class not found');
+    }
+
+    const students = classDoc.studentIds as any[];
+    if (!students || students.length === 0) {
+      return [];
+    }
+
+    // Tính điểm trung bình cho mỗi học sinh
+    const studentRankings = await Promise.all(
+      students.map(async (student) => {
+        const grades = await this.gradeModel
+          .find({
+            studentId: student._id,
+            classId: new Types.ObjectId(classId),
+          })
+          .exec();
+
+        let averageScore = 0;
+        let totalGrades = 0;
+        if (grades.length > 0) {
+          const totalPoints = grades.reduce((sum, g) => sum + g.score, 0);
+          const maxPossiblePoints = grades.reduce(
+            (sum, g) => sum + g.maxScore,
+            0,
+          );
+          averageScore =
+            maxPossiblePoints > 0
+              ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
+              : 0;
+          totalGrades = grades.length;
+        }
+
+        return {
+          studentId: student._id,
+          studentName: student.name,
+          studentCode: student.studentCode,
+          avatar: student.avatar,
+          averageScore,
+          totalGrades,
+        };
+      }),
+    );
+
+    // Sắp xếp theo điểm trung bình giảm dần
+    studentRankings.sort((a, b) => b.averageScore - a.averageScore);
+
+    // Thêm thứ hạng
+    return studentRankings.map((student, index) => ({
+      ...student,
+      rank: index + 1,
+    }));
+  }
+
+  /**
+   * Lấy thứ hạng của một học sinh trong lớp
+   */
+  async getStudentRankInClass(studentId: string, classId: string) {
+    const rankings = await this.getClassRanking(classId);
+    const studentRank = rankings.find(
+      (r) => r.studentId.toString() === studentId,
+    );
+
+    if (!studentRank) {
+      return {
+        rank: null,
+        totalStudents: rankings.length,
+        averageScore: 0,
+        totalGrades: 0,
+      };
+    }
+
+    return {
+      rank: studentRank.rank,
+      totalStudents: rankings.length,
+      averageScore: studentRank.averageScore,
+      totalGrades: studentRank.totalGrades,
+    };
+  }
+}

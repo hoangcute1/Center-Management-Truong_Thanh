@@ -32,10 +32,14 @@ import {
   Document as TeachingDocument,
   DocumentVisibility,
 } from "@/lib/stores/documents-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import TeacherGradingTab from "@/components/teacher-grading-tab";
-import { teacherGradingService, GRADE_CATEGORY_LABELS } from "@/lib/services/teacher-grading.service";
+import {
+  teacherGradingService,
+  GRADE_CATEGORY_LABELS,
+} from "@/lib/services/teacher-grading.service";
 
 interface TeacherDashboardProps {
   user: {
@@ -143,24 +147,29 @@ function StudentDetailModal({
     const maxTotal = grades.reduce((acc, g) => acc + g.maxScore, 0);
     const average = maxTotal > 0 ? (total / maxTotal) * 10 : 0;
 
-    const midterm = grades.find(g => g.gradingSheetId?.category === 'giua_ky');
-    const final = grades.find(g => g.gradingSheetId?.category === 'cuoi_ky');
+    const midterm = grades.find(
+      (g) => g.gradingSheetId?.category === "giua_ky",
+    );
+    const final = grades.find((g) => g.gradingSheetId?.category === "cuoi_ky");
 
     return {
       average: average.toFixed(1),
-      midterm: midterm ? midterm.score : 'N/A',
-      final: final ? final.score : 'N/A',
+      midterm: midterm ? midterm.score : "N/A",
+      final: final ? final.score : "N/A",
     };
   }, [grades]);
 
   // Chart data (scores over time)
   const chartData = useMemo(() => {
     return grades
-      .sort((a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime())
-      .map(g => ({
-        week: new Date(g.gradedAt).toLocaleDateString('vi-VN'),
+      .sort(
+        (a, b) =>
+          new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+      )
+      .map((g) => ({
+        week: new Date(g.gradedAt).toLocaleDateString("vi-VN"),
         score: (g.score / g.maxScore) * 10 || 0, // Normalize to 10
-        name: g.gradingSheetId?.title || 'Bài kiểm tra'
+        name: g.gradingSheetId?.title || "Bài kiểm tra",
       }));
   }, [grades]);
 
@@ -187,7 +196,9 @@ function StudentDetailModal({
               <p className="text-xs text-gray-500">Tên học sinh</p>
               <p className="font-semibold text-gray-900">{student.name}</p>
               <p className="text-xs text-gray-500 mt-2">Mã HS</p>
-              <p className="font-semibold text-gray-900">{student._id.substring(0, 8)}...</p>
+              <p className="font-semibold text-gray-900">
+                {student._id.substring(0, 8)}...
+              </p>
               <p className="text-xs text-gray-500 mt-2">Email</p>
               <p className="text-sm text-gray-800">{student.email}</p>
             </Card>
@@ -199,8 +210,8 @@ function StudentDetailModal({
               <p className="text-xs text-gray-500 mt-2">Cập nhật gần nhất</p>
               <p className="text-sm text-gray-900">
                 {grades.length > 0
-                  ? new Date(grades[0].gradedAt).toLocaleDateString('vi-VN')
-                  : 'N/A'}
+                  ? new Date(grades[0].gradedAt).toLocaleDateString("vi-VN")
+                  : "N/A"}
               </p>
             </Card>
           </div>
@@ -211,7 +222,9 @@ function StudentDetailModal({
             </p>
             <div className="h-64">
               {loading ? (
-                <div className="flex items-center justify-center h-full">Đang tải...</div>
+                <div className="flex items-center justify-center h-full">
+                  Đang tải...
+                </div>
               ) : chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
@@ -251,40 +264,51 @@ function StudentDetailModal({
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div>
                 <p className="text-gray-600">Điểm giữa kỳ:</p>
-                <p className="font-bold text-gray-900">
-                  {stats.midterm}
-                </p>
+                <p className="font-bold text-gray-900">{stats.midterm}</p>
               </div>
               <div>
                 <p className="text-gray-600">Điểm cuối kỳ:</p>
-                <p className="font-bold text-gray-900">
-                  {stats.final}
-                </p>
+                <p className="font-bold text-gray-900">{stats.final}</p>
               </div>
               <div>
                 <p className="text-gray-600">Điểm trung bình (hệ 10):</p>
-                <p className="font-bold text-green-700">
-                  {stats.average}
-                </p>
+                <p className="font-bold text-green-700">{stats.average}</p>
               </div>
             </div>
 
             {/* List of recent grades */}
             <div className="mt-4 border-t border-amber-200 pt-3">
-              <p className="text-xs font-semibold text-gray-700 mb-2">Danh sách điểm gần đây:</p>
+              <p className="text-xs font-semibold text-gray-700 mb-2">
+                Danh sách điểm gần đây:
+              </p>
               <div className="max-h-40 overflow-y-auto space-y-2">
                 {grades.map((grade) => (
-                  <div key={grade._id} className="flex justify-between items-center bg-white/50 p-2 rounded">
+                  <div
+                    key={grade._id}
+                    className="flex justify-between items-center bg-white/50 p-2 rounded"
+                  >
                     <div>
-                      <p className="font-medium text-xs text-gray-900">{grade.gradingSheetId?.title || 'Bài kiểm tra'}</p>
+                      <p className="font-medium text-xs text-gray-900">
+                        {grade.gradingSheetId?.title || "Bài kiểm tra"}
+                      </p>
                       <p className="text-[10px] text-gray-500">
-                        {GRADE_CATEGORY_LABELS[grade.gradingSheetId?.category as keyof typeof GRADE_CATEGORY_LABELS]} • {new Date(grade.gradedAt).toLocaleDateString()}
+                        {
+                          GRADE_CATEGORY_LABELS[
+                            grade.gradingSheetId
+                              ?.category as keyof typeof GRADE_CATEGORY_LABELS
+                          ]
+                        }{" "}
+                        • {new Date(grade.gradedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-sm">{grade.score}/{grade.maxScore}</span>
+                      <span className="font-bold text-sm">
+                        {grade.score}/{grade.maxScore}
+                      </span>
                       {grade.feedback && (
-                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">{grade.feedback}</p>
+                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">
+                          {grade.feedback}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -694,8 +718,9 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
-                  }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
+                  !canEdit ? "opacity-60" : ""
+                }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -1077,10 +1102,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -1089,10 +1115,11 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-                  }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                  isEditing
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
+                }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1125,10 +1152,11 @@ function SettingsModal({
               Trình độ chuyên môn
             </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+              }`}
               value={
                 isEditing
                   ? formData.qualification
@@ -1145,10 +1173,11 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
+                isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+              }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1391,6 +1420,7 @@ export default function TeacherDashboard({
     incrementDownload,
     isLoading: documentsLoading,
   } = useDocumentsStore();
+  const { accessToken } = useAuthStore();
 
   // Handle click outside to close profile dropdown
   useEffect(() => {
@@ -1592,8 +1622,9 @@ export default function TeacherDashboard({
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
-            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+            classData.name
+          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1658,8 +1689,9 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
-                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
+                schedule.className
+              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -2043,7 +2075,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                        selectedClass.students.length === 0 ? (
+                      selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -2128,8 +2160,9 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
-                                  }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                                  canAttend ? "ring-2 ring-green-400" : ""
+                                }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2255,28 +2288,30 @@ export default function TeacherDashboard({
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.fileType === "PDF"
-                              ? "bg-red-100"
-                              : doc.fileType === "DOCX"
-                                ? "bg-blue-100"
-                                : doc.fileType === "PPTX"
-                                  ? "bg-orange-100"
-                                  : doc.fileType === "XLSX"
-                                    ? "bg-green-100"
-                                    : "bg-gray-100"
-                              }`}
+                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${
+                              doc.fileType === "PDF"
+                                ? "bg-red-100"
+                                : doc.fileType === "DOCX"
+                                  ? "bg-blue-100"
+                                  : doc.fileType === "PPTX"
+                                    ? "bg-orange-100"
+                                    : doc.fileType === "XLSX"
+                                      ? "bg-green-100"
+                                      : "bg-gray-100"
+                            }`}
                           >
                             <FileIcon
-                              className={`h-6 w-6 ${doc.fileType === "PDF"
-                                ? "text-red-600"
-                                : doc.fileType === "DOCX"
-                                  ? "text-blue-600"
-                                  : doc.fileType === "PPTX"
-                                    ? "text-orange-600"
-                                    : doc.fileType === "XLSX"
-                                      ? "text-green-600"
-                                      : "text-gray-600"
-                                }`}
+                              className={`h-6 w-6 ${
+                                doc.fileType === "PDF"
+                                  ? "text-red-600"
+                                  : doc.fileType === "DOCX"
+                                    ? "text-blue-600"
+                                    : doc.fileType === "PPTX"
+                                      ? "text-orange-600"
+                                      : doc.fileType === "XLSX"
+                                        ? "text-green-600"
+                                        : "text-gray-600"
+                              }`}
                             />
                           </div>
                           <div>
@@ -2315,9 +2350,10 @@ export default function TeacherDashboard({
                           </div>
                           <div className="flex gap-2">
                             <a
-                              href={`${API_BASE_URL}/documents/${doc._id}/file`}
+                              href={`${API_BASE_URL}/documents/${doc._id}/file?token=${accessToken}`}
                               target="_self"
                               rel="noopener noreferrer"
+                              onClick={() => incrementDownload(doc._id)}
                             >
                               <Button
                                 variant="outline"
@@ -2455,7 +2491,7 @@ export default function TeacherDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => { }}
+              onClose={() => {}}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2666,12 +2702,13 @@ function UploadDocumentModal({
         <div className="space-y-4">
           {/* Drag & Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
-              ? "border-blue-500 bg-blue-50"
-              : selectedFile
-                ? "border-green-500 bg-green-50"
-                : "border-gray-300 hover:border-gray-400"
-              }`}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+              isDragging
+                ? "border-blue-500 bg-blue-50"
+                : selectedFile
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-300 hover:border-gray-400"
+            }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -2761,10 +2798,11 @@ function UploadDocumentModal({
                     key={cls._id}
                     type="button"
                     onClick={() => toggleClass(cls._id)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
-                      ? "bg-blue-600 text-white"
-                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                      }`}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                      selectedClassIds.includes(cls._id)
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    }`}
                   >
                     {cls.name}
                   </button>

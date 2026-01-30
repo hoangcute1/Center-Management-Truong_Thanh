@@ -25,7 +25,7 @@ import type { UserDocument } from '../users/schemas/user.schema';
 @Controller('grades')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class GradesController {
-  constructor(private readonly gradesService: GradesService) { }
+  constructor(private readonly gradesService: GradesService) {}
 
   // ==================== GRADING SHEET ENDPOINTS ====================
 
@@ -113,5 +113,19 @@ export class GradesController {
   getStudentStats(@Param('studentId') studentId: string) {
     return this.gradesService.getStudentStats(studentId);
   }
-}
 
+  @Get('class/:classId/ranking')
+  @ApiOperation({ summary: 'Xếp hạng học sinh trong lớp theo điểm TB' })
+  getClassRanking(@Param('classId') classId: string) {
+    return this.gradesService.getClassRanking(classId);
+  }
+
+  @Get('student/:studentId/class/:classId/rank')
+  @ApiOperation({ summary: 'Lấy thứ hạng của học sinh trong lớp' })
+  getStudentRankInClass(
+    @Param('studentId') studentId: string,
+    @Param('classId') classId: string,
+  ) {
+    return this.gradesService.getStudentRankInClass(studentId, classId);
+  }
+}

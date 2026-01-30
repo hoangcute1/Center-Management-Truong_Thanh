@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,11 @@ import {
 } from "@/lib/stores";
 import { router } from "expo-router";
 import api from "@/lib/api";
+import {
+  gradingService,
+  StudentGradeRecord,
+  StudentRankInfo,
+} from "@/lib/services/grading.service";
 
 const { width } = Dimensions.get("window");
 
@@ -494,6 +499,13 @@ export default function HomeScreen() {
     email: string;
   } | null>(null);
 
+  // State for grades data
+  const [gradesData, setGradesData] = useState<StudentGradeRecord[]>([]);
+  const [gradesLoading, setGradesLoading] = useState(false);
+  const [classRankings, setClassRankings] = useState<
+    Record<string, StudentRankInfo>
+  >({});
+
   // Fetch child info for parent
   const fetchChildInfo = useCallback(async () => {
     if (role === "parent" && user?.childEmail) {
@@ -516,6 +528,117 @@ export default function HomeScreen() {
     return null;
   }, [role, user?.childEmail]);
 
+  // Fetch grades for student or parent's child
+  const fetchGrades = useCallback(
+    async (studentId?: string) => {
+      const targetId =
+        studentId || (role === "student" ? user?._id : childInfo?._id);
+      if (!targetId) return;
+
+      setGradesLoading(true);
+      try {
+        const data = await gradingService.getMyGrades(targetId);
+        setGradesData(data);
+
+        // Lấy xếp hạng cho từng lớp
+        const classIds = [
+          ...new Set(data.map((g) => g.classId?._id).filter(Boolean)),
+        ];
+        const rankings: Record<string, StudentRankInfo> = {};
+
+        for (const classId of classIds) {
+          try {
+            const rankInfo = await gradingService.getStudentRankInClass(
+              targetId,
+              classId as string,
+            );
+            rankings[classId as string] = rankInfo;
+          } catch (err) {
+            console.error(`Failed to fetch rank for class ${classId}`, err);
+          }
+        }
+        setClassRankings(rankings);
+      } catch (error) {
+        console.error("Error fetching grades:", error);
+      } finally {
+        setGradesLoading(false);
+      }
+    },
+    [role, user?._id, childInfo?._id],
+  );
+
+  // Calculate average score from grades
+  const averageScore = useMemo(() => {
+    if (!gradesData.length) return 0;
+    let totalScore = 0;
+    let totalMax = 0;
+    gradesData.forEach((g) => {
+      totalScore += g.score;
+      totalMax += g.maxScore;
+    });
+    if (totalMax === 0) return 0;
+    return parseFloat(((totalScore / totalMax) * 10).toFixed(1));
+  }, [gradesData]);
+
+  // Process grades by subject
+  const gradesBySubject = useMemo(() => {
+    if (!gradesData.length) return [];
+
+    const groups: Record<
+      string,
+      { name: string; classId: string; grades: StudentGradeRecord[] }
+    > = {};
+    gradesData.forEach((g) => {
+      const key = g.classId?._id || "unknown";
+      const name = g.classId?.name || "Lớp học";
+      if (!groups[key]) {
+        groups[key] = { name, classId: key, grades: [] };
+      }
+      groups[key].grades.push(g);
+    });
+
+    return Object.values(groups).map((group) => {
+      let totalScore = 0;
+      let totalMax = 0;
+      group.grades.forEach((g) => {
+        totalScore += g.score;
+        totalMax += g.maxScore;
+      });
+      const avg =
+        totalMax > 0
+          ? parseFloat(((totalScore / totalMax) * 10).toFixed(1))
+          : 0;
+
+      // Lấy thông tin xếp hạng của lớp này
+      const rankInfo = classRankings[group.classId];
+
+      return {
+        name: group.name,
+        classId: group.classId,
+        average: avg,
+        count: group.grades.length,
+        rank: rankInfo?.rank || null,
+        totalStudents: rankInfo?.totalStudents || 0,
+      };
+    });
+  }, [gradesData, classRankings]);
+
+  // Tính tổng xếp hạng (lớp có rank tốt nhất)
+  const overallRanking = useMemo(() => {
+    const ranks = Object.values(classRankings).filter((r) => r.rank !== null);
+    if (ranks.length === 0) return null;
+
+    const bestRank = Math.min(...ranks.map((r) => r.rank!));
+    const totalStudentsOfBestRank =
+      ranks.find((r) => r.rank === bestRank)?.totalStudents || 0;
+
+    return {
+      bestRank,
+      totalStudents: totalStudentsOfBestRank,
+      classCount: ranks.length,
+    };
+  }, [classRankings]);
+
   useEffect(() => {
     loadData();
   }, [role]);
@@ -528,6 +651,7 @@ export default function HomeScreen() {
       const childId = await fetchChildInfo();
       if (childId) {
         await fetchClasses(undefined, childId);
+        await fetchGrades(childId); // Fetch grades for child
       } else {
         await fetchClasses();
       }
@@ -535,6 +659,7 @@ export default function HomeScreen() {
       await fetchMyIncidents();
     } else if (role === "student") {
       await fetchClasses();
+      await fetchGrades(user?._id); // Fetch grades for student
       await fetchMyRequests();
       await fetchMyIncidents();
     } else if (role === "teacher") {
@@ -543,7 +668,7 @@ export default function HomeScreen() {
     } else {
       await fetchClasses();
     }
-  }, [role, fetchChildInfo]);
+  }, [role, fetchChildInfo, fetchGrades, user?._id]);
 
   const onRefresh = async () => {
     await loadData();
@@ -908,6 +1033,93 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Student Progress Section */}
+        {role === "student" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Tiến độ học tập</Text>
+            </View>
+            {gradesLoading ? (
+              <View style={styles.progressCard}>
+                <ActivityIndicator size="small" color="#6366F1" />
+              </View>
+            ) : gradesData.length === 0 ? (
+              <View style={styles.progressCard}>
+                <Text style={styles.emptyText}>Chưa có dữ liệu điểm</Text>
+              </View>
+            ) : (
+              <View style={styles.progressCard}>
+                <View style={styles.progressItem}>
+                  <Text style={styles.progressLabel}>Điểm trung bình</Text>
+                  <View style={styles.progressBar}>
+                    <LinearGradient
+                      colors={["#10B981", "#059669"]}
+                      style={[
+                        styles.progressFill,
+                        { width: `${averageScore * 10}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.progressValue}>{averageScore}/10</Text>
+                </View>
+
+                {/* Xếp hạng tổng */}
+                {overallRanking && (
+                  <View style={styles.progressItem}>
+                    <Text style={[styles.progressLabel, { color: "#F59E0B" }]}>
+                      🏆 Xếp hạng: #{overallRanking.bestRank}/
+                      {overallRanking.totalStudents}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Subject breakdown */}
+                {gradesBySubject.map((subject, index) => (
+                  <View key={index} style={styles.progressItem}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text style={styles.progressLabel}>
+                        {subject.name} ({subject.count} bài)
+                      </Text>
+                      {subject.rank && (
+                        <Text
+                          style={[
+                            styles.progressLabel,
+                            { color: "#F59E0B", fontSize: 11 },
+                          ]}
+                        >
+                          #{subject.rank}/{subject.totalStudents}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.progressBar}>
+                      <LinearGradient
+                        colors={
+                          index % 2 === 0
+                            ? ["#3B82F6", "#2563EB"]
+                            : ["#F59E0B", "#D97706"]
+                        }
+                        style={[
+                          styles.progressFill,
+                          { width: `${subject.average * 10}%` },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.progressValue}>
+                      {subject.average}/10
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Teacher Stats Card */}
         {role === "teacher" && (
           <View style={styles.section}>
@@ -955,38 +1167,84 @@ export default function HomeScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Tiến độ học tập</Text>
             </View>
-            <View style={styles.progressCard}>
-              <View style={styles.progressItem}>
-                <Text style={styles.progressLabel}>Điểm trung bình</Text>
-                <View style={styles.progressBar}>
-                  <LinearGradient
-                    colors={["#10B981", "#059669"]}
-                    style={[styles.progressFill, { width: "82%" }]}
-                  />
-                </View>
-                <Text style={styles.progressValue}>8.2/10</Text>
+            {gradesLoading ? (
+              <View style={styles.progressCard}>
+                <ActivityIndicator size="small" color="#6366F1" />
               </View>
-              <View style={styles.progressItem}>
-                <Text style={styles.progressLabel}>Chuyên cần</Text>
-                <View style={styles.progressBar}>
-                  <LinearGradient
-                    colors={["#3B82F6", "#2563EB"]}
-                    style={[styles.progressFill, { width: "95%" }]}
-                  />
-                </View>
-                <Text style={styles.progressValue}>95%</Text>
+            ) : gradesData.length === 0 ? (
+              <View style={styles.progressCard}>
+                <Text style={styles.emptyText}>Chưa có dữ liệu điểm</Text>
               </View>
-              <View style={styles.progressItem}>
-                <Text style={styles.progressLabel}>Bài tập</Text>
-                <View style={styles.progressBar}>
-                  <LinearGradient
-                    colors={["#F59E0B", "#D97706"]}
-                    style={[styles.progressFill, { width: "88%" }]}
-                  />
+            ) : (
+              <View style={styles.progressCard}>
+                <View style={styles.progressItem}>
+                  <Text style={styles.progressLabel}>Điểm trung bình</Text>
+                  <View style={styles.progressBar}>
+                    <LinearGradient
+                      colors={["#10B981", "#059669"]}
+                      style={[
+                        styles.progressFill,
+                        { width: `${averageScore * 10}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.progressValue}>{averageScore}/10</Text>
                 </View>
-                <Text style={styles.progressValue}>88%</Text>
+
+                {/* Xếp hạng tổng */}
+                {overallRanking && (
+                  <View style={styles.progressItem}>
+                    <Text style={[styles.progressLabel, { color: "#F59E0B" }]}>
+                      🏆 Xếp hạng: #{overallRanking.bestRank}/
+                      {overallRanking.totalStudents}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Subject breakdown */}
+                {gradesBySubject.map((subject, index) => (
+                  <View key={index} style={styles.progressItem}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text style={styles.progressLabel}>
+                        {subject.name} ({subject.count} bài)
+                      </Text>
+                      {subject.rank && (
+                        <Text
+                          style={[
+                            styles.progressLabel,
+                            { color: "#F59E0B", fontSize: 11 },
+                          ]}
+                        >
+                          #{subject.rank}/{subject.totalStudents}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.progressBar}>
+                      <LinearGradient
+                        colors={
+                          index % 2 === 0
+                            ? ["#3B82F6", "#2563EB"]
+                            : ["#F59E0B", "#D97706"]
+                        }
+                        style={[
+                          styles.progressFill,
+                          { width: `${subject.average * 10}%` },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.progressValue}>
+                      {subject.average}/10
+                    </Text>
+                  </View>
+                ))}
               </View>
-            </View>
+            )}
           </View>
         )}
       </ScrollView>
