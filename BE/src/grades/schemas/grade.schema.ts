@@ -9,11 +9,11 @@ export enum GradeType {
 }
 
 export enum GradeCategory {
-  Test15Minutes = '15p',
-  Test1Period = '1_tiet',
-  MidTerm = 'giua_ky',
-  FinalTerm = 'cuoi_ky',
-  Other = 'khac',
+  Test15Minutes = 'test_15p',      // Kiểm tra 15 phút
+  Test30Minutes = 'test_30p',      // Kiểm tra 30 phút (1 tiết)
+  MidTerm = 'giua_ky',             // Giữa kỳ
+  FinalTerm = 'cuoi_ky',           // Cuối kỳ
+  Other = 'khac',                  // Khác
 }
 
 @Schema({ timestamps: true })
@@ -29,6 +29,9 @@ export class Grade {
 
   @Prop({ type: Types.ObjectId, ref: 'Assignment' })
   assignmentId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'GradingSheet' })
+  gradingSheetId?: Types.ObjectId;
 
   @Prop({ required: true })
   score: number;

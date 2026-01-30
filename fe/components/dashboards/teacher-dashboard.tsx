@@ -34,10 +34,19 @@ import {
 } from "@/lib/stores/documents-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
+import TeacherGradingTab from "@/components/teacher-grading-tab";
+import { teacherGradingService, GRADE_CATEGORY_LABELS } from "@/lib/services/teacher-grading.service";
 
 interface TeacherDashboardProps {
-  user: { id: string; name: string; email: string; role: string; teacherCode?: string; phone?: string; avatarUrl?: string };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    teacherCode?: string;
+    phone?: string;
+    avatarUrl?: string;
+  };
   onLogout: () => void;
 }
 
@@ -108,6 +117,53 @@ function StudentDetailModal({
   student: StudentItem;
   onClose: () => void;
 }) {
+  const [grades, setGrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        setLoading(true);
+        const data = await teacherGradingService.getStudentGrades(student._id);
+        setGrades(data);
+      } catch (error) {
+        console.error("Failed to fetch grades:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGrades();
+  }, [student._id]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    if (!grades.length) return { average: 0, midterm: 0, final: 0 };
+
+    const total = grades.reduce((acc, g) => acc + g.score, 0);
+    const maxTotal = grades.reduce((acc, g) => acc + g.maxScore, 0);
+    const average = maxTotal > 0 ? (total / maxTotal) * 10 : 0;
+
+    const midterm = grades.find(g => g.gradingSheetId?.category === 'giua_ky');
+    const final = grades.find(g => g.gradingSheetId?.category === 'cuoi_ky');
+
+    return {
+      average: average.toFixed(1),
+      midterm: midterm ? midterm.score : 'N/A',
+      final: final ? final.score : 'N/A',
+    };
+  }, [grades]);
+
+  // Chart data (scores over time)
+  const chartData = useMemo(() => {
+    return grades
+      .sort((a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime())
+      .map(g => ({
+        week: new Date(g.gradedAt).toLocaleDateString('vi-VN'),
+        score: (g.score / g.maxScore) * 10 || 0, // Normalize to 10
+        name: g.gradingSheetId?.title || 'Bài kiểm tra'
+      }));
+  }, [grades]);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 bg-white">
@@ -131,53 +187,62 @@ function StudentDetailModal({
               <p className="text-xs text-gray-500">Tên học sinh</p>
               <p className="font-semibold text-gray-900">{student.name}</p>
               <p className="text-xs text-gray-500 mt-2">Mã HS</p>
-              <p className="font-semibold text-gray-900">{student._id}</p>
+              <p className="font-semibold text-gray-900">{student._id.substring(0, 8)}...</p>
               <p className="text-xs text-gray-500 mt-2">Email</p>
               <p className="text-sm text-gray-800">{student.email}</p>
             </Card>
             <Card className="p-4 bg-purple-50 border-purple-100">
-              <p className="text-xs text-gray-500">Môn học</p>
-              <p className="text-sm text-gray-900">
-                {studentDetailMock.subject}
+              <p className="text-xs text-gray-500">Số bài kiểm tra</p>
+              <p className="text-sm text-gray-900 font-bold text-lg">
+                {grades.length}
               </p>
-              <p className="text-xs text-gray-500 mt-2">SĐT</p>
-              <p className="text-sm text-gray-900">{studentDetailMock.phone}</p>
-              <p className="text-xs text-gray-500 mt-2">Phụ huynh</p>
+              <p className="text-xs text-gray-500 mt-2">Cập nhật gần nhất</p>
               <p className="text-sm text-gray-900">
-                {studentDetailMock.parent}
+                {grades.length > 0
+                  ? new Date(grades[0].gradedAt).toLocaleDateString('vi-VN')
+                  : 'N/A'}
               </p>
             </Card>
           </div>
 
           <Card className="p-4 bg-green-50 border-green-100">
             <p className="font-semibold text-gray-900 mb-2">
-              Biểu đồ tiến độ học tập
+              Biểu đồ điểm số (Thang 10)
             </p>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={studentDetailMock.progress}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#d1fae5" />
-                  <XAxis
-                    dataKey="week"
-                    tick={{ fontSize: 12, fill: "#047857" }}
-                  />
-                  <YAxis
-                    domain={[50, 100]}
-                    tick={{ fontSize: 12, fill: "#047857" }}
-                  />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#16a34a"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">Đang tải...</div>
+              ) : chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#d1fae5" />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fontSize: 12, fill: "#047857" }}
+                    />
+                    <YAxis
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: "#047857" }}
+                    />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#16a34a"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      name="Điểm số"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Chưa có dữ liệu điểm
+                </div>
+              )}
             </div>
           </Card>
 
@@ -185,49 +250,48 @@ function StudentDetailModal({
             <p className="font-semibold text-gray-900 mb-2">Điểm chi tiết</p>
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div>
-                <p className="text-gray-600">Điểm kiểm tra giữa kỳ:</p>
+                <p className="text-gray-600">Điểm giữa kỳ:</p>
                 <p className="font-bold text-gray-900">
-                  {studentDetailMock.midterm}
+                  {stats.midterm}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600">Điểm cuối kỳ:</p>
                 <p className="font-bold text-gray-900">
-                  {studentDetailMock.final}
+                  {stats.final}
                 </p>
               </div>
               <div>
-                <p className="text-gray-600">Điểm trung bình:</p>
+                <p className="text-gray-600">Điểm trung bình (hệ 10):</p>
                 <p className="font-bold text-green-700">
-                  {studentDetailMock.average}
+                  {stats.average}
                 </p>
               </div>
             </div>
-          </Card>
 
-          <Card className="p-4 bg-blue-50 border-blue-100">
-            <p className="font-semibold text-gray-900 mb-2">
-              Nhận xét của giáo viên
-            </p>
-            <p className="text-sm text-gray-800 leading-relaxed">
-              {studentDetailMock.teacherNote}
-            </p>
+            {/* List of recent grades */}
+            <div className="mt-4 border-t border-amber-200 pt-3">
+              <p className="text-xs font-semibold text-gray-700 mb-2">Danh sách điểm gần đây:</p>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {grades.map((grade) => (
+                  <div key={grade._id} className="flex justify-between items-center bg-white/50 p-2 rounded">
+                    <div>
+                      <p className="font-medium text-xs text-gray-900">{grade.gradingSheetId?.title || 'Bài kiểm tra'}</p>
+                      <p className="text-[10px] text-gray-500">
+                        {GRADE_CATEGORY_LABELS[grade.gradingSheetId?.category as keyof typeof GRADE_CATEGORY_LABELS]} • {new Date(grade.gradedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-sm">{grade.score}/{grade.maxScore}</span>
+                      {grade.feedback && (
+                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">{grade.feedback}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4 text-center">
-              <p className="text-sm text-gray-600">Buổi học dự</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {studentDetailMock.attendance}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-sm text-gray-600">Bài tập nộp</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {studentDetailMock.homework}
-              </p>
-            </Card>
-          </div>
 
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700"
@@ -791,7 +855,9 @@ function SettingsModal({
   };
   onClose: () => void;
 }) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -973,7 +1039,10 @@ function SettingsModal({
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
-            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -983,7 +1052,20 @@ function SettingsModal({
                 onClick={() => setShowImagePreview(false)}
                 className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
           </div>
@@ -1268,7 +1350,9 @@ export default function TeacherDashboard({
     }
   }, [user.id]);
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
 
   // Sync avatarPreview when user prop changes
   useEffect(() => {
@@ -1808,7 +1892,7 @@ export default function TeacherDashboard({
               value="assignments"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
-              📝 Giao bài & Chấm bài
+              📝 Chấm Bài
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
@@ -2365,7 +2449,7 @@ export default function TeacherDashboard({
           </TabsContent>
 
           <TabsContent value="assignments" className="mt-6">
-            <TeacherAssignmentsTab />
+            <TeacherGradingTab />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">
@@ -2381,73 +2465,62 @@ export default function TeacherDashboard({
         </Tabs>
       </main>
 
-      {
-        chatWith && (
-          <ChatWindow
-            recipientName={chatWith.name}
-            recipientRole={chatWith.role}
-            currentUserName={user.name}
-            onClose={() => setChatWith(null)}
-          />
-        )
-      }
-      {
-        selectedStudent && (
-          <StudentDetailModal
-            student={selectedStudent}
-            onClose={() => setSelectedStudent(null)}
-          />
-        )
-      }
-      {
-        attendanceSession && (
-          <AttendanceModal
-            session={attendanceSession.session}
-            classData={attendanceSession.classData}
-            onClose={() => setAttendanceSession(null)}
-            onSave={handleSaveAttendance}
-          />
-        )
-      }
-      {
-        timetableAttendance && (
-          <TimetableAttendanceModal
-            schedule={timetableAttendance.schedule}
-            classData={timetableAttendance.classData}
-            fullDate={timetableAttendance.fullDate}
-            onClose={() => setTimetableAttendance(null)}
-            onSave={handleSaveTimetableAttendance}
-          />
-        )
-      }
-      {
-        showEvaluation && (
-          <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
-        )
-      }
-      {
-        showSettings && (
-          <SettingsModal user={fullUserDetails || user} onClose={() => setShowSettings(false)} />
-        )
-      }
-      {
-        showUploadModal && (
-          <UploadDocumentModal
-            classes={classes}
-            onClose={() => setShowUploadModal(false)}
-            onUpload={async (file, data) => {
-              try {
-                await uploadDocument(file, data);
-                toast.success("Tải lên tài liệu thành công!");
-                setShowUploadModal(false);
-              } catch (error: any) {
-                toast.error(error.message || "Lỗi khi tải lên tài liệu");
-              }
-            }}
-          />
-        )
-      }
-    </div >
+      {chatWith && (
+        <ChatWindow
+          recipientName={chatWith.name}
+          recipientRole={chatWith.role}
+          currentUserName={user.name}
+          onClose={() => setChatWith(null)}
+        />
+      )}
+      {selectedStudent && (
+        <StudentDetailModal
+          student={selectedStudent}
+          onClose={() => setSelectedStudent(null)}
+        />
+      )}
+      {attendanceSession && (
+        <AttendanceModal
+          session={attendanceSession.session}
+          classData={attendanceSession.classData}
+          onClose={() => setAttendanceSession(null)}
+          onSave={handleSaveAttendance}
+        />
+      )}
+      {timetableAttendance && (
+        <TimetableAttendanceModal
+          schedule={timetableAttendance.schedule}
+          classData={timetableAttendance.classData}
+          fullDate={timetableAttendance.fullDate}
+          onClose={() => setTimetableAttendance(null)}
+          onSave={handleSaveTimetableAttendance}
+        />
+      )}
+      {showEvaluation && (
+        <TeacherEvaluationModal onClose={() => setShowEvaluation(false)} />
+      )}
+      {showSettings && (
+        <SettingsModal
+          user={fullUserDetails || user}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showUploadModal && (
+        <UploadDocumentModal
+          classes={classes}
+          onClose={() => setShowUploadModal(false)}
+          onUpload={async (file, data) => {
+            try {
+              await uploadDocument(file, data);
+              toast.success("Tải lên tài liệu thành công!");
+              setShowUploadModal(false);
+            } catch (error: any) {
+              toast.error(error.message || "Lỗi khi tải lên tài liệu");
+            }
+          }}
+        />
+      )}
+    </div>
   );
 }
 

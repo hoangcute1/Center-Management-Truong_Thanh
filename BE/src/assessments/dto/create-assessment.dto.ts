@@ -4,6 +4,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
 
 export enum AssessmentType {
@@ -31,6 +33,12 @@ export class CreateAssessmentDto {
   @IsOptional()
   @IsNumber()
   maxScore?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  weight?: number;
 
   @IsOptional()
   @IsDateString()
