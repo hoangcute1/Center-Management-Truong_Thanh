@@ -4,15 +4,107 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { gradingService, StudentGradeRecord } from "@/lib/services/grading.service";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  'test_15p': 'Kiểm tra 15 phút',
+  'test_45p': 'Kiểm tra 1 tiết',
+  'test_60p': 'Kiểm tra 1 tiết',
+  'mid_term': 'Thi giữa kỳ',
+  'final_term': 'Thi cuối kỳ',
+  'assignment': 'Bài tập về nhà',
+  'other': 'Khác'
+};
 
 export default function GradeDetailScreen() {
-  const { id, name } = useLocalSearchParams();
+  const { id, name } = useLocalSearchParams(); // id is classId
   const subjectName = typeof name === "string" ? name : "Chi tiết môn học";
+
+  const { user } = useAuthStore();
+  const [grades, setGrades] = useState<StudentGradeRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Filtered grades for this class
+  const classGrades = useMemo(() => {
+    if (!grades.length) return [];
+    // Filter by classId
+    return grades.filter(g => g.classId?._id === id);
+  }, [grades, id]);
+
+  const fetchGrades = useCallback(async () => {
+    if (!user?._id) return;
+    try {
+      if (!refreshing) setLoading(true);
+      const data = await gradingService.getMyGrades(user._id);
+      setGrades(data);
+    } catch (e) {
+      console.error("Failed to fetch grades:", e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?._id, refreshing]);
+
+  useEffect(() => {
+    fetchGrades();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchGrades();
+  };
+
+  // Calculate Statistics
+  const stats = useMemo(() => {
+    if (!classGrades.length) return { avg: "N/A", rank: "--", rankColor: "#6B7280" };
+
+    let totalScore = 0;
+    let totalMax = 0;
+    classGrades.forEach(g => {
+      totalScore += g.score;
+      totalMax += g.maxScore;
+    });
+
+    let avg = 0;
+    if (totalMax > 0) avg = (totalScore / totalMax) * 10;
+
+    const avgStr = avg.toFixed(1);
+
+    let rank = "Yếu";
+    let rankColor = "#EF4444"; // Red
+
+    if (avg >= 8) { rank = "Giỏi"; rankColor = "#10B981"; }
+    else if (avg >= 6.5) { rank = "Khá"; rankColor = "#3B82F6"; }
+    else if (avg >= 5) { rank = "Trung bình"; rankColor = "#F59E0B"; }
+
+    return { avg: avgStr, rank, rankColor };
+  }, [classGrades]);
+
+  // Group by Category
+  const groupedScores = useMemo(() => {
+    const groups: Record<string, StudentGradeRecord[]> = {};
+    classGrades.forEach(g => {
+      const cat = g.gradingSheetId?.category || "other";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(g);
+    });
+    return groups;
+  }, [classGrades]);
+
+  // Get recent feedback
+  const feedbackList = useMemo(() => {
+    return classGrades.filter(g => g.feedback).sort((a, b) => new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime());
+  }, [classGrades]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -27,82 +119,78 @@ export default function GradeDetailScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Summary Card */}
-        <LinearGradient
-          colors={["#3B82F6", "#2563EB"]}
-          style={styles.summaryCard}
-        >
-          <View style={styles.summaryRow}>
-            <View>
-              <Text style={styles.summaryLabel}>Trung bình môn</Text>
-              <Text style={styles.summaryValue}>8.2</Text>
-            </View>
-            <View style={styles.rankContainer}>
-              <Text style={styles.rankLabel}>Xếp loại</Text>
-              <View style={styles.rankBadge}>
-                <Text style={styles.rankText}>Giỏi</Text>
-              </View>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {/* Detailed Scores */}
-        <Text style={styles.sectionTitle}>Bảng điểm chi tiết</Text>
-        <View style={styles.detailCard}>
-          <View style={styles.scoreRow}>
-            <Text style={styles.scoreLabel}>Điểm thi (Giữa kỳ)</Text>
-            <Text style={styles.scoreNum}>8.5</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.scoreRow}>
-            <Text style={styles.scoreLabel}>Điểm kiểm tra (15 phút)</Text>
-            <View style={styles.multiScore}>
-              <Text style={styles.scoreTag}>9.0</Text>
-              <Text style={styles.scoreTag}>7.5</Text>
-              <Text style={styles.scoreTag}>8.0</Text>
-            </View>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.scoreRow}>
-            <Text style={styles.scoreLabel}>Điểm miệng</Text>
-            <View style={styles.multiScore}>
-              <Text style={styles.scoreTag}>10</Text>
-              <Text style={styles.scoreTag}>9.0</Text>
-            </View>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.scoreRow}>
-            <Text
-              style={[
-                styles.scoreLabel,
-                { fontWeight: "bold", color: "#1F2937" },
-              ]}
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 20 }} />
+        ) : (
+          <>
+            {/* Summary Card */}
+            <LinearGradient
+              colors={["#3B82F6", "#2563EB"]}
+              style={styles.summaryCard}
             >
-              Điểm thi (Cuối kỳ)
-            </Text>
-            <Text style={[styles.scoreNum, { color: "#2563EB" }]}>--</Text>
-          </View>
-        </View>
+              <View style={styles.summaryRow}>
+                <View>
+                  <Text style={styles.summaryLabel}>Trung bình môn</Text>
+                  <Text style={styles.summaryValue}>{stats.avg}</Text>
+                </View>
+                <View style={styles.rankContainer}>
+                  <Text style={styles.rankLabel}>Xếp loại</Text>
+                  <View style={[styles.rankBadge, { borderColor: stats.rankColor }]}>
+                    <Text style={styles.rankText}>{stats.rank}</Text>
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
 
-        {/* Teacher Comments */}
-        <Text style={styles.sectionTitle}>Nhận xét của giáo viên</Text>
-        <View style={styles.commentCard}>
-          <View style={styles.commentHeader}>
-            <View style={styles.teacherAvatar}>
-              <Text style={styles.avatarText}>C</Text>
+            {/* Detailed Scores */}
+            <Text style={styles.sectionTitle}>Bảng điểm chi tiết</Text>
+            <View style={styles.detailCard}>
+
+              {Object.keys(groupedScores).length > 0 ? Object.keys(groupedScores).map((cat, idx) => (
+                <View key={cat}>
+                  <View style={styles.scoreRow}>
+                    <Text style={styles.scoreLabel}>{CATEGORY_LABELS[cat] || cat}</Text>
+                    <View style={styles.multiScore}>
+                      {groupedScores[cat].map((g, i) => (
+                        <Text key={i} style={styles.scoreTag}>{g.score}</Text>
+                      ))}
+                    </View>
+                  </View>
+                  {idx < Object.keys(groupedScores).length - 1 && <View style={styles.divider} />}
+                </View>
+              )) : <Text style={{ textAlign: 'center', color: '#6B7280', padding: 10 }}>Chưa có điểm số</Text>}
+
             </View>
-            <View>
-              <Text style={styles.commentTeacher}>Cô Trần Thị B</Text>
-              <Text style={styles.commentDate}>20/01/2025</Text>
-            </View>
-          </View>
-          <Text style={styles.commentContent}>
-            Em học tập rất chăm chỉ, tiếp thu bài nhanh. Tuy nhiên cần cẩn thận
-            hơn trong các bài kiểm tra 15 phút để tránh sai sót nhỏ. Cố gắng
-            phát huy nhé!
-          </Text>
-        </View>
+
+            {/* Teacher Comments */}
+            <Text style={styles.sectionTitle}>Nhận xét của giáo viên</Text>
+            {feedbackList.length > 0 ? feedbackList.map((f, i) => (
+              <View key={i} style={styles.commentCard}>
+                <View style={styles.commentHeader}>
+                  <View style={styles.teacherAvatar}>
+                    <Text style={styles.avatarText}>G</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.commentTeacher}>{f.gradedBy?.name || "Giáo viên"}</Text>
+                    <Text style={styles.commentDate}>{new Date(f.gradedAt).toLocaleDateString('vi-VN')}</Text>
+                  </View>
+                </View>
+                <Text style={styles.commentContent}>
+                  {f.feedback}
+                </Text>
+              </View>
+            )) : (
+              <View style={styles.commentCard}>
+                <Text style={{ color: '#6B7280', textAlign: 'center' }}>Chưa có nhận xét nào.</Text>
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -217,6 +305,10 @@ const styles = StyleSheet.create({
   multiScore: {
     flexDirection: "row",
     gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    flex: 1,
+    marginLeft: 10
   },
   scoreTag: {
     fontSize: 14,
@@ -235,7 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 40,
+    marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,

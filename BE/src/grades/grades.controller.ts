@@ -4,12 +4,15 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GradesService } from './grades.service';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
 import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
+import { CreateGradingSheetDto } from './dto/create-grading-sheet.dto';
+import { BulkGradeDto } from './dto/bulk-grade.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,7 +25,46 @@ import type { UserDocument } from '../users/schemas/user.schema';
 @Controller('grades')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class GradesController {
-  constructor(private readonly gradesService: GradesService) {}
+  constructor(private readonly gradesService: GradesService) { }
+
+  // ==================== GRADING SHEET ENDPOINTS ====================
+
+  @Post('sheets')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  @ApiOperation({ summary: 'Tạo bài chấm điểm mới' })
+  createGradingSheet(
+    @CurrentUser() teacher: UserDocument,
+    @Body() dto: CreateGradingSheetDto,
+  ) {
+    return this.gradesService.createGradingSheet(teacher, dto);
+  }
+
+  @Get('sheets')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  @ApiOperation({ summary: 'Lấy danh sách bài chấm của teacher' })
+  getTeacherGradingSheets(@CurrentUser() teacher: UserDocument) {
+    return this.gradesService.getTeacherGradingSheets(teacher._id.toString());
+  }
+
+  @Get('sheets/:id')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  @ApiOperation({ summary: 'Chi tiết bài chấm + danh sách học sinh' })
+  getGradingSheetWithStudents(@Param('id') id: string) {
+    return this.gradesService.getGradingSheetWithStudents(id);
+  }
+
+  @Post('sheets/:id/grade')
+  @Roles(UserRole.Admin, UserRole.Teacher)
+  @ApiOperation({ summary: 'Chấm điểm hàng loạt cho học sinh' })
+  bulkGradeStudents(
+    @CurrentUser() teacher: UserDocument,
+    @Param('id') id: string,
+    @Body() dto: BulkGradeDto,
+  ) {
+    return this.gradesService.bulkGradeStudents(teacher, id, dto);
+  }
+
+  // ==================== OLD ENDPOINTS ====================
 
   @Post('manual')
   @Roles(UserRole.Admin, UserRole.Teacher)
@@ -57,9 +99,19 @@ export class GradesController {
     return this.gradesService.findByStudent(studentId);
   }
 
+  @Get('student/:studentId/class/:classId')
+  @ApiOperation({ summary: 'Xem điểm của học sinh trong một lớp' })
+  findByStudentInClass(
+    @Param('studentId') studentId: string,
+    @Param('classId') classId: string,
+  ) {
+    return this.gradesService.findByStudentInClass(studentId, classId);
+  }
+
   @Get('student/:studentId/stats')
-  @ApiOperation({ summary: 'Thống kê điểm của học sinh (cho leaderboard)' })
+  @ApiOperation({ summary: 'Thống kê điểm của học sinh' })
   getStudentStats(@Param('studentId') studentId: string) {
     return this.gradesService.getStudentStats(studentId);
   }
 }
+

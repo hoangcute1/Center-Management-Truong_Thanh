@@ -6,40 +6,221 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Grade, GradeDocument, GradeType } from './schemas/grade.schema';
+import { GradingSheet, GradingSheetDocument } from './schemas/grading-sheet.schema';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
 import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
+import { CreateGradingSheetDto } from './dto/create-grading-sheet.dto';
+import { BulkGradeDto } from './dto/bulk-grade.dto';
 import { UserDocument } from '../users/schemas/user.schema';
 import { Submission, SubmissionDocument } from '../submissions/schemas/submission.schema';
 import { Assignment, AssignmentDocument } from '../assignments/schemas/assignment.schema';
+import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
 
 @Injectable()
 export class GradesService {
   constructor(
     @InjectModel(Grade.name)
     private readonly gradeModel: Model<GradeDocument>,
+    @InjectModel(GradingSheet.name)
+    private readonly gradingSheetModel: Model<GradingSheetDocument>,
     @InjectModel(Submission.name)
     private readonly submissionModel: Model<SubmissionDocument>,
     @InjectModel(Assignment.name)
     private readonly assignmentModel: Model<AssignmentDocument>,
-  ) {}
+    @InjectModel(ClassEntity.name)
+    private readonly classModel: Model<ClassDocument>,
+  ) { }
+
+  // ==================== GRADING SHEET METHODS ====================
+
+  /**
+   * Tạo bài chấm điểm mới
+   */
+  async createGradingSheet(teacher: UserDocument, dto: CreateGradingSheetDto) {
+    // Kiểm tra lớp có tồn tại và teacher có quyền không
+    const classDoc = await this.classModel.findById(dto.classId).exec();
+    if (!classDoc) {
+      throw new NotFoundException('Class not found');
+    }
+
+    // Kiểm tra teacher có được assign cho lớp này không
+    if (classDoc.teacherId?.toString() !== teacher._id.toString()) {
+      throw new BadRequestException('You are not assigned to this class');
+    }
+
+    const gradingSheet = new this.gradingSheetModel({
+      title: dto.title,
+      description: dto.description,
+      classId: new Types.ObjectId(dto.classId),
+      category: dto.category,
+      maxScore: dto.maxScore,
+      createdBy: teacher._id,
+    });
+
+    await gradingSheet.save();
+
+    return this.gradingSheetModel
+      .findById(gradingSheet._id)
+      .populate('classId', 'name')
+      .populate('createdBy', 'name email')
+      .exec();
+  }
+
+  /**
+   * Lấy danh sách bài chấm điểm của teacher
+   */
+  async getTeacherGradingSheets(teacherId: string) {
+    return this.gradingSheetModel
+      .find({ createdBy: new Types.ObjectId(teacherId) })
+      .populate('classId', 'name studentIds')
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Lấy chi tiết bài chấm điểm + danh sách học sinh với điểm
+   */
+  async getGradingSheetWithStudents(gradingSheetId: string) {
+    const gradingSheet = await this.gradingSheetModel
+      .findById(gradingSheetId)
+      .populate('classId', 'name')
+      .populate('createdBy', 'name email')
+      .exec();
+
+    if (!gradingSheet) {
+      throw new NotFoundException('Grading sheet not found');
+    }
+
+    // Lấy danh sách học sinh của lớp
+    const classDoc = await this.classModel
+      .findById(gradingSheet.classId)
+      .populate('studentIds', 'name email studentCode')
+      .exec();
+
+    if (!classDoc) {
+      throw new NotFoundException('Class not found');
+    }
+
+    // Lấy điểm đã chấm cho grading sheet này
+    const grades = await this.gradeModel
+      .find({ gradingSheetId: new Types.ObjectId(gradingSheetId) })
+      .exec();
+
+    // Map điểm vào từng học sinh
+    const students = (classDoc.studentIds || []).map((student: any) => {
+      const grade = grades.find(
+        (g) => g.studentId.toString() === student._id.toString()
+      );
+      return {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        studentCode: student.studentCode,
+        score: grade?.score ?? null,
+        feedback: grade?.feedback ?? null,
+        graded: !!grade,
+        gradedAt: grade?.gradedAt ?? null,
+      };
+    });
+
+    return {
+      gradingSheet,
+      students,
+      summary: {
+        total: students.length,
+        graded: grades.length,
+        pending: students.length - grades.length,
+      },
+    };
+  }
+
+  /**
+   * Chấm điểm hàng loạt cho nhiều học sinh
+   */
+  async bulkGradeStudents(
+    teacher: UserDocument,
+    gradingSheetId: string,
+    dto: BulkGradeDto
+  ) {
+    const gradingSheet = await this.gradingSheetModel.findById(gradingSheetId).exec();
+    if (!gradingSheet) {
+      throw new NotFoundException('Grading sheet not found');
+    }
+
+    // Validate teacher có quyền chấm không
+    if (gradingSheet.createdBy.toString() !== teacher._id.toString()) {
+      throw new BadRequestException('You do not have permission to grade this sheet');
+    }
+
+    const results: any[] = [];
+
+    for (const gradeDto of dto.grades) {
+      // Validate score
+      if (gradeDto.score > gradingSheet.maxScore) {
+        throw new BadRequestException(
+          `Score for student ${gradeDto.studentId} exceeds maxScore (${gradingSheet.maxScore})`
+        );
+      }
+
+      // Check xem đã có grade chưa
+      const existingGrade = await this.gradeModel
+        .findOne({
+          studentId: new Types.ObjectId(gradeDto.studentId),
+          gradingSheetId: new Types.ObjectId(gradingSheetId),
+        })
+        .exec();
+
+      if (existingGrade) {
+        // Update existing grade
+        existingGrade.score = gradeDto.score;
+        existingGrade.feedback = gradeDto.feedback;
+        existingGrade.gradedAt = new Date();
+        await existingGrade.save();
+        results.push(existingGrade);
+      } else {
+        // Create new grade
+        const grade = new this.gradeModel({
+          studentId: new Types.ObjectId(gradeDto.studentId),
+          classId: gradingSheet.classId,
+          gradingSheetId: new Types.ObjectId(gradingSheetId),
+          score: gradeDto.score,
+          maxScore: gradingSheet.maxScore,
+          type: GradeType.Manual,
+          category: gradingSheet.category,
+          gradedBy: teacher._id,
+          gradedAt: new Date(),
+          feedback: gradeDto.feedback,
+        });
+        await grade.save();
+        results.push(grade);
+      }
+    }
+
+    return {
+      success: true,
+      count: results.length,
+      message: `Successfully graded ${results.length} students`,
+    };
+  }
+
+  // ==================== OLD METHODS ====================
 
   /**
    * Nhập điểm tay - Không cần assignment/submission
    */
   async createManualGrade(teacher: UserDocument, dto: CreateManualGradeDto) {
-    // Validate score không vượt quá maxScore
     if (dto.score > dto.maxScore) {
       throw new BadRequestException(
         `Score (${dto.score}) cannot exceed maxScore (${dto.maxScore})`,
       );
     }
 
-    // Tạo Grade record
     const grade = new this.gradeModel({
       studentId: new Types.ObjectId(dto.studentId),
       classId: new Types.ObjectId(dto.classId),
       subjectId: dto.subjectId ? new Types.ObjectId(dto.subjectId) : undefined,
-      assignmentId: undefined, // Manual grade không có assignment
+      assignmentId: undefined,
       score: dto.score,
       maxScore: dto.maxScore,
       type: GradeType.Manual,
@@ -51,7 +232,6 @@ export class GradesService {
 
     await grade.save();
 
-    // Populate và trả về
     return this.gradeModel
       .findById(grade._id)
       .populate('studentId', 'name email')
@@ -65,7 +245,6 @@ export class GradesService {
    * Chấm bài - Tạo grade record + update submission
    */
   async gradeAssignment(teacher: UserDocument, dto: GradeAssignmentDto) {
-    // 1. Lấy submission
     const submission = await this.submissionModel
       .findById(dto.submissionId)
       .populate('assignmentId')
@@ -77,14 +256,12 @@ export class GradesService {
 
     const assignment = submission.assignmentId as any;
 
-    // 2. Validate score không vượt quá maxScore
     if (dto.score > assignment.maxScore) {
       throw new BadRequestException(
         `Score cannot exceed maxScore (${assignment.maxScore})`,
       );
     }
 
-    // 3. Check xem đã chấm chưa
     const existingGrade = await this.gradeModel
       .findOne({
         studentId: submission.studentId,
@@ -96,7 +273,6 @@ export class GradesService {
       throw new BadRequestException('This assignment has already been graded');
     }
 
-    // 4. Tạo Grade record
     const grade = new this.gradeModel({
       studentId: submission.studentId,
       classId: assignment.classId,
@@ -112,13 +288,11 @@ export class GradesService {
 
     await grade.save();
 
-    // 5. Update submission: đánh dấu đã chấm
     submission.graded = true;
     submission.grade = dto.score;
     submission.maxScore = assignment.maxScore;
     await submission.save();
 
-    // 6. Populate và trả về
     return this.gradeModel
       .findById(grade._id)
       .populate('studentId', 'name email')
@@ -148,6 +322,7 @@ export class GradesService {
     return this.gradeModel
       .find({ studentId: new Types.ObjectId(studentId) })
       .populate('assignmentId', 'title type dueDate')
+      .populate('gradingSheetId', 'title category')
       .populate('classId', 'name')
       .populate('subjectId', 'name')
       .populate('gradedBy', 'name')
@@ -156,7 +331,22 @@ export class GradesService {
   }
 
   /**
-   * Thống kê điểm của học sinh (cho leaderboard sau này)
+   * Lấy điểm của học sinh trong một lớp cụ thể
+   */
+  async findByStudentInClass(studentId: string, classId: string) {
+    return this.gradeModel
+      .find({
+        studentId: new Types.ObjectId(studentId),
+        classId: new Types.ObjectId(classId),
+      })
+      .populate('gradingSheetId', 'title category')
+      .populate('gradedBy', 'name')
+      .sort({ gradedAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Thống kê điểm của học sinh
    */
   async getStudentStats(studentId: string) {
     const grades = await this.gradeModel
@@ -184,3 +374,4 @@ export class GradesService {
     };
   }
 }
+

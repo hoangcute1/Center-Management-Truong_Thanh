@@ -22,6 +22,7 @@ import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import api from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { studentGradingService, StudentGradeRecord } from "@/lib/services/student-grading.service";
 import { Bounce, ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -524,14 +525,79 @@ function SettingsModal({
   );
 }
 
-function DetailModal({ onClose }: { onClose: () => void }) {
+function DetailModal({
+  onClose,
+  childInfo,
+  grades
+}: {
+  onClose: () => void;
+  childInfo: any;
+  grades: StudentGradeRecord[];
+}) {
+  // Process grades into courses
+  const courses = useMemo(() => {
+    const groups: Record<string, StudentGradeRecord[]> = {};
+    grades.forEach(g => {
+      const key = g.classId?.name || "Lớp học";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(g);
+    });
+
+    return Object.keys(groups).map(subject => {
+      const list = groups[subject];
+      let totalScore = 0;
+      let totalMax = 0;
+      list.forEach(g => {
+        totalScore += g.score;
+        totalMax += g.maxScore;
+      });
+
+      let avg = 0;
+      if (totalMax > 0) {
+        avg = (totalScore / totalMax) * 10;
+      }
+
+      return {
+        subject,
+        score: avg.toFixed(1),
+        total: list.length, // total assignments
+        attended: list.length, // Assume attended if graded
+        teacher: list[0]?.gradedBy?.name || "Giáo viên"
+      };
+    });
+  }, [grades]);
+
+  // Extract recent feedback
+  const feedbackList = useMemo(() => {
+    return grades
+      .filter(g => g.feedback)
+      .sort((a, b) => new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime())
+      .slice(0, 5)
+      .map(g => ({
+        teacher: g.gradedBy?.name || "Giáo viên",
+        subject: g.classId?.name || "Môn học",
+        note: g.feedback,
+        date: new Date(g.gradedAt).toLocaleDateString()
+      }));
+  }, [grades]);
+
+  // Chart data
+  const chartData = useMemo(() => {
+    return grades
+      .sort((a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime())
+      .map(g => ({
+        week: new Date(g.gradedAt).toLocaleDateString('vi-VN'),
+        score: (g.score / g.maxScore) * 10
+      }));
+  }, [grades]);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-5 flex items-start justify-between">
           <div>
-            <p className="text-xl font-bold">{child.name}</p>
-            <p className="text-sm opacity-90">{child.grade}</p>
+            <p className="text-xl font-bold">{childInfo.name}</p>
+            <p className="text-sm opacity-90">{childInfo.studentCode || "Học viên"}</p>
           </div>
           <button onClick={onClose} className="text-lg font-semibold">
             ×
@@ -541,58 +607,65 @@ function DetailModal({ onClose }: { onClose: () => void }) {
         <div className="px-6 py-5 space-y-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card className="p-3 bg-blue-50 border-blue-100">
-              <p className="text-xs text-gray-600">Điểm TB</p>
-              <p className="text-xl font-bold text-blue-700">8.2</p>
+              <p className="text-xs text-gray-600">Điểm TB (Hệ 10)</p>
+              <p className="text-xl font-bold text-blue-700">
+                {courses.length > 0
+                  ? (courses.reduce((acc, c) => acc + parseFloat(c.score), 0) / courses.length).toFixed(1)
+                  : "N/A"
+                }
+              </p>
             </Card>
             <Card className="p-3 bg-green-50 border-green-100">
               <p className="text-xs text-gray-600">Khóa học</p>
               <p className="text-xl font-bold text-green-700">
-                {child.classCount}
+                {courses.length}
               </p>
             </Card>
             <Card className="p-3 bg-purple-50 border-purple-100">
-              <p className="text-xs text-gray-600">Buổi học</p>
-              <p className="text-xl font-bold text-purple-700">28</p>
+              <p className="text-xs text-gray-600">Bài kiểm tra</p>
+              <p className="text-xl font-bold text-purple-700">{grades.length}</p>
             </Card>
             <Card className="p-3 bg-amber-50 border-amber-100">
               <p className="text-xs text-gray-600">Xếp loại</p>
-              <p className="text-xl font-bold text-amber-600">Tốt</p>
+              <p className="text-xl font-bold text-amber-600">--</p>
             </Card>
           </div>
 
           <Card className="p-4">
-            <p className="font-semibold text-gray-900 mb-3">Tiến độ học tập</p>
+            <p className="font-semibold text-gray-900 mb-3">Tiến độ điểm số</p>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={progressData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="week"
-                    tick={{ fontSize: 12, fill: "#4b5563" }}
-                  />
-                  <YAxis
-                    domain={[0, 12]}
-                    tick={{ fontSize: 12, fill: "#4b5563" }}
-                  />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#2563eb"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fontSize: 12, fill: "#4b5563" }}
+                    />
+                    <YAxis
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: "#4b5563" }}
+                    />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#2563eb"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : <p className="text-center text-gray-500">Chưa có dữ liệu biểu đồ</p>}
             </div>
           </Card>
 
           <Card className="p-4 space-y-3">
             <p className="font-semibold text-gray-900">Các khóa học</p>
-            {courses.map((course) => (
+            {courses.length > 0 ? courses.map((course) => (
               <div
                 key={course.subject}
                 className="rounded-lg border border-gray-200 p-3 space-y-2"
@@ -606,18 +679,18 @@ function DetailModal({ onClose }: { onClose: () => void }) {
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  <p>Tổng buổi: {course.total}</p>
-                  <p>Tham dự: {course.attended}</p>
+                  <p>Bài kiểm tra: {course.total}</p>
+                  <p>Giáo viên: {course.teacher}</p>
                 </div>
               </div>
-            ))}
+            )) : <p className="text-gray-500">Chưa có dữ liệu khóa học</p>}
           </Card>
 
           <Card className="p-4 space-y-3">
-            <p className="font-semibold text-gray-900">Nhận xét từ giáo viên</p>
-            {teacherNotes.map((note) => (
+            <p className="font-semibold text-gray-900">Nhận xét từ giáo viên (Mới nhất)</p>
+            {feedbackList.length > 0 ? feedbackList.map((note, idx) => (
               <Card
-                key={note.teacher + note.date}
+                key={idx}
                 className="p-3 bg-blue-50 border-blue-100"
               >
                 <div className="flex items-center justify-between">
@@ -629,7 +702,7 @@ function DetailModal({ onClose }: { onClose: () => void }) {
                 </p>
                 <p className="text-xs text-gray-500 mt-1">{note.date}</p>
               </Card>
-            ))}
+            )) : <p className="text-gray-500">Chưa có nhận xét nào.</p>}
           </Card>
 
           <Button
@@ -679,6 +752,14 @@ export default function ParentDashboard({
   useEffect(() => {
     fetchChildrenRequests();
   }, [fetchChildrenRequests]);
+
+  // fetch child grades
+  const [childGrades, setChildGrades] = useState<StudentGradeRecord[]>([]);
+  useEffect(() => {
+    if (dashboardData?.child?._id) {
+      studentGradingService.getMyGrades(dashboardData.child._id).then(setChildGrades).catch(console.error);
+    }
+  }, [dashboardData?.child?._id]);
 
   const allRequests = childrenRequests.flatMap((c) => c.requests);
   const pendingPayments = allRequests.filter(
@@ -1654,7 +1735,7 @@ export default function ParentDashboard({
           onClose={() => setChatWith(null)}
         />
       )}
-      {showDetail && <DetailModal onClose={() => setShowDetail(false)} />}
+      {showDetail && <DetailModal onClose={() => setShowDetail(false)} childInfo={childData} grades={childGrades} />}
       {
         showSettings && (
           <SettingsModal

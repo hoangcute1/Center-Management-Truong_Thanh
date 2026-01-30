@@ -34,7 +34,8 @@ import {
 } from "@/lib/stores/documents-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import TeacherAssignmentsTab from "@/components/teacher-assignments-tab";
+import TeacherGradingTab from "@/components/teacher-grading-tab";
+import { teacherGradingService, GRADE_CATEGORY_LABELS } from "@/lib/services/teacher-grading.service";
 
 interface TeacherDashboardProps {
   user: {
@@ -116,6 +117,53 @@ function StudentDetailModal({
   student: StudentItem;
   onClose: () => void;
 }) {
+  const [grades, setGrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        setLoading(true);
+        const data = await teacherGradingService.getStudentGrades(student._id);
+        setGrades(data);
+      } catch (error) {
+        console.error("Failed to fetch grades:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGrades();
+  }, [student._id]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    if (!grades.length) return { average: 0, midterm: 0, final: 0 };
+
+    const total = grades.reduce((acc, g) => acc + g.score, 0);
+    const maxTotal = grades.reduce((acc, g) => acc + g.maxScore, 0);
+    const average = maxTotal > 0 ? (total / maxTotal) * 10 : 0;
+
+    const midterm = grades.find(g => g.gradingSheetId?.category === 'giua_ky');
+    const final = grades.find(g => g.gradingSheetId?.category === 'cuoi_ky');
+
+    return {
+      average: average.toFixed(1),
+      midterm: midterm ? midterm.score : 'N/A',
+      final: final ? final.score : 'N/A',
+    };
+  }, [grades]);
+
+  // Chart data (scores over time)
+  const chartData = useMemo(() => {
+    return grades
+      .sort((a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime())
+      .map(g => ({
+        week: new Date(g.gradedAt).toLocaleDateString('vi-VN'),
+        score: (g.score / g.maxScore) * 10 || 0, // Normalize to 10
+        name: g.gradingSheetId?.title || 'Bài kiểm tra'
+      }));
+  }, [grades]);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-3">
       <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 bg-white">
@@ -139,53 +187,62 @@ function StudentDetailModal({
               <p className="text-xs text-gray-500">Tên học sinh</p>
               <p className="font-semibold text-gray-900">{student.name}</p>
               <p className="text-xs text-gray-500 mt-2">Mã HS</p>
-              <p className="font-semibold text-gray-900">{student._id}</p>
+              <p className="font-semibold text-gray-900">{student._id.substring(0, 8)}...</p>
               <p className="text-xs text-gray-500 mt-2">Email</p>
               <p className="text-sm text-gray-800">{student.email}</p>
             </Card>
             <Card className="p-4 bg-purple-50 border-purple-100">
-              <p className="text-xs text-gray-500">Môn học</p>
-              <p className="text-sm text-gray-900">
-                {studentDetailMock.subject}
+              <p className="text-xs text-gray-500">Số bài kiểm tra</p>
+              <p className="text-sm text-gray-900 font-bold text-lg">
+                {grades.length}
               </p>
-              <p className="text-xs text-gray-500 mt-2">SĐT</p>
-              <p className="text-sm text-gray-900">{studentDetailMock.phone}</p>
-              <p className="text-xs text-gray-500 mt-2">Phụ huynh</p>
+              <p className="text-xs text-gray-500 mt-2">Cập nhật gần nhất</p>
               <p className="text-sm text-gray-900">
-                {studentDetailMock.parent}
+                {grades.length > 0
+                  ? new Date(grades[0].gradedAt).toLocaleDateString('vi-VN')
+                  : 'N/A'}
               </p>
             </Card>
           </div>
 
           <Card className="p-4 bg-green-50 border-green-100">
             <p className="font-semibold text-gray-900 mb-2">
-              Biểu đồ tiến độ học tập
+              Biểu đồ điểm số (Thang 10)
             </p>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={studentDetailMock.progress}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#d1fae5" />
-                  <XAxis
-                    dataKey="week"
-                    tick={{ fontSize: 12, fill: "#047857" }}
-                  />
-                  <YAxis
-                    domain={[50, 100]}
-                    tick={{ fontSize: 12, fill: "#047857" }}
-                  />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#16a34a"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">Đang tải...</div>
+              ) : chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#d1fae5" />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fontSize: 12, fill: "#047857" }}
+                    />
+                    <YAxis
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: "#047857" }}
+                    />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#16a34a"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      name="Điểm số"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Chưa có dữ liệu điểm
+                </div>
+              )}
             </div>
           </Card>
 
@@ -193,49 +250,48 @@ function StudentDetailModal({
             <p className="font-semibold text-gray-900 mb-2">Điểm chi tiết</p>
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div>
-                <p className="text-gray-600">Điểm kiểm tra giữa kỳ:</p>
+                <p className="text-gray-600">Điểm giữa kỳ:</p>
                 <p className="font-bold text-gray-900">
-                  {studentDetailMock.midterm}
+                  {stats.midterm}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600">Điểm cuối kỳ:</p>
                 <p className="font-bold text-gray-900">
-                  {studentDetailMock.final}
+                  {stats.final}
                 </p>
               </div>
               <div>
-                <p className="text-gray-600">Điểm trung bình:</p>
+                <p className="text-gray-600">Điểm trung bình (hệ 10):</p>
                 <p className="font-bold text-green-700">
-                  {studentDetailMock.average}
+                  {stats.average}
                 </p>
               </div>
             </div>
-          </Card>
 
-          <Card className="p-4 bg-blue-50 border-blue-100">
-            <p className="font-semibold text-gray-900 mb-2">
-              Nhận xét của giáo viên
-            </p>
-            <p className="text-sm text-gray-800 leading-relaxed">
-              {studentDetailMock.teacherNote}
-            </p>
+            {/* List of recent grades */}
+            <div className="mt-4 border-t border-amber-200 pt-3">
+              <p className="text-xs font-semibold text-gray-700 mb-2">Danh sách điểm gần đây:</p>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {grades.map((grade) => (
+                  <div key={grade._id} className="flex justify-between items-center bg-white/50 p-2 rounded">
+                    <div>
+                      <p className="font-medium text-xs text-gray-900">{grade.gradingSheetId?.title || 'Bài kiểm tra'}</p>
+                      <p className="text-[10px] text-gray-500">
+                        {GRADE_CATEGORY_LABELS[grade.gradingSheetId?.category as keyof typeof GRADE_CATEGORY_LABELS]} • {new Date(grade.gradedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-sm">{grade.score}/{grade.maxScore}</span>
+                      {grade.feedback && (
+                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">{grade.feedback}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4 text-center">
-              <p className="text-sm text-gray-600">Buổi học dự</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {studentDetailMock.attendance}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-sm text-gray-600">Bài tập nộp</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {studentDetailMock.homework}
-              </p>
-            </Card>
-          </div>
 
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700"
@@ -638,9 +694,8 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
-                  !canEdit ? "opacity-60" : ""
-                }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
+                  }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -1022,11 +1077,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -1035,11 +1089,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1072,11 +1125,10 @@ function SettingsModal({
               Trình độ chuyên môn
             </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-              }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
               value={
                 isEditing
                   ? formData.qualification
@@ -1093,11 +1145,10 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
-              }`}
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                : "border-gray-300"
+                }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1541,9 +1592,8 @@ export default function TeacherDashboard({
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-            classData.name
-          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
+            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1608,9 +1658,8 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-                schedule.className
-              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
+                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1843,7 +1892,7 @@ export default function TeacherDashboard({
               value="assignments"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
-              📝 Giao bài & Chấm bài
+              📝 Chấm Bài
             </TabsTrigger>
             <TabsTrigger
               value="incidents"
@@ -1994,7 +2043,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                      selectedClass.students.length === 0 ? (
+                        selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -2079,9 +2128,8 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                  canAttend ? "ring-2 ring-green-400" : ""
-                                }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
+                                  }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2207,30 +2255,28 @@ export default function TeacherDashboard({
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                              doc.fileType === "PDF"
-                                ? "bg-red-100"
-                                : doc.fileType === "DOCX"
-                                  ? "bg-blue-100"
-                                  : doc.fileType === "PPTX"
-                                    ? "bg-orange-100"
-                                    : doc.fileType === "XLSX"
-                                      ? "bg-green-100"
-                                      : "bg-gray-100"
-                            }`}
+                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.fileType === "PDF"
+                              ? "bg-red-100"
+                              : doc.fileType === "DOCX"
+                                ? "bg-blue-100"
+                                : doc.fileType === "PPTX"
+                                  ? "bg-orange-100"
+                                  : doc.fileType === "XLSX"
+                                    ? "bg-green-100"
+                                    : "bg-gray-100"
+                              }`}
                           >
                             <FileIcon
-                              className={`h-6 w-6 ${
-                                doc.fileType === "PDF"
-                                  ? "text-red-600"
-                                  : doc.fileType === "DOCX"
-                                    ? "text-blue-600"
-                                    : doc.fileType === "PPTX"
-                                      ? "text-orange-600"
-                                      : doc.fileType === "XLSX"
-                                        ? "text-green-600"
-                                        : "text-gray-600"
-                              }`}
+                              className={`h-6 w-6 ${doc.fileType === "PDF"
+                                ? "text-red-600"
+                                : doc.fileType === "DOCX"
+                                  ? "text-blue-600"
+                                  : doc.fileType === "PPTX"
+                                    ? "text-orange-600"
+                                    : doc.fileType === "XLSX"
+                                      ? "text-green-600"
+                                      : "text-gray-600"
+                                }`}
                             />
                           </div>
                           <div>
@@ -2403,13 +2449,13 @@ export default function TeacherDashboard({
           </TabsContent>
 
           <TabsContent value="assignments" className="mt-6">
-            <TeacherAssignmentsTab />
+            <TeacherGradingTab />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2620,13 +2666,12 @@ function UploadDocumentModal({
         <div className="space-y-4">
           {/* Drag & Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-              isDragging
-                ? "border-blue-500 bg-blue-50"
-                : selectedFile
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-300 hover:border-gray-400"
-            }`}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
+              ? "border-blue-500 bg-blue-50"
+              : selectedFile
+                ? "border-green-500 bg-green-50"
+                : "border-gray-300 hover:border-gray-400"
+              }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -2716,11 +2761,10 @@ function UploadDocumentModal({
                     key={cls._id}
                     type="button"
                     onClick={() => toggleClass(cls._id)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      selectedClassIds.includes(cls._id)
-                        ? "bg-blue-600 text-white"
-                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                    }`}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                      }`}
                   >
                     {cls.name}
                   </button>

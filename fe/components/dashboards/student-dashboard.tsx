@@ -28,6 +28,8 @@ import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { studentGradingService, StudentGradeRecord } from "@/lib/services/student-grading.service";
+import { GRADE_CATEGORY_LABELS } from "@/lib/services/teacher-grading.service";
 
 // Helper functions for week navigation
 const getStartOfWeek = (date: Date): Date => {
@@ -563,13 +565,18 @@ function ClassDetailModal({ onClose }: { onClose: () => void }) {
 
 function GradeDetailModal({
   subject,
-  score,
+  grades,
   onClose,
 }: {
   subject: string;
-  score: number;
+  grades: StudentGradeRecord[];
   onClose: () => void;
 }) {
+  // Calculate average
+  const total = grades.reduce((acc, g) => acc + g.score, 0);
+  const max = grades.reduce((acc, g) => acc + g.maxScore, 0);
+  const average = max > 0 ? ((total / max) * 10).toFixed(1) : "N/A";
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3">
       <Card className="w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto bg-white">
@@ -585,35 +592,33 @@ function GradeDetailModal({
           </button>
         </div>
 
-        <p className="text-sm text-gray-700 mb-4">Điểm trung bình: {score}</p>
+        <p className="text-sm text-gray-700 mb-4">Điểm trung bình hệ số 10: <span className="font-bold text-blue-600">{average}</span></p>
 
-        <div className="space-y-3 mb-4">
-          {gradeBreakdown.assignments.map((assignment) => (
-            <div
-              key={assignment.name}
-              className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
-            >
-              <div>
-                <p className="font-medium text-gray-900">{assignment.name}</p>
-                <p className="text-xs text-gray-600">
-                  Ngày: {assignment.date} • Trọng số: {assignment.weight}
-                </p>
+        <div className="space-y-3 mb-4 max-h-[60vh] overflow-y-auto">
+          {grades.length > 0 ? (
+            grades.map((g, index) => (
+              <div
+                key={g._id || index}
+                className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium text-gray-900">{g.gradingSheetId?.title || 'Bài kiểm tra'}</p>
+                  <p className="text-xs text-gray-600">
+                    Ngày: {new Date(g.gradedAt).toLocaleDateString('vi-VN')} •
+                    Loại: {GRADE_CATEGORY_LABELS[g.gradingSheetId?.category as keyof typeof GRADE_CATEGORY_LABELS] || g.gradingSheetId?.category || 'Khác'}
+                  </p>
+                  {g.feedback && <p className="text-xs text-blue-600 italic mt-1">" {g.feedback} "</p>}
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-blue-700">
+                    {g.score}/{g.maxScore}
+                  </p>
+                </div>
               </div>
-              <p className="text-lg font-semibold text-blue-700">
-                {assignment.score}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-gray-800">
-          Tình hình điểm danh: {gradeBreakdown.attendance}
-        </div>
-        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-gray-800">
-          Đánh giá thái độ: {gradeBreakdown.behavior}
-        </div>
-        <div className="mb-6 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-gray-800">
-          Nhận xét giáo viên: {gradeBreakdown.teacherComment}
+            ))
+          ) : (
+            <p className="text-gray-500 text-center py-4">Chưa có dữ liệu điểm chi tiết.</p>
+          )}
         </div>
 
         <Button
@@ -1010,6 +1015,9 @@ export default function StudentDashboard({
   const [studentDocuments, setStudentDocuments] = useState<Document[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
 
+
+
+
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
       position: "top-right",
@@ -1066,6 +1074,64 @@ export default function StudentDashboard({
 
   // State to hold full user details including sensitive/personal info not in initial props
   const [fullUserDetails, setFullUserDetails] = useState<any>(null);
+
+  // REAL GRADING DATA INTEGRATION (Moved here to access authUser)
+  const [studentGrades, setStudentGrades] = useState<StudentGradeRecord[]>([]);
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        const userId = authUser?._id || user.id;
+        if (userId) {
+          const data = await studentGradingService.getMyGrades(userId);
+          setStudentGrades(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch student grades", err);
+      }
+    };
+    fetchGrades();
+  }, [authUser, user.id]);
+
+  // Process grades into subjects for display
+  const processedSubjects = useMemo(() => {
+    if (!studentGrades.length) return [];
+
+    // Group by Class Name
+    const groups: Record<string, StudentGradeRecord[]> = {};
+    studentGrades.forEach(g => {
+      const key = g.classId?.name || "Lớp học";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(g);
+    });
+
+    return Object.keys(groups).map(subject => {
+      const list = groups[subject];
+      let totalScore = 0;
+      let totalMax = 0;
+      list.forEach(g => {
+        totalScore += g.score;
+        totalMax += g.maxScore;
+      });
+
+      let avg = 0;
+      if (totalMax > 0) {
+        avg = (totalScore / totalMax) * 10;
+      }
+
+      const scoreVal = parseFloat(avg.toFixed(1));
+      const status = scoreVal >= 8 ? "Tốt" : scoreVal >= 6.5 ? "Khá" : scoreVal >= 5 ? "Trung bình" : "Yếu";
+
+      return {
+        subject,
+        score: scoreVal,
+        status,
+        detail: `${list.length} đầu điểm`
+      };
+    });
+  }, [studentGrades]);
+
+  // Shadow actual data over mock 'grades'
+  const grades = processedSubjects.length > 0 ? processedSubjects : [];
 
   useEffect(() => {
     const fetchFullUserDetails = async () => {
@@ -2632,7 +2698,7 @@ export default function StudentDashboard({
       {selectedGrade && (
         <GradeDetailModal
           subject={selectedGrade.subject}
-          score={selectedGrade.score}
+          grades={studentGrades.filter(g => (g.classId?.name || "Lớp học") === selectedGrade.subject)}
           onClose={() => setSelectedGrade(null)}
         />
       )}
