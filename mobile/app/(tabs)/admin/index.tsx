@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statCardGradient: {
-    padding: 16,
+    padding: 12,
     alignItems: "center",
   },
   statValue: {

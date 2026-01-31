@@ -189,7 +189,7 @@ export default function AdminIncidentsScreen() {
   const renderIncidentCard = ({ item: incident }: { item: StoreIncident }) => {
     const status = statusConfig[incident.status] || statusConfig.pending;
     const type = typeConfig[incident.type] || typeConfig.other;
-
+    
     return (
       <TouchableOpacity
         style={styles.incidentCard}
@@ -260,66 +260,74 @@ export default function AdminIncidentsScreen() {
         </View>
       </LinearGradient>
 
-      {/* Stats Cards */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.statsScrollView}
-        contentContainerStyle={styles.statsContainer}
-      >
-        <View style={[styles.statCard, { borderColor: "#6366F1" }]}>
-          <Text style={[styles.statValue, { color: "#6366F1" }]}>
-            {stats.total}
-          </Text>
-          <Text style={styles.statLabel}>Tổng số</Text>
-        </View>
-        <View style={[styles.statCard, { borderColor: "#F59E0B" }]}>
-          <Text style={[styles.statValue, { color: "#F59E0B" }]}>
-            {stats.pending}
-          </Text>
-          <Text style={styles.statLabel}>Chờ xử lý</Text>
-        </View>
-        <View style={[styles.statCard, { borderColor: "#3B82F6" }]}>
-          <Text style={[styles.statValue, { color: "#3B82F6" }]}>
-            {stats.inProgress}
-          </Text>
-          <Text style={styles.statLabel}>Đang xử lý</Text>
-        </View>
-        <View style={[styles.statCard, { borderColor: "#10B981" }]}>
-          <Text style={[styles.statValue, { color: "#10B981" }]}>
-            {stats.resolved}
-          </Text>
-          <Text style={styles.statLabel}>Đã xử lý</Text>
-        </View>
-      </ScrollView>
-
-      {/* Status Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsScrollView}
-        contentContainerStyle={styles.tabsContainer}
-      >
-        {statusTabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.statusTab,
-              selectedStatus === tab.key && styles.statusTabActive,
-            ]}
-            onPress={() => setSelectedStatus(tab.key)}
-          >
-            <Text
-              style={[
-                styles.statusTabText,
-                selectedStatus === tab.key && styles.statusTabTextActive,
-              ]}
-            >
-              {tab.label}
+      <View style={{ backgroundColor: "#F3F4F6" }}>
+        {/* Stats Cards */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.statsScrollView}
+          contentContainerStyle={[
+            styles.statsContainer,
+            { alignItems: "center" } 
+          ]}
+        >
+          <View style={[styles.statCard, { borderColor: "#6366F1" }]}>
+            <Text style={[styles.statValue, { color: "#6366F1" }]}>
+              {stats.total}
             </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            <Text style={styles.statLabel}>Tổng số</Text>
+          </View>
+          <View style={[styles.statCard, { borderColor: "#F59E0B" }]}>
+            <Text style={[styles.statValue, { color: "#F59E0B" }]}>
+              {stats.pending}
+            </Text>
+            <Text numberOfLines={1} style={styles.statLabel}>Chờ xử lý</Text>
+          </View>
+          <View style={[styles.statCard, { borderColor: "#3B82F6" }]}>
+            <Text style={[styles.statValue, { color: "#3B82F6" }]}>
+              {stats.inProgress}
+            </Text>
+            <Text numberOfLines={1} style={styles.statLabel}>Đang xử lý</Text>
+          </View>
+          <View style={[styles.statCard, { borderColor: "#10B981" }]}>
+            <Text style={[styles.statValue, { color: "#10B981" }]}>
+              {stats.resolved}
+            </Text>
+            <Text numberOfLines={1} style={styles.statLabel}>Đã xử lý</Text>
+          </View>
+        </ScrollView>
+
+        {/* Status Tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsScrollView}
+          contentContainerStyle={[
+            styles.statsContainer,
+            { alignItems: "center" }
+          ]}
+        >
+          {statusTabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.statusTab,
+                selectedStatus === tab.key && styles.statusTabActive,
+              ]}
+              onPress={() => setSelectedStatus(tab.key)}
+            >
+              <Text
+                style={[
+                  styles.statusTabText,
+                  selectedStatus === tab.key && styles.statusTabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Incidents List */}
       {isLoading && !isRefreshing ? (
@@ -329,7 +337,6 @@ export default function AdminIncidentsScreen() {
         </View>
       ) : (
         <FlatList
-          style={{ flex: 1 }}
           data={filteredIncidents}
           renderItem={renderIncidentCard}
           keyExtractor={(item) => item._id}
@@ -598,27 +605,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
   },
+  // statCard: {
+  //   backgroundColor: "#FFFFFF",
+  //   borderRadius: 14,
+  //   padding: 14,
+  //   minWidth: 75,
+  //   alignItems: "center",
+  //   borderWidth: 2,
+  //   shadowColor: "#000",
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.05,
+  //   shadowRadius: 4,
+  //   elevation: 2,
+  // },
   statCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 14,
-    minWidth: 95,
-    alignItems: "center",
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
+  height: 40,            
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  paddingHorizontal: 12,
+  borderRadius: 14,
+  backgroundColor: "#fff",
+  borderWidth: 2,
+},
   statValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "700",
+    lineHeight: 20,
   },
   statLabel: {
     fontSize: 12,
     color: "#6B7280",
-    marginTop: 4,
+    // marginTop: 4,
+    // textAlign: "center",
   },
   // Tabs
   tabsScrollView: {
@@ -628,13 +647,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 8,
   },
+  // statusTab: {
+  //   paddingHorizontal: 16,
+  //   paddingVertical: 8,
+  //   borderRadius: 20,
+  //   backgroundColor: "#FFFFFF",
+  //   marginRight: 8,
+  // },
   statusTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    marginRight: 8,
-  },
+  height: 42  ,              
+  paddingHorizontal: 16,
+  justifyContent: "center",
+  borderRadius: 14,
+  backgroundColor: "#FFFFFF",
+},
   statusTabActive: {
     backgroundColor: "#F97316",
   },
@@ -752,10 +778,9 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   emptyContainer: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 80,
+    paddingTop: 40,
   },
   emptyText: {
     fontSize: 14,
