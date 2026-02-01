@@ -36,6 +36,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import TeacherGradingTab from "@/components/teacher-grading-tab";
+import TeacherRatingsTab from "@/components/teacher-ratings-tab";
 import {
   teacherGradingService,
   GRADE_CATEGORY_LABELS,
@@ -2433,22 +2434,7 @@ export default function TeacherDashboard({
           </TabsContent>
 
           <TabsContent value="evaluation" className="mt-6">
-            <Card className="p-4">
-              <p className="font-semibold text-gray-900 mb-2">
-                Đánh giá từ học sinh
-              </p>
-              <p className="text-sm text-gray-700 mb-4">
-                Xem các đánh giá ẩn danh từ học sinh về chất lượng giảng dạy của
-                bạn. Những phản hồi này giúp bạn cải thiện phương pháp giảng
-                dạy.
-              </p>
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => setShowEvaluation(true)}
-              >
-                Xem đánh giá
-              </Button>
-            </Card>
+            <TeacherRatingsTab userId={user.id} />
           </TabsContent>
 
           <TabsContent value="contact" className="mt-6">

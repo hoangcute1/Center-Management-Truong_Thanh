@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
+import StudentEvaluationTab from "@/components/student-evaluation-tab";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
@@ -1961,6 +1962,12 @@ export default function StudentDashboard({
             >
               🐛 Sự cố
             </TabsTrigger>
+            <TabsTrigger
+              value="evaluation"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              ⭐ Đánh giá GV
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
@@ -3088,6 +3095,10 @@ export default function StudentDashboard({
               userRole={user.role}
               isEmbedded={true}
             />
+          </TabsContent>
+
+          <TabsContent value="evaluation" className="mt-6">
+            <StudentEvaluationTab userId={user.id} />
           </TabsContent>
         </Tabs>
       </main>
