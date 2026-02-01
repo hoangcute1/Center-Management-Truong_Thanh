@@ -17,8 +17,9 @@ export class CreateEvaluationPeriodDto {
   @IsDate()
   endDate: Date;
 
+  @IsOptional()
   @IsString()
-  branchId: string; // Bắt buộc chọn cơ sở
+  branchId?: string; // Optional - để trống = tất cả cơ sở
 
   @IsOptional()
   @IsArray()

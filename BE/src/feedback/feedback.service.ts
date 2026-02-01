@@ -170,23 +170,31 @@ export class FeedbackService {
     const classIds = studentClasses.map((c) => c._id);
     const branchIds = [
       ...new Set(
-        studentClasses.map((c) => c.branchId?.toString()).filter(Boolean),
+        studentClasses
+          .map((c) => c.branchId?.toString())
+          .filter((id): id is string => !!id && Types.ObjectId.isValid(id)),
       ),
     ];
+
+    // Build query conditions
+    const orConditions: any[] = [{ classIds: { $in: classIds } }];
+    if (branchIds.length > 0) {
+      orConditions.push({
+        branchId: {
+          $in: branchIds.map((id) => new Types.ObjectId(id)),
+        },
+      });
+    }
+    // Also include periods with no branchId (applies to all branches)
+    orConditions.push({ branchId: { $exists: false } });
+    orConditions.push({ branchId: null });
 
     const activePeriods = await this.evaluationPeriodModel
       .find({
         status: 'active',
         startDate: { $lte: now },
         endDate: { $gte: now },
-        $or: [
-          {
-            branchId: {
-              $in: branchIds.map((id) => new Types.ObjectId(id as string)),
-            },
-          },
-          { classIds: { $in: classIds } },
-        ],
+        $or: orConditions,
       })
       .populate('branchId', 'name')
       .exec();
@@ -549,7 +557,7 @@ export class FeedbackService {
   ) {
     const doc = new this.evaluationPeriodModel({
       ...dto,
-      branchId: new Types.ObjectId(dto.branchId),
+      branchId: dto.branchId ? new Types.ObjectId(dto.branchId) : undefined,
       classIds: dto.classIds?.map((id) => new Types.ObjectId(id)) || [],
       teacherIds: dto.teacherIds?.map((id) => new Types.ObjectId(id)) || [],
       createdBy: user._id,
@@ -560,7 +568,12 @@ export class FeedbackService {
   async listEvaluationPeriods(branchId?: string) {
     const query: any = {};
     if (branchId) {
-      query.branchId = new Types.ObjectId(branchId);
+      // If filtering by branch, also include periods with no branch (applies to all)
+      query.$or = [
+        { branchId: new Types.ObjectId(branchId) },
+        { branchId: { $exists: false } },
+        { branchId: null },
+      ];
     }
     return this.evaluationPeriodModel
       .find(query)
@@ -586,7 +599,10 @@ export class FeedbackService {
 
   async updateEvaluationPeriod(id: string, dto: UpdateEvaluationPeriodDto) {
     const data: any = { ...dto };
-    if (dto.branchId) {
+    // Handle branchId: empty string or undefined means "all branches"
+    if (dto.branchId === '' || dto.branchId === undefined) {
+      data.branchId = null;
+    } else if (dto.branchId) {
       data.branchId = new Types.ObjectId(dto.branchId);
     }
     if (dto.classIds) {

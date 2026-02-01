@@ -181,11 +181,6 @@ export default function AdminEvaluationManager() {
     }
   };
 
-  // Filter classes by selected branch
-  const filteredClasses = classes.filter(
-    (c) => !periodForm.branchId || c.branchId === periodForm.branchId,
-  );
-
   // Period modal handlers
   const openCreatePeriodModal = () => {
     setEditingPeriod(null);
@@ -220,12 +215,7 @@ export default function AdminEvaluationManager() {
   };
 
   const handleSavePeriod = async () => {
-    if (
-      !periodForm.name ||
-      !periodForm.startDate ||
-      !periodForm.endDate ||
-      !periodForm.branchId
-    ) {
+    if (!periodForm.name || !periodForm.startDate || !periodForm.endDate) {
       toast.error("Vui lòng điền đầy đủ thông tin bắt buộc");
       return;
     }
@@ -748,19 +738,22 @@ export default function AdminEvaluationManager() {
             </div>
 
             <div>
-              <Label>
-                Cơ sở <span className="text-red-500">*</span>
-              </Label>
+              <Label>Cơ sở</Label>
               <Select
-                value={periodForm.branchId}
+                value={periodForm.branchId || "all"}
                 onValueChange={(val: string) =>
-                  setPeriodForm({ ...periodForm, branchId: val, classIds: [] })
+                  setPeriodForm({
+                    ...periodForm,
+                    branchId: val === "all" ? "" : val,
+                    classIds: [],
+                  })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Chọn cơ sở" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Tất cả cơ sở</SelectItem>
                   {branches.map((branch) => (
                     <SelectItem key={branch._id} value={branch._id}>
                       {branch.name}
@@ -800,7 +793,7 @@ export default function AdminEvaluationManager() {
             <div>
               <Label>Trạng thái</Label>
               <Select
-                value={periodForm.status}
+                value={periodForm.status || "draft"}
                 onValueChange={(val: string) =>
                   setPeriodForm({
                     ...periodForm,
@@ -809,7 +802,7 @@ export default function AdminEvaluationManager() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Chọn trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Nháp</SelectItem>
@@ -817,42 +810,6 @@ export default function AdminEvaluationManager() {
                   <SelectItem value="closed">Đã đóng</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label>Áp dụng cho lớp (để trống = tất cả lớp của cơ sở)</Label>
-              <div className="mt-2 max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
-                {filteredClasses.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-2">
-                    Vui lòng chọn cơ sở trước
-                  </p>
-                ) : (
-                  filteredClasses.map((cls) => (
-                    <label
-                      key={cls._id}
-                      className="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={periodForm.classIds?.includes(cls._id)}
-                        onChange={(e) => {
-                          const newClassIds = e.target.checked
-                            ? [...(periodForm.classIds || []), cls._id]
-                            : periodForm.classIds?.filter(
-                                (id) => id !== cls._id,
-                              );
-                          setPeriodForm({
-                            ...periodForm,
-                            classIds: newClassIds,
-                          });
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{cls.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
             </div>
           </div>
 

@@ -153,7 +153,7 @@ export interface CreateEvaluationPeriodDto {
   description?: string;
   startDate: string;
   endDate: string;
-  branchId: string;
+  branchId?: string; // Optional - empty = all branches
   classIds?: string[];
   teacherIds?: string[];
   status?: "draft" | "active" | "closed";
