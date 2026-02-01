@@ -100,15 +100,19 @@ export function SelectTrigger({
 // Select Value
 interface SelectValueProps {
   placeholder?: string;
+  children?: React.ReactNode;
 }
 
-export function SelectValue({ placeholder }: SelectValueProps) {
+export function SelectValue({ placeholder, children }: SelectValueProps) {
   const context = React.useContext(SelectContext);
   if (!context) throw new Error("SelectValue must be used within Select");
 
+  // If children provided, render them; otherwise show context value or placeholder
+  const displayValue = children !== undefined ? children : context.value;
+
   return (
-    <span className={context.value ? "" : "text-gray-500"}>
-      {context.value || placeholder}
+    <span className={!displayValue ? "text-gray-500" : ""}>
+      {displayValue || placeholder}
     </span>
   );
 }

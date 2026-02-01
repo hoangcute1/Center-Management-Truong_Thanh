@@ -330,12 +330,22 @@ export default function AdminEvaluationManager() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Building className="w-5 h-5 text-gray-500" />
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <Select
+              value={selectedBranch || "all"}
+              onValueChange={(val) =>
+                setSelectedBranch(val === "all" ? "" : val)
+              }
+            >
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Chọn cơ sở" />
+                <SelectValue>
+                  {selectedBranch
+                    ? branches.find((b) => b._id === selectedBranch)?.name ||
+                      "Chọn cơ sở"
+                    : "Tất cả cơ sở"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tất cả cơ sở</SelectItem>
+                <SelectItem value="all">Tất cả cơ sở</SelectItem>
                 {branches.map((branch) => (
                   <SelectItem key={branch._id} value={branch._id}>
                     {branch.name}
@@ -750,7 +760,12 @@ export default function AdminEvaluationManager() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn cơ sở" />
+                  <SelectValue>
+                    {periodForm.branchId
+                      ? branches.find((b) => b._id === periodForm.branchId)
+                          ?.name || "Chọn cơ sở"
+                      : "Tất cả cơ sở"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả cơ sở</SelectItem>
@@ -802,7 +817,13 @@ export default function AdminEvaluationManager() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn trạng thái" />
+                  <SelectValue>
+                    {periodForm.status === "active"
+                      ? "Đang mở"
+                      : periodForm.status === "closed"
+                        ? "Đã đóng"
+                        : "Nháp"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Nháp</SelectItem>

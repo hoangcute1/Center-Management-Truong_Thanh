@@ -174,7 +174,10 @@ export default function TabsLayout() {
         options={{
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
-          href: (role === "teacher" || role === "student") ? "/(tabs)/materials" : null,
+          href:
+            role === "teacher" || role === "student"
+              ? "/(tabs)/materials"
+              : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -198,6 +201,28 @@ export default function TabsLayout() {
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
                 name={focused ? "chatbubbles" : "chatbubbles-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Evaluations - visible for student and teacher */}
+      <Tabs.Screen
+        name="evaluations"
+        options={{
+          title: "Đánh giá",
+          headerTitle: role === "teacher" ? "Đánh giá của tôi" : "Đánh giá GV",
+          href:
+            role === "student" || role === "teacher"
+              ? "/(tabs)/evaluations"
+              : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "star" : "star-outline"}
                 size={24}
                 color={color}
               />

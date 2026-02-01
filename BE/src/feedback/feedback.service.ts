@@ -151,6 +151,10 @@ export class FeedbackService {
    * Lấy danh sách giáo viên mà học sinh cần đánh giá
    */
   async getPendingEvaluations(user: UserDocument) {
+    console.log(
+      `\n=== getPendingEvaluations for user: ${user.name} (${user._id}) ===`,
+    );
+
     // Lấy tất cả lớp mà học sinh đang học
     const studentClasses = await this.classModel
       .find({
@@ -160,6 +164,15 @@ export class FeedbackService {
       .populate('teacherId', 'name email avatar')
       .populate('branchId', 'name')
       .exec();
+
+    console.log(`Student classes found: ${studentClasses.length}`);
+    studentClasses.forEach((c) => {
+      const teacher = c.teacherId as any;
+      const branch = c.branchId as any;
+      console.log(
+        `  - ${c.name}: teacher=${teacher?.name || 'N/A'}, branch=${branch?.name || branch}`,
+      );
+    });
 
     if (studentClasses.length === 0) {
       return { activePeriods: [], pendingEvaluations: [] };
@@ -171,10 +184,15 @@ export class FeedbackService {
     const branchIds = [
       ...new Set(
         studentClasses
-          .map((c) => c.branchId?.toString())
+          .map((c) => {
+            const br = c.branchId as any;
+            return br?._id?.toString() || br?.toString();
+          })
           .filter((id): id is string => !!id && Types.ObjectId.isValid(id)),
       ),
     ];
+
+    console.log(`Branch IDs from student classes: ${branchIds.join(', ')}`);
 
     // Build query conditions
     const orConditions: any[] = [{ classIds: { $in: classIds } }];
@@ -199,6 +217,14 @@ export class FeedbackService {
       .populate('branchId', 'name')
       .exec();
 
+    console.log(`Active periods found: ${activePeriods.length}`);
+    activePeriods.forEach((p) => {
+      const br = p.branchId as any;
+      console.log(
+        `  - ${p.name}: status=${p.status}, branchId=${br?._id || br || 'null'}, dates=${p.startDate} to ${p.endDate}`,
+      );
+    });
+
     // Lấy các feedback đã submit (theo từng đợt đánh giá)
     const result: {
       period: EvaluationPeriodDocument;
@@ -211,7 +237,11 @@ export class FeedbackService {
     }[] = [];
 
     for (const period of activePeriods) {
-      // Lọc lớp thuộc branch của đợt đánh giá
+      console.log(
+        `Processing period: ${period.name}, branchId: ${period.branchId}, classIds: ${period.classIds?.length}`,
+      );
+
+      // Lọc lớp thuộc đợt đánh giá
       const periodClasses = studentClasses.filter((c) => {
         // Nếu đợt đánh giá có chỉ định classIds cụ thể
         if (period.classIds && period.classIds.length > 0) {
@@ -219,9 +249,22 @@ export class FeedbackService {
             (pid) => pid.toString() === c._id.toString(),
           );
         }
-        // Nếu không, lấy tất cả lớp thuộc branch
-        return c.branchId?.toString() === period.branchId?.toString();
+        // Nếu đợt không có branchId (null/undefined) = tất cả cơ sở
+        if (!period.branchId) {
+          return true; // Cho phép tất cả lớp
+        }
+        // So sánh branchId
+        const classBranchId =
+          (c.branchId as any)?._id?.toString() || c.branchId?.toString();
+        const periodBranchId =
+          (period.branchId as any)?._id?.toString() ||
+          period.branchId?.toString();
+        return classBranchId === periodBranchId;
       });
+
+      console.log(
+        `Found ${periodClasses.length} classes for period ${period.name}`,
+      );
 
       // Kiểm tra đã đánh giá chưa trong đợt này
       const submittedFeedbacks = await this.model
@@ -244,6 +287,8 @@ export class FeedbackService {
           teacher: c.teacherId,
           evaluated: submittedMap.has(`${(c.teacherId as any)._id}-${c._id}`),
         }));
+
+      console.log(`Found ${evaluations.length} teachers to evaluate`);
 
       result.push({
         period,
@@ -625,9 +670,20 @@ export class FeedbackService {
   }
 
   async deleteEvaluationPeriod(id: string) {
+    // Xóa tất cả feedbacks liên quan đến đợt đánh giá này
+    const deletedFeedbacks = await this.model.deleteMany({
+      evaluationPeriodId: new Types.ObjectId(id),
+    });
+    console.log(
+      `Deleted ${deletedFeedbacks.deletedCount} feedbacks for period ${id}`,
+    );
+
     const result = await this.evaluationPeriodModel.findByIdAndDelete(id);
     if (!result) throw new NotFoundException('Đợt đánh giá không tồn tại');
-    return { message: 'Xóa đợt đánh giá thành công' };
+    return {
+      message: 'Xóa đợt đánh giá thành công',
+      deletedFeedbacks: deletedFeedbacks.deletedCount,
+    };
   }
 
   /**

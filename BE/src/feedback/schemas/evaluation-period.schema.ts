@@ -17,9 +17,9 @@ export class EvaluationPeriod {
   @Prop({ required: true })
   endDate: Date;
 
-  // Áp dụng cho cơ sở nào (bắt buộc)
-  @Prop({ type: Types.ObjectId, ref: 'Branch', required: true })
-  branchId: Types.ObjectId;
+  // Áp dụng cho cơ sở nào (không bắt buộc - để trống = tất cả cơ sở)
+  @Prop({ type: Types.ObjectId, ref: 'Branch', required: false })
+  branchId?: Types.ObjectId;
 
   // Áp dụng cho lớp nào ([] = tất cả lớp của cơ sở)
   @Prop({ type: [{ type: Types.ObjectId, ref: 'ClassEntity' }], default: [] })
