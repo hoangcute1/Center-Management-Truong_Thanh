@@ -103,9 +103,6 @@ export default function TabsLayout() {
           fontSize: 18,
         },
         headerTitleAlign: "center",
-        sceneContainerStyle: {
-          backgroundColor: isDark ? "#0B1220" : "#FFFFFF",
-        },
       }}
     >
       {/* Home - visible for all */}

@@ -19,6 +19,17 @@ import {
 import { UserDocument } from '../users/schemas/user.schema';
 import { UserRole } from '../common/enums/role.enum';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
+import { Branch } from '../branches/schemas/branch.schema'; // Assuming Branch schema exists or I will define a helper type
+
+// Helper types for populated fields
+interface PopulatedClass extends Omit<ClassDocument, 'teacherId' | 'branchId'> {
+  teacherId: UserDocument;
+  branchId: Branch & { _id: Types.ObjectId };
+}
+
+interface PopulatedPeriod extends Omit<EvaluationPeriodDocument, 'branchId'> {
+  branchId: Branch & { _id: Types.ObjectId };
+}
 
 @Injectable()
 export class FeedbackService {
@@ -151,28 +162,15 @@ export class FeedbackService {
    * Lấy danh sách giáo viên mà học sinh cần đánh giá
    */
   async getPendingEvaluations(user: UserDocument) {
-    console.log(
-      `\n=== getPendingEvaluations for user: ${user.name} (${user._id}) ===`,
-    );
-
     // Lấy tất cả lớp mà học sinh đang học
-    const studentClasses = await this.classModel
+    const studentClasses = (await this.classModel
       .find({
         studentIds: { $in: [new Types.ObjectId(user._id)] },
         status: 'active',
       })
       .populate('teacherId', 'name email avatar')
       .populate('branchId', 'name')
-      .exec();
-
-    console.log(`Student classes found: ${studentClasses.length}`);
-    studentClasses.forEach((c) => {
-      const teacher = c.teacherId as any;
-      const branch = c.branchId as any;
-      console.log(
-        `  - ${c.name}: teacher=${teacher?.name || 'N/A'}, branch=${branch?.name || branch}`,
-      );
-    });
+      .exec()) as unknown as PopulatedClass[];
 
     if (studentClasses.length === 0) {
       return { activePeriods: [], pendingEvaluations: [] };
@@ -185,14 +183,12 @@ export class FeedbackService {
       ...new Set(
         studentClasses
           .map((c) => {
-            const br = c.branchId as any;
-            return br?._id?.toString() || br?.toString();
+            const br = c.branchId;
+            return br?._id?.toString();
           })
           .filter((id): id is string => !!id && Types.ObjectId.isValid(id)),
       ),
     ];
-
-    console.log(`Branch IDs from student classes: ${branchIds.join(', ')}`);
 
     // Build query conditions
     const orConditions: any[] = [{ classIds: { $in: classIds } }];
@@ -207,7 +203,7 @@ export class FeedbackService {
     orConditions.push({ branchId: { $exists: false } });
     orConditions.push({ branchId: null });
 
-    const activePeriods = await this.evaluationPeriodModel
+    const activePeriods = (await this.evaluationPeriodModel
       .find({
         status: 'active',
         startDate: { $lte: now },
@@ -215,21 +211,13 @@ export class FeedbackService {
         $or: orConditions,
       })
       .populate('branchId', 'name')
-      .exec();
-
-    console.log(`Active periods found: ${activePeriods.length}`);
-    activePeriods.forEach((p) => {
-      const br = p.branchId as any;
-      console.log(
-        `  - ${p.name}: status=${p.status}, branchId=${br?._id || br || 'null'}, dates=${p.startDate} to ${p.endDate}`,
-      );
-    });
+      .exec()) as unknown as PopulatedPeriod[];
 
     // Lấy các feedback đã submit (theo từng đợt đánh giá)
     const result: {
       period: EvaluationPeriodDocument;
       evaluations: {
-        classId: Types.ObjectId;
+        classId: any;
         className: string;
         teacher: any;
         evaluated: boolean;
@@ -237,10 +225,6 @@ export class FeedbackService {
     }[] = [];
 
     for (const period of activePeriods) {
-      console.log(
-        `Processing period: ${period.name}, branchId: ${period.branchId}, classIds: ${period.classIds?.length}`,
-      );
-
       // Lọc lớp thuộc đợt đánh giá
       const periodClasses = studentClasses.filter((c) => {
         // Nếu đợt đánh giá có chỉ định classIds cụ thể
@@ -254,17 +238,10 @@ export class FeedbackService {
           return true; // Cho phép tất cả lớp
         }
         // So sánh branchId
-        const classBranchId =
-          (c.branchId as any)?._id?.toString() || c.branchId?.toString();
-        const periodBranchId =
-          (period.branchId as any)?._id?.toString() ||
-          period.branchId?.toString();
+        const classBranchId = c.branchId?._id?.toString();
+        const periodBranchId = period.branchId?._id?.toString();
         return classBranchId === periodBranchId;
       });
-
-      console.log(
-        `Found ${periodClasses.length} classes for period ${period.name}`,
-      );
 
       // Kiểm tra đã đánh giá chưa trong đợt này
       const submittedFeedbacks = await this.model
@@ -285,13 +262,11 @@ export class FeedbackService {
           classId: c._id,
           className: c.name,
           teacher: c.teacherId,
-          evaluated: submittedMap.has(`${(c.teacherId as any)._id}-${c._id}`),
+          evaluated: submittedMap.has(`${c.teacherId._id}-${c._id}`),
         }));
 
-      console.log(`Found ${evaluations.length} teachers to evaluate`);
-
       result.push({
-        period,
+        period: period as any, // Cast back to satisfy result type or adjust result type
         evaluations,
       });
     }
