@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Dimensions,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -1339,7 +1340,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   overviewSection: {
-    marginTop: -12,
+    marginTop: 16,
     marginBottom: 8,
   },
   overviewScroll: {
@@ -1447,6 +1448,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1F2937",
+    marginBottom: 16,
   },
   seeAllButton: {
     flexDirection: "row",
