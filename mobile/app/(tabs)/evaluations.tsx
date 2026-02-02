@@ -105,7 +105,7 @@ export default function EvaluationsScreen() {
     setSubmitting(true);
     try {
       await submitFeedback({
-        teacherId: selectedTeacher.teacher._id,
+        teacherId: selectedTeacher.teacher?._id,
         classId: selectedTeacher.classId,
         evaluationPeriodId: selectedTeacher.periodId,
         rating: calculateAverageRating(),
@@ -347,7 +347,7 @@ export default function EvaluationsScreen() {
                 </View>
                 <View style={styles.teacherDetails}>
                   <Text style={[styles.teacherName, isDark && styles.textDark]}>
-                    {item.teacher.name}
+                    {item.teacher?.name || "Chưa cập nhật"}
                   </Text>
                   <Text style={[styles.className, isDark && styles.textMuted]}>
                     {item.className}
@@ -391,7 +391,7 @@ export default function EvaluationsScreen() {
                 >
                   Đánh giá cho{" "}
                   <Text style={styles.bold}>
-                    {selectedTeacher.teacher.name}
+                    {selectedTeacher.teacher?.name || "Giáo viên"}
                   </Text>{" "}
                   - {selectedTeacher.className}
                 </Text>
@@ -459,7 +459,7 @@ export default function EvaluationsScreen() {
                   style={[
                     styles.submitButton,
                     (!isFormValid() || submitting) &&
-                      styles.submitButtonDisabled,
+                    styles.submitButtonDisabled,
                   ]}
                   disabled={!isFormValid() || submitting}
                   onPress={handleSubmit}

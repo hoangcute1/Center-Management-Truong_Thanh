@@ -245,7 +245,17 @@ export default function AdminEvaluationManager() {
     try {
       await feedbackService.deleteEvaluationPeriod(id);
       toast.success("Xóa đợt đánh giá thành công");
+
+      // Reset filter if we deleted the currently selected period
+      if (selectedPeriodFilter === id) {
+        setSelectedPeriodFilter("");
+      }
+
       loadPeriods();
+      // Reload statistics to reflect deletion immediately
+      if (activeTab === "statistics" || activeTab === "classes") {
+        setTimeout(loadStatistics, 500); // Small delay to ensure DB propagation
+      }
     } catch (error) {
       console.error("Error deleting period:", error);
       toast.error("Không thể xóa đợt đánh giá");
@@ -296,11 +306,10 @@ export default function AdminEvaluationManager() {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-4 h-4 ${
-              star <= rating
+            className={`w-4 h-4 ${star <= rating
                 ? "fill-yellow-400 text-yellow-400"
                 : "text-gray-300"
-            }`}
+              }`}
           />
         ))}
         <span className="ml-1 text-sm font-medium">{rating.toFixed(1)}</span>
@@ -340,7 +349,7 @@ export default function AdminEvaluationManager() {
                 <SelectValue>
                   {selectedBranch
                     ? branches.find((b) => b._id === selectedBranch)?.name ||
-                      "Chọn cơ sở"
+                    "Chọn cơ sở"
                     : "Tất cả cơ sở"}
                 </SelectValue>
               </SelectTrigger>
@@ -540,7 +549,7 @@ export default function AdminEvaluationManager() {
                               : "bg-gray-100 text-gray-600"
                           }
                         >
-                          {cls.feedbacks.length} đánh giá
+                          {cls.feedbacks && cls.feedbacks.length} đánh giá
                         </Badge>
                         {expandedClasses.has(cls.classId) ? (
                           <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -552,7 +561,7 @@ export default function AdminEvaluationManager() {
 
                     {/* Expanded feedbacks */}
                     {expandedClasses.has(cls.classId) &&
-                      cls.feedbacks.length > 0 && (
+                      cls.feedbacks && cls.feedbacks.length > 0 && (
                         <div className="mt-4 pt-4 border-t space-y-3">
                           <h5 className="font-medium text-sm text-gray-700">
                             Chi tiết đánh giá:
@@ -763,7 +772,7 @@ export default function AdminEvaluationManager() {
                   <SelectValue>
                     {periodForm.branchId
                       ? branches.find((b) => b._id === periodForm.branchId)
-                          ?.name || "Chọn cơ sở"
+                        ?.name || "Chọn cơ sở"
                       : "Tất cả cơ sở"}
                   </SelectValue>
                 </SelectTrigger>

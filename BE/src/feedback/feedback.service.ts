@@ -40,7 +40,7 @@ export class FeedbackService {
     private readonly evaluationPeriodModel: Model<EvaluationPeriodDocument>,
     @InjectModel(ClassEntity.name)
     private readonly classModel: Model<ClassDocument>,
-  ) {}
+  ) { }
 
   // ==================== VALIDATION METHODS ====================
 
@@ -495,16 +495,76 @@ export class FeedbackService {
 
   /**
    * Admin: Thống kê chi tiết theo lớp
+   * Chỉ hiển thị các lớp NẰM TRONG đợt đánh giá
    */
   async getStatisticsByClass(filters?: {
     periodId?: string;
     branchId?: string;
   }) {
+    // 1. Xác định Scope (Phạm vi) các lớp dựa trên Evaluation Periods
+    const periodQuery: any = {};
+
+    // Nếu có periodId cụ thể -> chỉ lấy classes của period đó
+    if (filters?.periodId) {
+      periodQuery._id = new Types.ObjectId(filters.periodId);
+    }
+    // Nếu không -> lấy tất cả periods phù hợp với branch (hoặc global)
+    else {
+      // Logic branch:
+      // - Nếu filter branchId: Lấy period của branch đó HOẶC period global (không có branchId)
+      // - Nếu không filter branchId: Lấy tất cả
+      if (filters?.branchId) {
+        periodQuery.$or = [
+          { branchId: new Types.ObjectId(filters.branchId) },
+          { branchId: { $exists: false } },
+          { branchId: null },
+        ];
+      }
+    }
+
+    const periods = await this.evaluationPeriodModel
+      .find(periodQuery)
+      .select('classIds branchId')
+      .exec();
+
+    // Nếu không có đợt đánh giá nào -> Không hiển thị lớp nào (theo yêu cầu user)
+    if (periods.length === 0) {
+      return [];
+    }
+
+    // 2. Build Class Query
     const classQuery: any = { status: 'active' };
     if (filters?.branchId) {
       classQuery.branchId = new Types.ObjectId(filters.branchId);
     }
 
+    // Logic gộp classIds từ các Periods:
+    // - Nếu có bất kỳ Period nào là "All Classes" (classIds rỗng) VÀ (cùng branch hoặc global) -> Lấy tất cả
+    // - Ngược lại -> Chỉ lấy hợp (union) của các classIds
+
+    let isAllClasses = false;
+    const specificClassIds = new Set<string>();
+
+    for (const p of periods) {
+      // Check nếu period này áp dụng cho "Tất cả lớp"
+      if (!p.classIds || p.classIds.length === 0) {
+        // Nếu là global period hoặc cùng branch -> OK
+        // (Đã filter ở periodQuery rồi nên cứ coi là OK)
+        isAllClasses = true;
+        break;
+      } else {
+        p.classIds.forEach(id => specificClassIds.add(id.toString()));
+      }
+    }
+
+    if (!isAllClasses) {
+      if (specificClassIds.size === 0) {
+        return []; // Có periods nhưng periods đó không có class nào? (Edge case)
+      }
+      classQuery._id = { $in: Array.from(specificClassIds).map(id => new Types.ObjectId(id)) };
+    }
+
+    // 3. Fetch Classes & Stats
     const classes = await this.classModel
       .find(classQuery)
       .populate('teacherId', 'name email avatar')
@@ -531,7 +591,7 @@ export class FeedbackService {
         const avgRating =
           totalEvaluated > 0
             ? classFeedbacks.reduce((sum, f) => sum + f.rating, 0) /
-              totalEvaluated
+            totalEvaluated
             : 0;
 
         return {
@@ -562,7 +622,7 @@ export class FeedbackService {
       }),
     );
 
-    return result.filter((r) => r.totalStudents > 0);
+    return result; // Trả về tất cả lớp trong Scope (dù chưa có student nào)
   }
 
   listForTeacher(teacherId: string) {
