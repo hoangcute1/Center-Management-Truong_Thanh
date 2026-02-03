@@ -29,3 +29,4 @@ export {
   type ScheduleQuery,
 } from "./schedule-store";
 export { useChatStore } from "./chat-store";
+export { useAdminStatsStore, type DashboardOverviewResponse } from "./admin-stats-store";

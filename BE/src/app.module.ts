@@ -27,6 +27,7 @@ import { AssignmentsModule } from './assignments/assignments.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { GradesModule } from './grades/grades.module';
 import { DocumentsModule } from './documents/documents.module';
+import { AdminStatsModule } from './admin-stats/admin-stats.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { DocumentsModule } from './documents/documents.module';
     ExpensesModule,
     FinanceModule,
     DocumentsModule,
+    AdminStatsModule,
   ],
 
   controllers: [AppController],
