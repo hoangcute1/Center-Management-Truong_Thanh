@@ -33,6 +33,7 @@ import {
   DocumentVisibility,
 } from "@/lib/stores/documents-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import TeacherGradingTab from "@/components/teacher-grading-tab";
@@ -41,6 +42,22 @@ import {
   teacherGradingService,
   GRADE_CATEGORY_LABELS,
 } from "@/lib/services/teacher-grading.service";
+
+// Leaderboard types
+type RankingCategory = "score" | "attendance";
+
+const leaderboardOptions: Record<
+  RankingCategory,
+  { label: string; desc: string }
+> = {
+  score: { label: "Top điểm", desc: "Điểm trung bình cao" },
+  attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
+};
+
+const leaderboardTabIcons: Record<RankingCategory, string> = {
+  score: "🏆",
+  attendance: "👥",
+};
 
 interface TeacherDashboardProps {
   user: {
@@ -1422,6 +1439,12 @@ export default function TeacherDashboard({
     isLoading: documentsLoading,
   } = useDocumentsStore();
   const { accessToken } = useAuthStore();
+  const {
+    leaderboard,
+    loading: leaderboardLoading,
+    fetchTeacherLeaderboard,
+  } = useLeaderboardStore();
+  const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
   // Handle click outside to close profile dropdown
   useEffect(() => {
@@ -1448,7 +1471,10 @@ export default function TeacherDashboard({
 
     // Fetch documents
     fetchMyDocuments();
-  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments]);
+
+    // Fetch leaderboard for teacher's classes
+    fetchTeacherLeaderboard();
+  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments, fetchTeacherLeaderboard]);
 
   // Set first class as selected when classes load
   useEffect(() => {
@@ -1932,6 +1958,12 @@ export default function TeacherDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🐛 Sự cố
+            </TabsTrigger>
+            <TabsTrigger
+              value="leaderboard"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🏆 Xếp hạng
             </TabsTrigger>
           </TabsList>
 
@@ -2483,6 +2515,167 @@ export default function TeacherDashboard({
               userRole={user.role}
               isEmbedded={true}
             />
+          </TabsContent>
+
+          <TabsContent value="rankings" className="mt-6">
+            <div className="space-y-4">
+              <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg">
+                <CardHeader className="border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
+                      🏆 Bảng xếp hạng học sinh
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      {leaderboardOptions.map((option) => (
+                        <Button
+                          key={option.value}
+                          variant={
+                            rankingView === option.value ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => setRankingView(option.value)}
+                          className={
+                            rankingView === option.value
+                              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                              : "border-gray-300 dark:border-gray-600"
+                          }
+                        >
+                          {leaderboardTabIcons[option.value]} {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {leaderboardLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600 dark:text-gray-400">
+                        Đang tải...
+                      </span>
+                    </div>
+                  ) : rankingView === "score" ? (
+                    <div className="space-y-3">
+                      {leaderboard.score.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          Chưa có dữ liệu xếp hạng điểm
+                        </div>
+                      ) : (
+                        leaderboard.score.map((student, index) => (
+                          <div
+                            key={student.userId}
+                            className={`flex items-center justify-between p-4 rounded-xl transition-all ${
+                              index < 3
+                                ? "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-700"
+                                : "bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600"
+                            }`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                                  index === 0
+                                    ? "bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-lg"
+                                    : index === 1
+                                      ? "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800"
+                                      : index === 2
+                                        ? "bg-gradient-to-r from-orange-400 to-amber-600 text-white"
+                                        : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                                }`}
+                              >
+                                {index === 0
+                                  ? "🥇"
+                                  : index === 1
+                                    ? "🥈"
+                                    : index === 2
+                                      ? "🥉"
+                                      : student.rank}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-white">
+                                  {student.name}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {student.totalAssessments} bài kiểm tra
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                {student.averageScore.toFixed(1)}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Điểm TB
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {leaderboard.attendance.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                          Chưa có dữ liệu xếp hạng chuyên cần
+                        </div>
+                      ) : (
+                        leaderboard.attendance.map((student, index) => (
+                          <div
+                            key={student.userId}
+                            className={`flex items-center justify-between p-4 rounded-xl transition-all ${
+                              index < 3
+                                ? "bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-700"
+                                : "bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600"
+                            }`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                                  index === 0
+                                    ? "bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-lg"
+                                    : index === 1
+                                      ? "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800"
+                                      : index === 2
+                                        ? "bg-gradient-to-r from-orange-400 to-amber-600 text-white"
+                                        : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                                }`}
+                              >
+                                {index === 0
+                                  ? "🥇"
+                                  : index === 1
+                                    ? "🥈"
+                                    : index === 2
+                                      ? "🥉"
+                                      : student.rank}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-white">
+                                  {student.name}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  Tham gia từ:{" "}
+                                  {new Date(
+                                    student.createdAt,
+                                  ).toLocaleDateString("vi-VN")}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                {student.attendanceRate.toFixed(1)}%
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {student.totalPresent}/{student.totalSessions}{" "}
+                                buổi
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </main>

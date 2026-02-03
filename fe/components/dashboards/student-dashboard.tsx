@@ -26,6 +26,7 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
+import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -183,7 +184,7 @@ type DaySchedule = {
   attendanceStatus?: "present" | "absent" | "late" | "excused" | null;
 };
 
-type RankingCategory = "score" | "diligence" | "attendance";
+type RankingCategory = "score" | "attendance";
 
 const overviewCards = [
   {
@@ -279,130 +280,11 @@ const leaderboardOptions: Record<
 > = {
   score: { label: "Top điểm", desc: "Điểm trung bình cao" },
   attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
-  diligence: { label: "Chăm chỉ", desc: "Hoàn thành bài tập" },
 };
 
-const leaderboardData: Record<
-  RankingCategory,
-  {
-    rank: number;
-    name: string;
-    className: string;
-    metric: string;
-    detail: string;
-  }[]
-> = {
-  score: [
-    {
-      rank: 1,
-      name: "Nguyễn Văn A",
-      className: "Lớp Toán 12A1",
-      metric: "9.8",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 2,
-      name: "Trần Thị B",
-      className: "Lớp Anh Văn 12B2",
-      metric: "9.6",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 3,
-      name: "Lê Văn C",
-      className: "Lớp Vật Lý 11C1",
-      metric: "9.5",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 4,
-      name: "Phạm Minh D",
-      className: "Lớp Hóa Học 10A2",
-      metric: "9.2",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 5,
-      name: "Hoàng An E",
-      className: "Lớp Toán 11B1",
-      metric: "9.0",
-      detail: "Top Điểm",
-    },
-  ],
-  attendance: [
-    {
-      rank: 1,
-      name: "Trần Minh T",
-      className: "Đã theo học 240 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 2,
-      name: "Lê Hải Y",
-      className: "Đã theo học 210 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 3,
-      name: "Nguyễn Công P",
-      className: "Đã theo học 180 ngày",
-      metric: "98%",
-      detail: "Nghỉ 1 buổi có phép",
-    },
-    {
-      rank: 4,
-      name: "Đặng Thu H",
-      className: "Đã theo học 150 ngày",
-      metric: "97%",
-      detail: "Nghỉ 1 buổi",
-    },
-    {
-      rank: 5,
-      name: "Vũ Gia K",
-      className: "Đã theo học 130 ngày",
-      metric: "96%",
-      detail: "Nghỉ 1 buổi",
-    },
-  ],
-  diligence: [
-    {
-      rank: 1,
-      name: "Bùi Xuân H",
-      className: "Hoàn thành 150 bài tập",
-      metric: "Level 15",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 2,
-      name: "Ngô Quốc B",
-      className: "Hoàn thành 142 bài tập",
-      metric: "Level 14",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 3,
-      name: "Lý Gia L",
-      className: "Hoàn thành 128 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 4,
-      name: "Mai Thanh V",
-      className: "Hoàn thành 125 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 5,
-      name: "Đỗ Mạnh Q",
-      className: "Hoàn thành 118 bài tập",
-      metric: "Level 11",
-      detail: "Chăm Chỉ",
-    },
-  ],
+const tabIcons: Record<RankingCategory, string> = {
+  score: "🏆",
+  attendance: "👥",
 };
 
 // Không còn mock data scheduleWeek - sử dụng dữ liệu thật từ API
@@ -1125,6 +1007,15 @@ export default function StudentDashboard({
 
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
+  
+  // Leaderboard store
+  const {
+    leaderboard,
+    myRank,
+    loading: leaderboardLoading,
+    fetchLeaderboard,
+    fetchMyRank,
+  } = useLeaderboardStore();
 
   // State to hold full user details including sensitive/personal info not in initial props
   const [fullUserDetails, setFullUserDetails] = useState<any>(null);
@@ -1671,9 +1562,13 @@ export default function StudentDashboard({
       fetchDashboardData(studentId).catch(console.error);
       // Fetch attendance records for this student
       fetchAttendance({ studentId }).catch(console.error);
+      // Fetch leaderboard
+      fetchLeaderboard({ limit: 10 }).catch(console.error);
+      // Fetch my rank
+      fetchMyRank().catch(console.error);
     }
     console.log("studentId: ", studentId);
-  }, [authUser, user.id, fetchDashboardData, fetchAttendance]);
+  }, [authUser, user.id, fetchDashboardData, fetchAttendance, fetchLeaderboard, fetchMyRank]);
 
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
@@ -1719,12 +1614,6 @@ export default function StudentDashboard({
         },
       ]
     : overviewCards;
-
-  const tabIcons: Record<RankingCategory, string> = {
-    score: "🏆",
-    attendance: "👥",
-    diligence: "⚡",
-  };
 
   const statusStyle = (status: DaySchedule["status"]) => {
     if (status === "confirmed")
@@ -2648,7 +2537,7 @@ export default function StudentDashboard({
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
                 {Object.entries(leaderboardOptions).map(([key, opt]) => (
                   <button
                     key={key}
@@ -2667,52 +2556,139 @@ export default function StudentDashboard({
                 ))}
               </div>
 
-              <div className="space-y-3">
-                {leaderboardData[rankingView].map((row) => (
-                  <div
-                    key={`${rankingView}-${row.rank}-${row.name}`}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
-                        {row.rank === 1 && (
-                          <span className="text-amber-500">🏆</span>
-                        )}
-                        {row.rank === 2 && (
-                          <span className="text-gray-400">🥈</span>
-                        )}
-                        {row.rank === 3 && (
-                          <span className="text-orange-400">🥉</span>
-                        )}
-                        {row.rank > 3 && (
-                          <span className="text-sm font-semibold text-gray-700">
-                            {row.rank}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 leading-tight">
-                          {row.name}
-                        </p>
-                        <p className="text-xs text-gray-500 leading-tight">
-                          {row.className}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-blue-700">
-                        {row.metric}
-                      </p>
-                      <p className="text-xs text-gray-500">{row.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* Loading State */}
+              {leaderboardLoading && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-4">Đang tải bảng xếp hạng...</p>
+                </div>
+              )}
 
+              {/* Leaderboard List */}
+              {!leaderboardLoading && (
+                <div className="space-y-3">
+                  {rankingView === "score" && leaderboard?.score?.map((row) => (
+                    <div
+                      key={`score-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${
+                        row.studentId === (authUser?._id || user.id)
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
+                          {row.rank === 1 && (
+                            <span className="text-amber-500">🏆</span>
+                          )}
+                          {row.rank === 2 && (
+                            <span className="text-gray-400">🥈</span>
+                          )}
+                          {row.rank === 3 && (
+                            <span className="text-orange-400">🥉</span>
+                          )}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-semibold text-gray-700">
+                              {row.rank}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 leading-tight">
+                            {row.studentName}
+                            {row.studentId === (authUser?._id || user.id) && (
+                              <span className="ml-2 text-xs text-blue-600">(Bạn)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 leading-tight">
+                            {row.className || `${row.totalGrades} bài kiểm tra`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-blue-700">
+                          {row.averageScore.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-gray-500">Điểm TB</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
+                    <div
+                      key={`attendance-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${
+                        row.studentId === (authUser?._id || user.id)
+                          ? "border-emerald-300 bg-emerald-50"
+                          : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
+                          {row.rank === 1 && (
+                            <span className="text-amber-500">🏆</span>
+                          )}
+                          {row.rank === 2 && (
+                            <span className="text-gray-400">🥈</span>
+                          )}
+                          {row.rank === 3 && (
+                            <span className="text-orange-400">🥉</span>
+                          )}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-semibold text-gray-700">
+                              {row.rank}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 leading-tight">
+                            {row.studentName}
+                            {row.studentId === (authUser?._id || user.id) && (
+                              <span className="ml-2 text-xs text-emerald-600">(Bạn)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 leading-tight">
+                            Đã theo học {row.daysEnrolled} ngày
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-emerald-700">
+                          {row.attendanceRate}%
+                        </p>
+                        <p className="text-xs text-gray-500">{row.presentCount}/{row.totalSessions} buổi</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Empty State */}
+                  {!leaderboardLoading && (
+                    (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
+                    (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
+                  ) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-4xl mb-2">📊</p>
+                      <p>Chưa có dữ liệu xếp hạng</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* My Rank */}
               <div className="rounded-xl bg-blue-50 text-blue-700 text-sm text-center px-4 py-3">
                 Vị trí hiện tại của bạn:{" "}
-                <span className="font-semibold">Hạng 12</span> trong{" "}
-                {leaderboardOptions[rankingView].label}
+                <span className="font-semibold">
+                  {rankingView === "score" 
+                    ? (myRank?.scoreRank ? `Hạng ${myRank.scoreRank}` : "Chưa có xếp hạng")
+                    : (myRank?.attendanceRank ? `Hạng ${myRank.attendanceRank}` : "Chưa có xếp hạng")
+                  }
+                </span>
+                {" "}trong {leaderboardOptions[rankingView].label}
+                {myRank?.totalStudents && (
+                  <span className="text-gray-500 ml-1">
+                    ({myRank.totalStudents} học sinh)
+                  </span>
+                )}
               </div>
             </Card>
           </TabsContent>

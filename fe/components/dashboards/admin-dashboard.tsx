@@ -36,6 +36,7 @@ import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
 import { usePaymentsStore } from "@/lib/stores/payments-store";
 import { useFinanceStore } from "@/lib/stores/finance-store";
+import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
 import ExpenseModal from "@/components/modals/expense-modal";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -51,7 +52,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type RankingCategory = "score" | "attendance" | "diligence";
+type RankingCategory = "score" | "attendance";
 
 const overviewStats = [
   {
@@ -176,143 +177,18 @@ const pieData = [
 
 const pieColors = ["#3b82f6", "#f97316", "#10b981", "#8b5cf6"];
 
-// Leaderboard data
+// Leaderboard options (removed "diligence" / "Chăm chỉ")
 const leaderboardOptions: Record<
   RankingCategory,
   { label: string; desc: string }
 > = {
   score: { label: "Top điểm", desc: "Điểm trung bình cao" },
   attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
-  diligence: { label: "Chăm chỉ", desc: "Hoàn thành bài tập" },
-};
-
-const leaderboardData: Record<
-  RankingCategory,
-  {
-    rank: number;
-    name: string;
-    className: string;
-    metric: string;
-    detail: string;
-  }[]
-> = {
-  score: [
-    {
-      rank: 1,
-      name: "Nguyễn Văn A",
-      className: "Lớp Toán 12A1",
-      metric: "9.8",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 2,
-      name: "Trần Thị B",
-      className: "Lớp Anh Văn 12B2",
-      metric: "9.6",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 3,
-      name: "Lê Văn C",
-      className: "Lớp Vật Lý 11C1",
-      metric: "9.5",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 4,
-      name: "Phạm Minh D",
-      className: "Lớp Hóa Học 10A2",
-      metric: "9.2",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 5,
-      name: "Hoàng An E",
-      className: "Lớp Toán 11B1",
-      metric: "9.0",
-      detail: "Top Điểm",
-    },
-  ],
-  attendance: [
-    {
-      rank: 1,
-      name: "Trần Minh T",
-      className: "Đã theo học 240 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 2,
-      name: "Lê Hải Y",
-      className: "Đã theo học 210 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 3,
-      name: "Nguyễn Công P",
-      className: "Đã theo học 180 ngày",
-      metric: "98%",
-      detail: "Nghỉ 1 buổi có phép",
-    },
-    {
-      rank: 4,
-      name: "Đặng Thu H",
-      className: "Đã theo học 150 ngày",
-      metric: "97%",
-      detail: "Nghỉ 1 buổi",
-    },
-    {
-      rank: 5,
-      name: "Vũ Gia K",
-      className: "Đã theo học 130 ngày",
-      metric: "96%",
-      detail: "Nghỉ 1 buổi",
-    },
-  ],
-  diligence: [
-    {
-      rank: 1,
-      name: "Bùi Xuân H",
-      className: "Hoàn thành 150 bài tập",
-      metric: "Level 15",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 2,
-      name: "Ngô Quốc B",
-      className: "Hoàn thành 142 bài tập",
-      metric: "Level 14",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 3,
-      name: "Lý Gia L",
-      className: "Hoàn thành 128 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 4,
-      name: "Mai Thanh V",
-      className: "Hoàn thành 125 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 5,
-      name: "Đỗ Mạnh Q",
-      className: "Hoàn thành 118 bài tập",
-      metric: "Level 11",
-      detail: "Chăm Chỉ",
-    },
-  ],
 };
 
 const tabIcons: Record<RankingCategory, string> = {
   score: "🏆",
   attendance: "👥",
-  diligence: "⚡",
 };
 
 interface BranchOption {
@@ -2272,6 +2148,13 @@ export default function AdminDashboard({
     fetchUsers,
     isLoading: usersLoading,
   } = useUsersStore();
+  
+  // Leaderboard store
+  const {
+    leaderboard,
+    loading: leaderboardLoading,
+    fetchLeaderboard,
+  } = useLeaderboardStore();
 
   // Finance store (new)
   const {
@@ -2350,7 +2233,11 @@ export default function AdminDashboard({
     fetchClasses().catch(() => {
       console.log("Could not fetch classes - make sure backend is running");
     });
-  }, [fetchBranches, fetchUsers, fetchClasses]);
+    // Fetch leaderboard
+    fetchLeaderboard({ limit: 10 }).catch(() => {
+      console.log("Could not fetch leaderboard - make sure backend is running");
+    });
+  }, [fetchBranches, fetchUsers, fetchClasses, fetchLeaderboard]);
 
   // Fetch finance dashboard when switching to finance tab or branch/year changes
   useEffect(() => {
@@ -3550,7 +3437,7 @@ export default function AdminDashboard({
               </div>
 
               {/* Ranking Category Tabs */}
-              <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
                 {Object.entries(leaderboardOptions).map(([key, opt]) => (
                   <button
                     key={key}
@@ -3569,67 +3456,140 @@ export default function AdminDashboard({
                 ))}
               </div>
 
+              {/* Loading State */}
+              {leaderboardLoading && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-4">Đang tải bảng xếp hạng...</p>
+                </div>
+              )}
+
               {/* Leaderboard List */}
-              <div className="space-y-3">
-                {leaderboardData[rankingView].map((row) => (
-                  <div
-                    key={`${rankingView}-${row.rank}-${row.name}`}
-                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                      row.rank === 1
-                        ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                        : row.rank === 2
-                          ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                          : row.rank === 3
-                            ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                            : "border-gray-100 bg-white hover:border-blue-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                          row.rank === 1
-                            ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                            : row.rank === 2
-                              ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                              : row.rank === 3
-                                ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {row.rank === 1 && "🏆"}
-                        {row.rank === 2 && "🥈"}
-                        {row.rank === 3 && "🥉"}
-                        {row.rank > 3 && (
-                          <span className="text-sm font-bold">{row.rank}</span>
-                        )}
+              {!leaderboardLoading && (
+                <div className="space-y-3">
+                  {rankingView === "score" && leaderboard?.score?.map((row) => (
+                    <div
+                      key={`score-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                        row.rank === 1
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                            row.rank === 1
+                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {row.rank === 1 && "🏆"}
+                          {row.rank === 2 && "🥈"}
+                          {row.rank === 3 && "🥉"}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-bold">{row.rank}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{row.studentName}</p>
+                          <p className="text-xs text-gray-500">{row.className || `${row.totalGrades} bài kiểm tra`}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{row.name}</p>
-                        <p className="text-xs text-gray-500">{row.className}</p>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-blue-600">
+                          {row.averageScore.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-gray-500">Điểm TB</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-blue-600">
-                        {row.metric}
-                      </p>
-                      <p className="text-xs text-gray-500">{row.detail}</p>
+                  ))}
+
+                  {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
+                    <div
+                      key={`attendance-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                        row.rank === 1
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                            row.rank === 1
+                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {row.rank === 1 && "🏆"}
+                          {row.rank === 2 && "🥈"}
+                          {row.rank === 3 && "🥉"}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-bold">{row.rank}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{row.studentName}</p>
+                          <p className="text-xs text-gray-500">Đã theo học {row.daysEnrolled} ngày</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-emerald-600">
+                          {row.attendanceRate}%
+                        </p>
+                        <p className="text-xs text-gray-500">{row.presentCount}/{row.totalSessions} buổi</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+
+                  {/* Empty State */}
+                  {!leaderboardLoading && (
+                    (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
+                    (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
+                  ) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-4xl mb-2">📊</p>
+                      <p>Chưa có dữ liệu xếp hạng</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
                 <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50">
-                  <p className="text-2xl font-bold text-blue-600">248</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {leaderboard?.summary?.totalStudents || 0}
+                  </p>
                   <p className="text-xs text-gray-500">Tổng học sinh</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50">
-                  <p className="text-2xl font-bold text-emerald-600">8.2</p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {leaderboard?.summary?.averageScore?.toFixed(1) || "0.0"}
+                  </p>
                   <p className="text-xs text-gray-500">Điểm TB</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50">
-                  <p className="text-2xl font-bold text-amber-600">95%</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {leaderboard?.summary?.averageAttendanceRate || 0}%
+                  </p>
                   <p className="text-xs text-gray-500">Tỷ lệ chuyên cần</p>
                 </div>
               </div>

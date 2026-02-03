@@ -7,12 +7,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { GradesService } from './grades.service';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
 import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
 import { CreateGradingSheetDto } from './dto/create-grading-sheet.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
+import { LeaderboardQueryDto } from './dto/leaderboard.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -127,5 +128,35 @@ export class GradesController {
     @Param('classId') classId: string,
   ) {
     return this.gradesService.getStudentRankInClass(studentId, classId);
+  }
+
+  // ==================== LEADERBOARD ENDPOINTS ====================
+
+  @Get('leaderboard')
+  @ApiOperation({ summary: 'Lấy bảng xếp hạng tổng hợp (Top điểm + Chuyên cần)' })
+  @ApiQuery({ name: 'branchId', required: false, description: 'Filter by branch ID' })
+  @ApiQuery({ name: 'classId', required: false, description: 'Filter by class ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limit number of results', example: 10 })
+  getLeaderboard(@Query() query: LeaderboardQueryDto) {
+    return this.gradesService.getLeaderboard(query);
+  }
+
+  @Get('leaderboard/teacher')
+  @Roles(UserRole.Teacher)
+  @ApiOperation({ summary: 'Lấy bảng xếp hạng học sinh trong các lớp của giáo viên' })
+  @ApiQuery({ name: 'classId', required: false, description: 'Filter by specific class ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limit number of results', example: 10 })
+  getTeacherLeaderboard(
+    @CurrentUser() teacher: UserDocument,
+    @Query() query: LeaderboardQueryDto,
+  ) {
+    return this.gradesService.getTeacherLeaderboard(teacher._id.toString(), query);
+  }
+
+  @Get('leaderboard/my-rank')
+  @Roles(UserRole.Student)
+  @ApiOperation({ summary: 'Lấy thứ hạng của học sinh hiện tại trong toàn trung tâm' })
+  getMyOverallRank(@CurrentUser() student: UserDocument) {
+    return this.gradesService.getStudentOverallRank(student._id.toString());
   }
 }
