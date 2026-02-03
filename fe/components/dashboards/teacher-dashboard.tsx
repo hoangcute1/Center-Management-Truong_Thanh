@@ -14,7 +14,7 @@ import {
   Line,
 } from "recharts";
 import { ChevronDown, Camera } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
@@ -57,6 +57,13 @@ const leaderboardOptions: Record<
 const leaderboardTabIcons: Record<RankingCategory, string> = {
   score: "🏆",
   attendance: "👥",
+};
+
+// Helper function to get file type from filename
+const getFileType = (filename?: string): string => {
+  if (!filename) return "FILE";
+  const ext = filename.split(".").pop()?.toUpperCase();
+  return ext || "FILE";
 };
 
 interface TeacherDashboardProps {
@@ -2314,7 +2321,9 @@ export default function TeacherDashboard({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {teachingDocuments.map((doc) => (
+                    {teachingDocuments.map((doc) => {
+                      const fileType = getFileType(doc.originalFileName);
+                      return (
                       <div
                         key={doc._id}
                         className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
@@ -2322,26 +2331,26 @@ export default function TeacherDashboard({
                         <div className="flex items-center gap-4">
                           <div
                             className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                              doc.fileType === "PDF"
+                              fileType === "PDF"
                                 ? "bg-red-100"
-                                : doc.fileType === "DOCX"
+                                : fileType === "DOCX"
                                   ? "bg-blue-100"
-                                  : doc.fileType === "PPTX"
+                                  : fileType === "PPTX"
                                     ? "bg-orange-100"
-                                    : doc.fileType === "XLSX"
+                                    : fileType === "XLSX"
                                       ? "bg-green-100"
                                       : "bg-gray-100"
                             }`}
                           >
                             <FileIcon
                               className={`h-6 w-6 ${
-                                doc.fileType === "PDF"
+                                fileType === "PDF"
                                   ? "text-red-600"
-                                  : doc.fileType === "DOCX"
+                                  : fileType === "DOCX"
                                     ? "text-blue-600"
-                                    : doc.fileType === "PPTX"
+                                    : fileType === "PPTX"
                                       ? "text-orange-600"
-                                      : doc.fileType === "XLSX"
+                                      : fileType === "XLSX"
                                         ? "text-green-600"
                                         : "text-gray-600"
                               }`}
@@ -2353,9 +2362,8 @@ export default function TeacherDashboard({
                             </p>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                               <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                {doc.fileType}
+                                {fileType}
                               </span>
-                              {doc.fileSize && <span>{doc.fileSize}</span>}
                               <span>•</span>
                               <span>
                                 {doc.classIds.map((c) => c.name).join(", ") ||
@@ -2440,7 +2448,7 @@ export default function TeacherDashboard({
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );})}
                   </div>
                 )}
 
@@ -2466,7 +2474,7 @@ export default function TeacherDashboard({
           </TabsContent>
 
           <TabsContent value="evaluation" className="mt-6">
-            <TeacherRatingsTab userId={user.id} />
+            <TeacherRatingsTab />
           </TabsContent>
 
           <TabsContent value="contact" className="mt-6">
@@ -2526,21 +2534,21 @@ export default function TeacherDashboard({
                       🏆 Bảng xếp hạng học sinh
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      {leaderboardOptions.map((option) => (
+                      {Object.entries(leaderboardOptions).map(([key, option]) => (
                         <Button
-                          key={option.value}
+                          key={key}
                           variant={
-                            rankingView === option.value ? "default" : "outline"
+                            rankingView === key ? "solid" : "outline"
                           }
                           size="sm"
-                          onClick={() => setRankingView(option.value)}
+                          onClick={() => setRankingView(key as RankingCategory)}
                           className={
-                            rankingView === option.value
+                            rankingView === key
                               ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
                               : "border-gray-300 dark:border-gray-600"
                           }
                         >
-                          {leaderboardTabIcons[option.value]} {option.label}
+                          {leaderboardTabIcons[key as RankingCategory]} {option.label}
                         </Button>
                       ))}
                     </div>
@@ -2556,14 +2564,14 @@ export default function TeacherDashboard({
                     </div>
                   ) : rankingView === "score" ? (
                     <div className="space-y-3">
-                      {leaderboard.score.length === 0 ? (
+                      {!leaderboard || leaderboard.score.length === 0 ? (
                         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                           Chưa có dữ liệu xếp hạng điểm
                         </div>
                       ) : (
                         leaderboard.score.map((student, index) => (
                           <div
-                            key={student.userId}
+                            key={student.studentId}
                             className={`flex items-center justify-between p-4 rounded-xl transition-all ${
                               index < 3
                                 ? "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-700"
@@ -2592,10 +2600,10 @@ export default function TeacherDashboard({
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900 dark:text-white">
-                                  {student.name}
+                                  {student.studentName}
                                 </p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {student.totalAssessments} bài kiểm tra
+                                  {student.totalGrades} bài kiểm tra
                                 </p>
                               </div>
                             </div>
@@ -2613,14 +2621,14 @@ export default function TeacherDashboard({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {leaderboard.attendance.length === 0 ? (
+                      {!leaderboard || leaderboard.attendance.length === 0 ? (
                         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                           Chưa có dữ liệu xếp hạng chuyên cần
                         </div>
                       ) : (
                         leaderboard.attendance.map((student, index) => (
                           <div
-                            key={student.userId}
+                            key={student.studentId}
                             className={`flex items-center justify-between p-4 rounded-xl transition-all ${
                               index < 3
                                 ? "bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-700"
@@ -2649,13 +2657,10 @@ export default function TeacherDashboard({
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900 dark:text-white">
-                                  {student.name}
+                                  {student.studentName}
                                 </p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  Tham gia từ:{" "}
-                                  {new Date(
-                                    student.createdAt,
-                                  ).toLocaleDateString("vi-VN")}
+                                  Đã học: {student.daysEnrolled} ngày
                                 </p>
                               </div>
                             </div>
@@ -2664,7 +2669,7 @@ export default function TeacherDashboard({
                                 {student.attendanceRate.toFixed(1)}%
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {student.totalPresent}/{student.totalSessions}{" "}
+                                {student.presentCount}/{student.totalSessions}{" "}
                                 buổi
                               </p>
                             </div>
