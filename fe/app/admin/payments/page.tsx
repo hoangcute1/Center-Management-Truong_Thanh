@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { usePaymentsStore } from "@/lib/stores/payments-store";
+import { useBranchesStore } from "@/lib/stores/branches-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +13,12 @@ import {
   ArrowLeft,
   Loader2,
   Plus,
-  Users,
   CheckCircle,
-  Clock,
-  TrendingUp,
   RefreshCw,
   Eye,
   Trash2,
-  FileText,
+  Search,
+  X,
 } from "lucide-react";
 import api from "@/lib/api";
 import { notify } from "@/lib/notify";
@@ -28,13 +27,50 @@ interface ClassInfo {
   _id: string;
   name: string;
   subject?: string;
+  grade?: string;
   fee: number;
   studentIds: string[];
+  branchId?: string | { _id: string; name: string };
+}
+
+interface StudentInfo {
+  _id: string;
+  name?: string;
+  email?: string;
+  studentCode?: string;
+  branchId?: string;
+}
+
+interface PaymentWithStudent {
+  _id: string;
+  studentId?: StudentInfo;
+  amount: number;
+  method: string;
+  status: string;
+  createdAt: string;
+  branchName?: string;
+  subjectName?: string;
+}
+
+interface StudentPaymentStatus {
+  _id: string;
+  studentName: string;
+  studentCode?: string;
+  finalAmount: number;
+  scholarshipPercent: number;
+  status: string;
+}
+
+interface StudentsData {
+  total: number;
+  paid: number;
+  pending: number;
+  students: StudentPaymentStatus[];
 }
 
 export default function AdminPaymentRequestsPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { user, isLoading: authLoading } = useAuthStore();
   const {
     classRequests,
     fetchClassRequests,
@@ -50,22 +86,34 @@ export default function AdminPaymentRequestsPage() {
     fetchAllPayments,
     confirmCashPayment,
   } = usePaymentsStore();
+  const { branches, fetchBranches } = useBranchesStore();
 
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState("");
+
+  // === Form state voi multi-select ===
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState<number | "">("");
   const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isCreatingMultiple, setIsCreatingMultiple] = useState(false);
+
+  // === Filter state ===
+  const [filterBranch, setFilterBranch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [viewingRequest, setViewingRequest] = useState<string | null>(null);
-  const [studentsData, setStudentsData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"requests" | "cash" | "history">("requests");
+  const [studentsData, setStudentsData] = useState<StudentsData | null>(null);
+  const [activeTab, setActiveTab] = useState<"requests" | "cash" | "history">(
+    "requests",
+  );
 
   useEffect(() => {
-    // Đợi zustand hydrate từ localStorage
     const timer = setTimeout(() => {
       if (!user) {
         router.push("/");
@@ -81,6 +129,7 @@ export default function AdminPaymentRequestsPage() {
       fetchPendingCashPayments();
       fetchClasses();
       fetchAllPayments();
+      fetchBranches();
     }, 100);
 
     return () => clearTimeout(timer);
@@ -95,9 +144,157 @@ export default function AdminPaymentRequestsPage() {
     }
   };
 
+  // === Computed values cho cascade filters ===
+  const getBranchId = (cls: ClassInfo): string => {
+    if (!cls.branchId) return "";
+    if (typeof cls.branchId === "string") return cls.branchId;
+    return cls.branchId._id;
+  };
+
+  // Lay danh sach cac khoi tu classes da loc theo co so
+  const availableGrades = useMemo(() => {
+    let filtered = classes;
+    if (selectedBranches.length > 0) {
+      filtered = classes.filter((c) =>
+        selectedBranches.includes(getBranchId(c)),
+      );
+    }
+    const grades = [...new Set(filtered.map((c) => c.grade).filter(Boolean))];
+    return grades.sort();
+  }, [classes, selectedBranches]);
+
+  // Lay danh sach cac mon tu classes da loc theo co so + khoi
+  const availableSubjects = useMemo(() => {
+    let filtered = classes;
+    if (selectedBranches.length > 0) {
+      filtered = filtered.filter((c) =>
+        selectedBranches.includes(getBranchId(c)),
+      );
+    }
+    if (selectedGrades.length > 0) {
+      filtered = filtered.filter(
+        (c) => c.grade && selectedGrades.includes(c.grade),
+      );
+    }
+    const subjects = [
+      ...new Set(filtered.map((c) => c.subject).filter(Boolean)),
+    ];
+    return subjects.sort();
+  }, [classes, selectedBranches, selectedGrades]);
+
+  // Lay danh sach cac lop da loc
+  const filteredClasses = useMemo(() => {
+    let filtered = classes;
+    if (selectedBranches.length > 0) {
+      filtered = filtered.filter((c) =>
+        selectedBranches.includes(getBranchId(c)),
+      );
+    }
+    if (selectedGrades.length > 0) {
+      filtered = filtered.filter(
+        (c) => c.grade && selectedGrades.includes(c.grade),
+      );
+    }
+    if (selectedSubjects.length > 0) {
+      filtered = filtered.filter(
+        (c) => c.subject && selectedSubjects.includes(c.subject),
+      );
+    }
+    return filtered;
+  }, [classes, selectedBranches, selectedGrades, selectedSubjects]);
+
+  // Tinh tong so hoc sinh tu cac lop da chon
+  const totalStudentsInSelectedClasses = useMemo(() => {
+    const classesToUse =
+      selectedClasses.length > 0
+        ? classes.filter((c) => selectedClasses.includes(c._id))
+        : filteredClasses;
+    return classesToUse.reduce(
+      (sum, c) => sum + (c.studentIds?.length || 0),
+      0,
+    );
+  }, [classes, selectedClasses, filteredClasses]);
+
+  // === Filter data cho cac tab ===
+  const filteredClassRequests = useMemo(() => {
+    let result = classRequests;
+    if (filterBranch) {
+      result = result.filter(
+        (r) =>
+          r.className?.toLowerCase().includes(filterBranch.toLowerCase()) ||
+          r.classSubject?.toLowerCase().includes(filterBranch.toLowerCase()),
+      );
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.title.toLowerCase().includes(query) ||
+          r.className?.toLowerCase().includes(query) ||
+          r.classSubject?.toLowerCase().includes(query),
+      );
+    }
+    return result;
+  }, [classRequests, filterBranch, searchQuery]);
+
+  const filteredPendingPayments = useMemo(() => {
+    let result = pendingCashPayments as PaymentWithStudent[];
+    if (filterBranch) {
+      result = result.filter(
+        (p) =>
+          p.studentId?.branchId === filterBranch ||
+          p.branchName?.toLowerCase().includes(filterBranch.toLowerCase()),
+      );
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.studentId?.name?.toLowerCase().includes(query) ||
+          p.studentId?.studentCode?.toLowerCase().includes(query) ||
+          p.studentId?.email?.toLowerCase().includes(query),
+      );
+    }
+    return result;
+  }, [pendingCashPayments, filterBranch, searchQuery]);
+
+  const filteredAllPayments = useMemo(() => {
+    let result = allPayments as PaymentWithStudent[];
+    if (filterBranch) {
+      result = result.filter(
+        (p) =>
+          p.branchName?.toLowerCase().includes(filterBranch.toLowerCase()) ||
+          p.studentId?.branchId === filterBranch,
+      );
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.studentId?.name?.toLowerCase().includes(query) ||
+          p.studentId?.studentCode?.toLowerCase().includes(query) ||
+          p.studentId?.email?.toLowerCase().includes(query) ||
+          p._id.toLowerCase().includes(query),
+      );
+    }
+    return result;
+  }, [allPayments, filterBranch, searchQuery]);
+
   const handleCreateRequest = async () => {
-    if (!selectedClassId || !title) {
-      const msg = "Vui lòng chọn lớp và nhập tiêu đề";
+    if (!title) {
+      const msg = "Vui long nhap tieu de";
+      setError(msg);
+      notify.warning(msg);
+      return;
+    }
+
+    const classesToProcess =
+      selectedClasses.length > 0
+        ? classes.filter((c) => selectedClasses.includes(c._id))
+        : filteredClasses;
+
+    if (classesToProcess.length === 0) {
+      const msg = "Vui long chon it nhat mot lop";
       setError(msg);
       notify.warning(msg);
       return;
@@ -105,28 +302,47 @@ export default function AdminPaymentRequestsPage() {
 
     try {
       setError(null);
-      const result = await createClassPaymentRequest({
-        classId: selectedClassId,
-        title,
-        description: description || undefined,
-        amount: amount ? Number(amount) : undefined,
-        dueDate: dueDate || undefined,
-      });
+      setIsCreatingMultiple(true);
+
+      let totalStudents = 0;
+      let successCount = 0;
+
+      for (const cls of classesToProcess) {
+        try {
+          const result = await createClassPaymentRequest({
+            classId: cls._id,
+            title,
+            description: description || undefined,
+            amount: amount ? Number(amount) : cls.fee || undefined,
+            dueDate: dueDate || undefined,
+          });
+          totalStudents += result.studentCount;
+          successCount++;
+        } catch (err) {
+          console.error(`Error creating request for class ${cls.name}:`, err);
+        }
+      }
 
       notify.success(
-        `Đã tạo yêu cầu đóng tiền cho ${result.studentCount} học sinh!`
+        `Da tao ${successCount} yeu cau dong tien cho ${totalStudents} hoc sinh!`,
       );
       setShowCreateForm(false);
       resetForm();
       fetchClassRequests();
-    } catch (err: any) {
-      setError(err.message);
-      notify.error(err.message);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Có lỗi xảy ra";
+      setError(errorMessage);
+      notify.error(errorMessage);
+    } finally {
+      setIsCreatingMultiple(false);
     }
   };
 
   const resetForm = () => {
-    setSelectedClassId("");
+    setSelectedBranches([]);
+    setSelectedGrades([]);
+    setSelectedSubjects([]);
+    setSelectedClasses([]);
     setTitle("");
     setDescription("");
     setAmount("");
@@ -138,40 +354,90 @@ export default function AdminPaymentRequestsPage() {
       const data = await getClassRequestStudents(requestId);
       setStudentsData(data);
       setViewingRequest(requestId);
-    } catch (err: any) {
-      notify.error(err.message);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
     }
   };
 
   const handleCancelRequest = async (id: string) => {
-    if (!confirm("Bạn có chắc muốn hủy yêu cầu này?\nCác học sinh chưa thanh toán sẽ bị hủy yêu cầu.")) {
+    if (!confirm("Ban co chac muon huy yeu cau nay?")) {
       return;
     }
 
     try {
       await cancelClassRequest(id);
-      notify.success("Đã hủy yêu cầu thành công");
+      notify.success("Da huy yeu cau thanh cong");
       fetchClassRequests();
-    } catch (err: any) {
-      notify.error(err.message);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
     }
   };
 
   const handleConfirmCash = async (paymentId: string) => {
-    if (!confirm("Xác nhận đã thu tiền?")) return;
+    if (!confirm("Xac nhan da thu tien?")) return;
 
     try {
       await confirmCashPayment(paymentId);
-      notify.success("Đã xác nhận thành công!");
+      notify.success("Da xac nhan thanh cong!");
       fetchPendingCashPayments();
-    } catch (err: any) {
-      notify.error(err.message);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
     }
   };
 
-  const selectedClass = classes.find((c) => c._id === selectedClassId);
+  // Toggle select helpers
+  const toggleBranch = (branchId: string) => {
+    setSelectedBranches((prev) =>
+      prev.includes(branchId)
+        ? prev.filter((id) => id !== branchId)
+        : [...prev, branchId],
+    );
+    setSelectedGrades([]);
+    setSelectedSubjects([]);
+    setSelectedClasses([]);
+  };
 
-  // Hiển thị loading khi đang kiểm tra auth hoặc chưa có user
+  const toggleGrade = (grade: string) => {
+    setSelectedGrades((prev) =>
+      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade],
+    );
+    setSelectedSubjects([]);
+    setSelectedClasses([]);
+  };
+
+  const toggleSubject = (subject: string) => {
+    setSelectedSubjects((prev) =>
+      prev.includes(subject)
+        ? prev.filter((s) => s !== subject)
+        : [...prev, subject],
+    );
+    setSelectedClasses([]);
+  };
+
+  const toggleClass = (classId: string) => {
+    setSelectedClasses((prev) =>
+      prev.includes(classId)
+        ? prev.filter((id) => id !== classId)
+        : [...prev, classId],
+    );
+  };
+
+  const selectAllBranches = () => {
+    setSelectedBranches(branches.map((b) => b._id));
+  };
+
+  const selectAllGrades = () => {
+    setSelectedGrades(availableGrades as string[]);
+  };
+
+  const selectAllSubjects = () => {
+    setSelectedSubjects(availableSubjects as string[]);
+  };
+
+  const selectAllClasses = () => {
+    setSelectedClasses(filteredClasses.map((c) => c._id));
+  };
+
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -208,19 +474,21 @@ export default function AdminPaymentRequestsPage() {
         {/* Tabs */}
         <div className="flex border-b">
           <button
-            className={`px-4 py-2 font-medium ${activeTab === "requests"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-500"
-              }`}
+            className={`px-4 py-2 font-medium ${
+              activeTab === "requests"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-500"
+            }`}
             onClick={() => setActiveTab("requests")}
           >
             📋 Yêu cầu đóng tiền
           </button>
           <button
-            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === "cash"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-500"
-              }`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${
+              activeTab === "cash"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-500"
+            }`}
             onClick={() => setActiveTab("cash")}
           >
             💵 Chờ xác nhận
@@ -231,15 +499,56 @@ export default function AdminPaymentRequestsPage() {
             )}
           </button>
           <button
-            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === "history"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-500"
-              }`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${
+              activeTab === "history"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-500"
+            }`}
             onClick={() => setActiveTab("history")}
           >
             📜 Lịch sử giao dịch
           </button>
         </div>
+
+        {/* Filter Bar */}
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Cơ sở:
+              </label>
+              <select
+                value={filterBranch}
+                onChange={(e) => setFilterBranch(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+              >
+                <option value="">Tất cả cơ sở</option>
+                {branches.map((branch) => (
+                  <option key={branch._id} value={branch.name}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Tìm kiếm theo tên, mã học sinh, email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              )}
+            </div>
+          </div>
+        </Card>
 
         {/* Tab: Requests */}
         {activeTab === "requests" && (
@@ -248,12 +557,14 @@ export default function AdminPaymentRequestsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                 <p className="text-sm opacity-90">Tổng yêu cầu</p>
-                <p className="text-2xl font-bold">{classRequests.length}</p>
+                <p className="text-2xl font-bold">
+                  {filteredClassRequests.length}
+                </p>
               </Card>
               <Card className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white">
                 <p className="text-sm opacity-90">Đã thu</p>
                 <p className="text-2xl font-bold">
-                  {classRequests
+                  {filteredClassRequests
                     .reduce((sum, r) => sum + r.totalCollected, 0)
                     .toLocaleString("vi-VN")}{" "}
                   đ
@@ -262,9 +573,9 @@ export default function AdminPaymentRequestsPage() {
               <Card className="p-4 bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
                 <p className="text-sm opacity-90">Chờ thanh toán</p>
                 <p className="text-2xl font-bold">
-                  {classRequests.reduce(
+                  {filteredClassRequests.reduce(
                     (sum, r) => sum + r.totalStudents - r.paidCount,
-                    0
+                    0,
                   )}
                 </p>
               </Card>
@@ -294,13 +605,13 @@ export default function AdminPaymentRequestsPage() {
                 <div className="text-center py-12">
                   <Loader2 className="w-8 h-8 mx-auto animate-spin text-blue-600" />
                 </div>
-              ) : classRequests.length === 0 ? (
+              ) : filteredClassRequests.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <p>Chưa có yêu cầu đóng tiền nào</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {classRequests.map((req) => (
+                  {filteredClassRequests.map((req) => (
                     <div
                       key={req._id}
                       className="p-4 border rounded-xl bg-white"
@@ -312,12 +623,14 @@ export default function AdminPaymentRequestsPage() {
                           </h3>
                           <p className="text-sm text-gray-500">
                             {req.className}
-                            {req.classSubject && ` • ${req.classSubject}`}
+                            {req.classSubject && ` - ${req.classSubject}`}
                           </p>
                           {req.dueDate && (
                             <p className="text-xs text-gray-400 mt-1">
-                              Hạn:{" "}
-                              {new Date(req.dueDate).toLocaleDateString("vi-VN")}
+                              Han:{" "}
+                              {new Date(req.dueDate).toLocaleDateString(
+                                "vi-VN",
+                              )}
                             </p>
                           )}
                         </div>
@@ -333,11 +646,12 @@ export default function AdminPaymentRequestsPage() {
                               <div
                                 className="h-full bg-green-500"
                                 style={{
-                                  width: `${req.totalStudents > 0
-                                    ? (req.paidCount / req.totalStudents) *
-                                    100
-                                    : 0
-                                    }%`,
+                                  width: `${
+                                    req.totalStudents > 0
+                                      ? (req.paidCount / req.totalStudents) *
+                                        100
+                                      : 0
+                                  }%`,
                                 }}
                               />
                             </div>
@@ -393,14 +707,14 @@ export default function AdminPaymentRequestsPage() {
               </Button>
             </div>
 
-            {pendingCashPayments.length === 0 ? (
+            {filteredPendingPayments.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500" />
                 <p>Không có thanh toán chờ xác nhận</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {pendingCashPayments.map((payment: any) => (
+                {filteredPendingPayments.map((payment) => (
                   <div
                     key={payment._id}
                     className="flex items-center justify-between p-4 border rounded-xl"
@@ -410,7 +724,7 @@ export default function AdminPaymentRequestsPage() {
                         {payment.studentId?.name || "Học sinh"}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {payment.studentId?.studentCode}
+                        MSHS: {payment.studentId?.studentCode || "N/A"}
                       </p>
                       <p className="text-xs text-gray-400">
                         {new Date(payment.createdAt).toLocaleString("vi-VN")}
@@ -444,6 +758,7 @@ export default function AdminPaymentRequestsPage() {
                 <thead className="bg-gray-50 text-gray-700 uppercase">
                   <tr>
                     <th className="px-4 py-3">Mã GD</th>
+                    <th className="px-4 py-3">MSHS</th>
                     <th className="px-4 py-3">Học sinh</th>
                     <th className="px-4 py-3">Cơ sở</th>
                     <th className="px-4 py-3">Môn học</th>
@@ -454,42 +769,67 @@ export default function AdminPaymentRequestsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {allPayments.map((p) => (
+                  {filteredAllPayments.map((p) => (
                     <tr key={p._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs">{p._id.slice(-8).toUpperCase()}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{(p.studentId as any)?.name || 'N/A'}</p>
-                        <p className="text-xs text-gray-500">{(p.studentId as any)?.email}</p>
+                      <td className="px-4 py-3 font-mono text-xs">
+                        {p._id.slice(-8).toUpperCase()}
                       </td>
-                      <td className="px-4 py-3 text-gray-700">{p.branchName || '—'}</td>
-                      <td className="px-4 py-3 text-gray-700">{p.subjectName || '—'}</td>
-                      <td className="px-4 py-3 font-bold">{p.amount.toLocaleString('vi-VN')} đ</td>
-                      <td className="px-4 py-3">
-                        {p.method === 'vnpay_test' ? 'VNPay' :
-                          p.method === 'cash' ? 'Tiền mặt' : p.method}
+                      <td className="px-4 py-3 font-mono text-xs text-blue-600 font-medium">
+                        {p.studentId?.studentCode || "-"}
                       </td>
                       <td className="px-4 py-3">
-                        {p.status === 'success' ? (
-                          <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800'>
+                        <p className="font-medium text-gray-900">
+                          {p.studentId?.name || "N/A"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {p.studentId?.email}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {p.branchName || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {p.subjectName || "-"}
+                      </td>
+                      <td className="px-4 py-3 font-bold">
+                        {p.amount.toLocaleString("vi-VN")} đ
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.method === "vnpay_test"
+                          ? "VNPay"
+                          : p.method === "cash"
+                            ? "Tiền mặt"
+                            : p.method}
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.status === "success" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                             Thành công
                           </span>
-                        ) : p.status === 'pending' ? (
-                          <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800'>
+                        ) : p.status === "pending" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                             Đang xử lý
                           </span>
                         ) : (
-                          <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800'>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                             {p.status}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-500">
-                        {new Date(p.createdAt).toLocaleString('vi-VN')}
+                        {new Date(p.createdAt).toLocaleString("vi-VN")}
                       </td>
                     </tr>
                   ))}
-                  {allPayments.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Chưa có giao dịch nào</td></tr>
+                  {filteredAllPayments.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={9}
+                        className="text-center py-8 text-gray-400"
+                      >
+                        Chưa có giao dịch nào
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -501,10 +841,8 @@ export default function AdminPaymentRequestsPage() {
       {/* Create Form Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-lg w-full p-6">
-            <h2 className="text-xl font-bold mb-4">
-              ➕ Tạo yêu cầu đóng tiền
-            </h2>
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h2 className="text-xl font-bold mb-4">➕ Tạo yêu cầu đóng tiền</h2>
 
             {error && (
               <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -513,29 +851,186 @@ export default function AdminPaymentRequestsPage() {
             )}
 
             <div className="space-y-4">
+              {/* Branch Select */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Chọn cơ sở
+                  </label>
+                  <button
+                    type="button"
+                    onClick={selectAllBranches}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Chọn tất cả
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-gray-50 max-h-32 overflow-y-auto">
+                  {branches.map((branch) => (
+                    <button
+                      key={branch._id}
+                      type="button"
+                      onClick={() => toggleBranch(branch._id)}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                        selectedBranches.includes(branch._id)
+                          ? "bg-blue-600 text-white"
+                          : "bg-white border border-gray-300 text-gray-700 hover:border-blue-400"
+                      }`}
+                    >
+                      {branch.name}
+                    </button>
+                  ))}
+                </div>
+                {selectedBranches.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Đã chọn {selectedBranches.length} cơ sở
+                  </p>
+                )}
+              </div>
+
+              {/* Grade Select */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Chọn khối
+                  </label>
+                  {availableGrades.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={selectAllGrades}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Chọn tất cả
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-gray-50 max-h-32 overflow-y-auto">
+                  {availableGrades.length === 0 ? (
+                    <p className="text-sm text-gray-400">
+                      Chọn cơ sở trước để xem danh sách khối
+                    </p>
+                  ) : (
+                    availableGrades.map((grade) => (
+                      <button
+                        key={grade}
+                        type="button"
+                        onClick={() => toggleGrade(grade as string)}
+                        className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                          selectedGrades.includes(grade as string)
+                            ? "bg-green-600 text-white"
+                            : "bg-white border border-gray-300 text-gray-700 hover:border-green-400"
+                        }`}
+                      >
+                        {grade}
+                      </button>
+                    ))
+                  )}
+                </div>
+                {selectedGrades.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Đã chọn {selectedGrades.length} khối
+                  </p>
+                )}
+              </div>
+
+              {/* Subject Select */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Chọn môn
+                  </label>
+                  {availableSubjects.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={selectAllSubjects}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Chọn tất cả
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-gray-50 max-h-32 overflow-y-auto">
+                  {availableSubjects.length === 0 ? (
+                    <p className="text-sm text-gray-400">
+                      Chọn cơ sở/khối trước để xem danh sách môn
+                    </p>
+                  ) : (
+                    availableSubjects.map((subject) => (
+                      <button
+                        key={subject}
+                        type="button"
+                        onClick={() => toggleSubject(subject as string)}
+                        className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                          selectedSubjects.includes(subject as string)
+                            ? "bg-purple-600 text-white"
+                            : "bg-white border border-gray-300 text-gray-700 hover:border-purple-400"
+                        }`}
+                      >
+                        {subject}
+                      </button>
+                    ))
+                  )}
+                </div>
+                {selectedSubjects.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Đã chọn {selectedSubjects.length} môn
+                  </p>
+                )}
+              </div>
+
               {/* Class Select */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chọn lớp <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={selectedClassId}
-                  onChange={(e) => {
-                    setSelectedClassId(e.target.value);
-                    const cls = classes.find((c) => c._id === e.target.value);
-                    if (cls && cls.fee > 0 && !amount) {
-                      setAmount(cls.fee);
-                    }
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  <option value="">-- Chọn lớp --</option>
-                  {classes.map((cls) => (
-                    <option key={cls._id} value={cls._id}>
-                      {cls.name} ({cls.studentIds?.length || 0} học sinh)
-                    </option>
-                  ))}
-                </select>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Chọn lớp (khóa học) <span className="text-red-500">*</span>
+                  </label>
+                  {filteredClasses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={selectAllClasses}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Chọn tất cả ({filteredClasses.length} lớp)
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-gray-50 max-h-48 overflow-y-auto">
+                  {filteredClasses.length === 0 ? (
+                    <p className="text-sm text-gray-400">
+                      Không có lớp nào phù hợp với bộ lọc
+                    </p>
+                  ) : (
+                    filteredClasses.map((cls) => (
+                      <button
+                        key={cls._id}
+                        type="button"
+                        onClick={() => toggleClass(cls._id)}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors text-left ${
+                          selectedClasses.includes(cls._id)
+                            ? "bg-indigo-600 text-white"
+                            : "bg-white border border-gray-300 text-gray-700 hover:border-indigo-400"
+                        }`}
+                      >
+                        <span className="font-medium">{cls.name}</span>
+                        <span className="text-xs opacity-75 ml-1">
+                          ({cls.studentIds?.length || 0} HS)
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+                {selectedClasses.length > 0 ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Đã chọn {selectedClasses.length} lớp
+                  </p>
+                ) : (
+                  filteredClasses.length > 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Nếu không chọn lớp cụ thể, sẽ tạo yêu cầu cho tất cả{" "}
+                      {filteredClasses.length} lớp phù hợp
+                    </p>
+                  )
+                )}
               </div>
 
               {/* Title */}
@@ -565,7 +1060,7 @@ export default function AdminPaymentRequestsPage() {
               {/* Amount */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số tiền (VNĐ)
+                  Số tiền (VNĐ) - để trống sẽ dùng học phí của từng lớp
                 </label>
                 <Input
                   type="number"
@@ -573,11 +1068,7 @@ export default function AdminPaymentRequestsPage() {
                   onChange={(e) =>
                     setAmount(e.target.value ? Number(e.target.value) : "")
                   }
-                  placeholder={
-                    selectedClass?.fee
-                      ? `Mặc định: ${selectedClass.fee.toLocaleString("vi-VN")}`
-                      : "Nhập số tiền"
-                  }
+                  placeholder="Nhập số tiền hoặc để trống"
                 />
               </div>
 
@@ -594,18 +1085,42 @@ export default function AdminPaymentRequestsPage() {
               </div>
 
               {/* Preview */}
-              {selectedClass && (
-                <div className="bg-blue-50 rounded-lg p-4 text-sm">
-                  <p className="font-medium text-blue-900 mb-2">Preview:</p>
-                  <p>• Lớp: {selectedClass.name}</p>
-                  <p>
-                    • Sẽ tạo{" "}
-                    <strong>{selectedClass.studentIds?.length || 0}</strong> yêu
-                    cầu cho {selectedClass.studentIds?.length || 0} học sinh
-                  </p>
-                  <p>• Học bổng sẽ được tự động áp dụng</p>
-                </div>
-              )}
+              <div className="bg-blue-50 rounded-lg p-4 text-sm">
+                <p className="font-medium text-blue-900 mb-2">📊 Tóm tắt:</p>
+                <p>
+                  • Cơ sở:{" "}
+                  {selectedBranches.length === 0
+                    ? "Tất cả"
+                    : `${selectedBranches.length} cơ sở`}
+                </p>
+                <p>
+                  • Khối:{" "}
+                  {selectedGrades.length === 0
+                    ? "Tất cả"
+                    : selectedGrades.join(", ")}
+                </p>
+                <p>
+                  • Môn:{" "}
+                  {selectedSubjects.length === 0
+                    ? "Tất cả"
+                    : selectedSubjects.join(", ")}
+                </p>
+                <p>
+                  • Số lớp:{" "}
+                  <strong>
+                    {selectedClasses.length > 0
+                      ? selectedClasses.length
+                      : filteredClasses.length}
+                  </strong>
+                </p>
+                <p>
+                  • Tổng số học sinh:{" "}
+                  <strong>{totalStudentsInSelectedClasses}</strong>
+                </p>
+                <p className="text-xs text-blue-700 mt-2">
+                  💡 Học bổng sẽ được tự động áp dụng cho từng học sinh
+                </p>
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -622,9 +1137,9 @@ export default function AdminPaymentRequestsPage() {
               <Button
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
                 onClick={handleCreateRequest}
-                disabled={requestsLoading}
+                disabled={requestsLoading || isCreatingMultiple}
               >
-                {requestsLoading ? (
+                {requestsLoading || isCreatingMultiple ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Đang tạo...
@@ -671,17 +1186,20 @@ export default function AdminPaymentRequestsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-2 text-left">MSHS</th>
                     <th className="px-4 py-2 text-left">Học sinh</th>
                     <th className="px-4 py-2 text-right">Số tiền</th>
                     <th className="px-4 py-2 text-center">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {studentsData.students.map((s: any) => (
+                  {studentsData.students.map((s) => (
                     <tr key={s._id} className="border-t">
+                      <td className="px-4 py-2 font-mono text-xs text-blue-600">
+                        {s.studentCode || "-"}
+                      </td>
                       <td className="px-4 py-2">
                         <p className="font-medium">{s.studentName}</p>
-                        <p className="text-xs text-gray-500">{s.studentCode}</p>
                       </td>
                       <td className="px-4 py-2 text-right">
                         {s.finalAmount.toLocaleString("vi-VN")} đ

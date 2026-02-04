@@ -131,7 +131,14 @@ const accounts = {
 
 // Removed mock pieData - now using real studentsBySubject from API
 
-const pieColors = ["#3b82f6", "#f97316", "#10b981", "#8b5cf6", "#ec4899", "#6366f1"];
+const pieColors = [
+  "#3b82f6",
+  "#f97316",
+  "#10b981",
+  "#8b5cf6",
+  "#ec4899",
+  "#6366f1",
+];
 
 // Leaderboard options (removed "diligence" / "Chăm chỉ")
 const leaderboardOptions: Record<
@@ -2104,7 +2111,7 @@ export default function AdminDashboard({
     fetchUsers,
     isLoading: usersLoading,
   } = useUsersStore();
-  
+
   // Leaderboard store
   const {
     leaderboard,
@@ -2202,9 +2209,17 @@ export default function AdminDashboard({
     });
     // Fetch admin stats overview
     fetchDashboardOverview().catch(() => {
-      console.log("Could not fetch dashboard stats - make sure backend is running");
+      console.log(
+        "Could not fetch dashboard stats - make sure backend is running",
+      );
     });
-  }, [fetchBranches, fetchUsers, fetchClasses, fetchLeaderboard, fetchDashboardOverview]);
+  }, [
+    fetchBranches,
+    fetchUsers,
+    fetchClasses,
+    fetchLeaderboard,
+    fetchDashboardOverview,
+  ]);
 
   // Fetch finance dashboard when switching to finance tab or branch/year changes
   useEffect(() => {
@@ -2692,12 +2707,15 @@ export default function AdminDashboard({
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-white/80 text-sm font-medium">Học sinh</p>
+                          <p className="text-white/80 text-sm font-medium">
+                            Học sinh
+                          </p>
                           <p className="text-3xl font-bold mt-2">
                             {dashboardData?.overview?.students?.total || 0}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {dashboardData?.overview?.students?.trend || "Đang tải..."}
+                            {dashboardData?.overview?.students?.trend ||
+                              "Đang tải..."}
                           </p>
                         </div>
                         <span className="text-4xl opacity-80">👨‍🎓</span>
@@ -2711,12 +2729,15 @@ export default function AdminDashboard({
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-white/80 text-sm font-medium">Giáo viên</p>
+                          <p className="text-white/80 text-sm font-medium">
+                            Giáo viên
+                          </p>
                           <p className="text-3xl font-bold mt-2">
                             {dashboardData?.overview?.teachers?.total || 0}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {dashboardData?.overview?.teachers?.active || 0} đang hoạt động
+                            {dashboardData?.overview?.teachers?.active || 0}{" "}
+                            đang hoạt động
                           </p>
                         </div>
                         <span className="text-4xl opacity-80">👨‍🏫</span>
@@ -2730,14 +2751,17 @@ export default function AdminDashboard({
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-white/80 text-sm font-medium">Doanh thu tháng</p>
+                          <p className="text-white/80 text-sm font-medium">
+                            Doanh thu tháng
+                          </p>
                           <p className="text-3xl font-bold mt-2">
                             {dashboardData?.overview?.revenue?.thisMonth
                               ? `${Math.round(dashboardData.overview.revenue.thisMonth / 1000000)} Tr`
                               : "0 Tr"}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {dashboardData?.overview?.revenue?.trend || "Đang tải..."}
+                            {dashboardData?.overview?.revenue?.trend ||
+                              "Đang tải..."}
                           </p>
                         </div>
                         <span className="text-4xl opacity-80">💰</span>
@@ -2751,12 +2775,17 @@ export default function AdminDashboard({
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-white/80 text-sm font-medium">Khóa học</p>
+                          <p className="text-white/80 text-sm font-medium">
+                            Khóa học
+                          </p>
                           <p className="text-3xl font-bold mt-2">
-                            {dashboardData?.overview?.classes?.total || classes.length || 0}
+                            {dashboardData?.overview?.classes?.total ||
+                              classes.length ||
+                              0}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
-                            {dashboardData?.overview?.classes?.active || 0} đang mở
+                            {dashboardData?.overview?.classes?.active || 0} đang
+                            mở
                           </p>
                         </div>
                         <span className="text-4xl opacity-80">📚</span>
@@ -2802,7 +2831,10 @@ export default function AdminDashboard({
                               />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#e5e7eb"
+                          />
                           <XAxis
                             dataKey="month"
                             tick={{ fontSize: 11, fill: "#6b7280" }}
@@ -2815,7 +2847,10 @@ export default function AdminDashboard({
                               borderRadius: "12px",
                               boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
                             }}
-                            formatter={(value: number) => [`${value} triệu`, "Doanh thu"]}
+                            formatter={(value: number) => [
+                              `${value} triệu`,
+                              "Doanh thu",
+                            ]}
                           />
                           <Area
                             type="monotone"
@@ -2833,7 +2868,9 @@ export default function AdminDashboard({
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl">🎯</span>
                       <div>
-                        <p className="font-bold text-gray-900">Phân bổ học sinh</p>
+                        <p className="font-bold text-gray-900">
+                          Phân bổ học sinh
+                        </p>
                         <p className="text-xs text-gray-500">Theo môn học</p>
                       </div>
                     </div>
@@ -2852,9 +2889,14 @@ export default function AdminDashboard({
                               `${name} ${(percent * 100).toFixed(0)}%`
                             }
                           >
-                            {(dashboardData?.studentsBySubject || []).map((_, idx) => (
-                              <Cell key={idx} fill={pieColors[idx % pieColors.length]} />
-                            ))}
+                            {(dashboardData?.studentsBySubject || []).map(
+                              (_, idx) => (
+                                <Cell
+                                  key={idx}
+                                  fill={pieColors[idx % pieColors.length]}
+                                />
+                              ),
+                            )}
                           </Pie>
                           <Tooltip />
                         </PieChart>
@@ -2880,7 +2922,9 @@ export default function AdminDashboard({
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">📊</span>
                       <div>
-                        <p className="text-sm text-gray-600">Điểm TB toàn trường</p>
+                        <p className="text-sm text-gray-600">
+                          Điểm TB toàn trường
+                        </p>
                         <p className="text-2xl font-bold text-blue-700">
                           {dashboardData?.averageScore || 0}
                         </p>
@@ -3290,8 +3334,8 @@ export default function AdminDashboard({
                                   {s.email}
                                 </p>
                                 <p className="text-xs text-gray-400">
-                                  {s.phone || "Chưa có SĐT"} • ID:{" "}
-                                  {s._id?.slice(-6)}
+                                  {s.phone || "Chưa có SĐT"} • MSHS:{" "}
+                                  {s.studentCode || s._id?.slice(-6)}
                                 </p>
                                 {isAdmin && (
                                   <p className="text-xs text-blue-600 font-medium mt-1">
@@ -3496,115 +3540,137 @@ export default function AdminDashboard({
               {leaderboardLoading && (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-gray-500 mt-4">Đang tải bảng xếp hạng...</p>
+                  <p className="text-gray-500 mt-4">
+                    Đang tải bảng xếp hạng...
+                  </p>
                 </div>
               )}
 
               {/* Leaderboard List */}
               {!leaderboardLoading && (
                 <div className="space-y-3">
-                  {rankingView === "score" && leaderboard?.score?.map((row) => (
-                    <div
-                      key={`score-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                        row.rank === 1
-                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                          : row.rank === 2
-                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                            : row.rank === 3
-                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "border-gray-100 bg-white hover:border-blue-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                            row.rank === 1
-                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                              : row.rank === 2
-                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                : row.rank === 3
-                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {row.rank === 1 && "🏆"}
-                          {row.rank === 2 && "🥈"}
-                          {row.rank === 3 && "🥉"}
-                          {row.rank > 3 && (
-                            <span className="text-sm font-bold">{row.rank}</span>
-                          )}
+                  {rankingView === "score" &&
+                    leaderboard?.score?.map((row) => (
+                      <div
+                        key={`score-${row.rank}-${row.studentId}`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                          row.rank === 1
+                            ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                            : row.rank === 2
+                              ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                              : row.rank === 3
+                                ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                                : "border-gray-100 bg-white hover:border-blue-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                              row.rank === 1
+                                ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                                : row.rank === 2
+                                  ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                  : row.rank === 3
+                                    ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                    : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {row.rank === 1 && "🏆"}
+                            {row.rank === 2 && "🥈"}
+                            {row.rank === 3 && "🥉"}
+                            {row.rank > 3 && (
+                              <span className="text-sm font-bold">
+                                {row.rank}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {row.studentName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {row.className ||
+                                `${row.totalGrades} bài kiểm tra`}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{row.studentName}</p>
-                          <p className="text-xs text-gray-500">{row.className || `${row.totalGrades} bài kiểm tra`}</p>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-blue-600">
+                            {row.averageScore.toFixed(1)}
+                          </p>
+                          <p className="text-xs text-gray-500">Điểm TB</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-blue-600">
-                          {row.averageScore.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-gray-500">Điểm TB</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
-                    <div
-                      key={`attendance-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                        row.rank === 1
-                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                          : row.rank === 2
-                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                            : row.rank === 3
-                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "border-gray-100 bg-white hover:border-blue-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                            row.rank === 1
-                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
-                              : row.rank === 2
-                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
-                                : row.rank === 3
-                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {row.rank === 1 && "🏆"}
-                          {row.rank === 2 && "🥈"}
-                          {row.rank === 3 && "🥉"}
-                          {row.rank > 3 && (
-                            <span className="text-sm font-bold">{row.rank}</span>
-                          )}
+                  {rankingView === "attendance" &&
+                    leaderboard?.attendance?.map((row) => (
+                      <div
+                        key={`attendance-${row.rank}-${row.studentId}`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
+                          row.rank === 1
+                            ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                            : row.rank === 2
+                              ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                              : row.rank === 3
+                                ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                                : "border-gray-100 bg-white hover:border-blue-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                              row.rank === 1
+                                ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                                : row.rank === 2
+                                  ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                  : row.rank === 3
+                                    ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                    : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {row.rank === 1 && "🏆"}
+                            {row.rank === 2 && "🥈"}
+                            {row.rank === 3 && "🥉"}
+                            {row.rank > 3 && (
+                              <span className="text-sm font-bold">
+                                {row.rank}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {row.studentName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Đã theo học {row.daysEnrolled} ngày
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{row.studentName}</p>
-                          <p className="text-xs text-gray-500">Đã theo học {row.daysEnrolled} ngày</p>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-emerald-600">
+                            {row.attendanceRate}%
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {row.presentCount}/{row.totalSessions} buổi
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-emerald-600">
-                          {row.attendanceRate}%
-                        </p>
-                        <p className="text-xs text-gray-500">{row.presentCount}/{row.totalSessions} buổi</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
 
                   {/* Empty State */}
-                  {!leaderboardLoading && (
-                    (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
-                    (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
-                  ) && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-4xl mb-2">📊</p>
-                      <p>Chưa có dữ liệu xếp hạng</p>
-                    </div>
-                  )}
+                  {!leaderboardLoading &&
+                    ((rankingView === "score" &&
+                      (!leaderboard?.score ||
+                        leaderboard.score.length === 0)) ||
+                      (rankingView === "attendance" &&
+                        (!leaderboard?.attendance ||
+                          leaderboard.attendance.length === 0))) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>Chưa có dữ liệu xếp hạng</p>
+                      </div>
+                    )}
                 </div>
               )}
 
