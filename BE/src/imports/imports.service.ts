@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { ClassesService } from '../classes/classes.service';
 import { BranchesService } from '../branches/branches.service';
@@ -10,9 +9,6 @@ import {
   ImportUsersDto,
   ImportResult,
   ImportResponse,
-  StudentRowData,
-  TeacherRowData,
-  ParentRowData,
 } from './dto/import-users.dto';
 
 // Mật khẩu mặc định cho tài khoản mới

@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Model, Connection } from 'mongoose';
+import { Connection } from 'mongoose';
 import { getConnectionToken } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 
