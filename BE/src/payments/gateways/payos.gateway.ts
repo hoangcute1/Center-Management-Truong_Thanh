@@ -56,9 +56,11 @@ export class PayosGateway implements PaymentGateway {
 
       // Generate unique orderCode (must be a number)
       const orderCode = Number(Date.now().toString().slice(-9));
-      const frontendUrl = process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3001';
-      const returnUrl = `${frontendUrl}/payment-result`;
-      const cancelUrl = `${frontendUrl}/payment-result`;
+      
+      // Return URL must point to BACKEND, not frontend
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+      const returnUrl = `${backendUrl}/payments/payos/return`;
+      const cancelUrl = `${backendUrl}/payments/payos/return`;
 
       // PayOS requires description <= 25 characters
       let description = params.orderInfo || 'Thanh toan hoc phi';

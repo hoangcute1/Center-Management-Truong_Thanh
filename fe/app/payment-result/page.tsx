@@ -1,16 +1,58 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
+import { usePaymentsStore } from "@/lib/stores/payments-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function PaymentResultPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
+  const { fetchMyRequests, fetchChildrenRequests } = usePaymentRequestsStore();
+  const { fetchMyPayments } = usePaymentsStore();
+
+  const [isRefreshing, setIsRefreshing] = useState(true);
+
   const success = searchParams.get("success") === "true";
   const paymentId = searchParams.get("paymentId");
   const message = searchParams.get("message");
+
+  // Refresh data when page loads to remove paid requests from list
+  useEffect(() => {
+    const refreshData = async () => {
+      try {
+        if (user?.role === "student") {
+          await fetchMyRequests();
+        } else if (user?.role === "parent") {
+          await fetchChildrenRequests();
+        }
+        await fetchMyPayments();
+      } catch (error) {
+        console.error("Error refreshing payment data:", error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+
+    refreshData();
+  }, [user, fetchMyRequests, fetchChildrenRequests, fetchMyPayments]);
+
+  if (isRefreshing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin text-blue-600" />
+          <h2 className="text-xl font-semibold mb-2">Đang cập nhật...</h2>
+          <p className="text-gray-600">Vui lòng đợi trong giây lát</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -30,9 +72,8 @@ export default function PaymentResultPage() {
 
         {/* Title */}
         <h1
-          className={`text-2xl font-bold mb-2 ${
-            success ? "text-green-600" : "text-red-600"
-          }`}
+          className={`text-2xl font-bold mb-2 ${success ? "text-green-600" : "text-red-600"
+            }`}
         >
           {success ? "Thanh toán thành công!" : "Thanh toán thất bại"}
         </h1>
@@ -42,8 +83,8 @@ export default function PaymentResultPage() {
           {message
             ? decodeURIComponent(message)
             : success
-            ? "Giao dịch của bạn đã được xử lý thành công."
-            : "Đã có lỗi xảy ra trong quá trình thanh toán."}
+              ? "Giao dịch của bạn đã được xử lý thành công."
+              : "Đã có lỗi xảy ra trong quá trình thanh toán."}
         </p>
 
         {paymentId && (
