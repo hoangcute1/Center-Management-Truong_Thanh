@@ -59,6 +59,18 @@ export class PaymentsController {
     return res.redirect(redirectUrl);
   }
 
+  // ==================== FAKE PAYOS ====================
+
+  @Post('fake/callback')
+  async fakePayosCallback(
+    @Body() body: { paymentId: string; status: 'SUCCESS' | 'CANCELLED' },
+  ) {
+    return this.paymentsService.handleFakePayosCallback(
+      body.paymentId,
+      body.status,
+    );
+  }
+
   @Post('vnpay-test/ipn')
   async vnpayIpn(@Body() vnpParams: Record<string, any>) {
     return this.paymentsService.handleVnpayIpn(vnpParams);

@@ -45,6 +45,7 @@ export class PaymentsService {
   ): Promise<{
     paymentId: string;
     paymentUrl?: string;
+    checkoutUrl?: string;
     vnpTxnRef?: string;
     message?: string;
   }> {
@@ -99,7 +100,9 @@ export class PaymentsService {
       method:
         dto.method === 'vnpay_test'
           ? PaymentMethod.VNPAY_TEST
-          : PaymentMethod.CASH,
+          : dto.method === 'fake_payos'
+            ? PaymentMethod.FAKE_PAYOS
+            : PaymentMethod.CASH,
       status: PaymentStatus.PENDING,
       branchId: branchId ? new Types.ObjectId(branchId) : null,
       branchName: branchName,
@@ -131,6 +134,23 @@ export class PaymentsService {
         paymentId: (payment._id as Types.ObjectId).toString(),
         paymentUrl,
         vnpTxnRef,
+      };
+    } else if (dto.method === 'fake_payos') {
+      // Fake PayOS
+      const fakeTxnId = `FAKE_${Date.now()}`;
+      payment.vnpTxnRef = fakeTxnId; // Reuse this field for transaction ID
+      await payment.save();
+
+      await this.logTransaction(
+        payment._id as Types.ObjectId,
+        TransactionType.CREATE,
+        { fakeTxnId, amount: totalAmount, requestIds: dto.requestIds },
+        'Created Fake PayOS payment',
+      );
+
+      return {
+        paymentId: (payment._id as Types.ObjectId).toString(),
+        checkoutUrl: `/payment/fake-checkout?paymentId=${payment._id}&amount=${totalAmount}&info=Thanh toan Fake PayOS`,
       };
     } else {
       // Cash payment
@@ -276,6 +296,54 @@ export class PaymentsService {
     }
 
     return { RspCode: '00', Message: 'Confirm Success' };
+  }
+
+  // ==================== FAKE PAYOS HANDLERS ====================
+
+  async handleFakePayosCallback(
+    paymentId: string,
+    status: 'SUCCESS' | 'CANCELLED',
+  ): Promise<{ success: boolean; message: string }> {
+    const payment = await this.paymentModel.findById(paymentId);
+
+    if (!payment) {
+      throw new NotFoundException('Không tìm thấy giao dịch');
+    }
+
+    if (payment.method !== PaymentMethod.FAKE_PAYOS) {
+      throw new BadRequestException('Không phải giao dịch Fake PayOS');
+    }
+
+    if (payment.status === PaymentStatus.SUCCESS) {
+      return { success: true, message: 'Giao dịch đã thành công trước đó' };
+    }
+
+    await this.logTransaction(
+      payment._id as Types.ObjectId,
+      TransactionType.IPN,
+      { status, paymentId },
+      `Fake PayOS Callback: ${status}`,
+    );
+
+    if (status === 'SUCCESS') {
+      payment.status = PaymentStatus.SUCCESS;
+      payment.paidAt = new Date();
+      payment.vnpTransactionNo = `FAKE_TXN_${Date.now()}`;
+      await payment.save();
+
+      // Mark requests as paid
+      await this.paymentRequestsService.markAsPaid(
+        payment.requestIds.map((id) => id.toString()),
+        payment._id as Types.ObjectId,
+      );
+
+      return { success: true, message: 'Thanh toán thành công (Fake)' };
+    } else {
+      payment.status = PaymentStatus.FAILED;
+      payment.failReason = 'User cancelled implementation';
+      await payment.save();
+      return { success: false, message: 'Đã huỷ giao dịch' };
+    }
   }
 
   // ==================== CASH HANDLERS ====================

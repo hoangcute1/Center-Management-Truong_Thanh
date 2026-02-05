@@ -7,7 +7,7 @@ export interface Payment {
   paidBy: any;
   studentId: any;
   amount: number;
-  method: "vnpay_test" | "cash" | "scholarship";
+  method: "vnpay_test" | "cash" | "scholarship" | "fake_payos";
   status: "init" | "pending" | "success" | "failed";
   vnpTxnRef?: string;
   paidAt?: string;
@@ -35,6 +35,7 @@ export interface FinanceOverview {
     vnpay_test: number;
     cash: number;
     scholarship: number;
+    fake_payos?: number;
   };
 }
 
@@ -49,11 +50,12 @@ interface PaymentsState {
   // Create payment
   createPayment: (data: {
     requestIds: string[];
-    method: "vnpay_test" | "cash";
+    method: "vnpay_test" | "cash" | "fake_payos";
     studentId?: string;
   }) => Promise<{
     paymentId: string;
     paymentUrl?: string;
+    checkoutUrl?: string;
     message?: string;
   }>;
 

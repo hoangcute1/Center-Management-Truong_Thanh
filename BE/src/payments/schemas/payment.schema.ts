@@ -7,6 +7,7 @@ export enum PaymentMethod {
   VNPAY_TEST = 'vnpay_test',
   CASH = 'cash',
   SCHOLARSHIP = 'scholarship',
+  FAKE_PAYOS = 'fake_payos',
 }
 
 export enum PaymentStatus {

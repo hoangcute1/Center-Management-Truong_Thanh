@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Gift,
   User,
+  Laptop,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 
@@ -125,7 +126,7 @@ export default function PaymentPage() {
     setSelectedIds([]);
   };
 
-  const handlePayment = async (method: "vnpay_test" | "cash") => {
+  const handlePayment = async (method: "vnpay_test" | "cash" | "fake_payos") => {
     if (selectedIds.length === 0) {
       const msg = "Vui lòng chọn ít nhất 1 yêu cầu";
       setError(msg);
@@ -150,6 +151,8 @@ export default function PaymentPage() {
 
       if (method === "vnpay_test" && result.paymentUrl) {
         window.location.href = result.paymentUrl;
+      } else if (method === "fake_payos" && result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
       } else {
         notify.success(
           result.message ||
@@ -497,6 +500,25 @@ export default function PaymentPage() {
                     </div>
                   </button>
 
+                  {/* FAKE PAYOS */}
+                  <button
+                    onClick={() => handlePayment("fake_payos")}
+                    disabled={isLoading}
+                    className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all"
+                  >
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Laptop className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">
+                        Thanh toán Online
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        PayOS / Credit Card
+                      </p>
+                    </div>
+                  </button>
+
                   <button
                     onClick={() => handlePayment("cash")}
                     disabled={isLoading}
@@ -573,7 +595,11 @@ export default function PaymentPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium">
-                            {payment.method === 'vnpay_test' ? 'VNPay' : 'Tiền mặt'}
+                            {payment.method === 'vnpay_test'
+                              ? 'VNPay'
+                              : payment.method === 'fake_payos'
+                                ? 'Fake PayOS'
+                                : 'Tiền mặt'}
                           </p>
                           <p className="text-xs text-gray-500">
                             {new Date(payment.createdAt).toLocaleDateString('vi-VN')}
@@ -592,6 +618,6 @@ export default function PaymentPage() {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
+    </div >
   );
 }
