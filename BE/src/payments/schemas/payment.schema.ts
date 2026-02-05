@@ -4,10 +4,10 @@ import { HydratedDocument, Types } from 'mongoose';
 export type PaymentDocument = HydratedDocument<Payment>;
 
 export enum PaymentMethod {
-  VNPAY_TEST = 'vnpay_test',
-  CASH = 'cash',
-  SCHOLARSHIP = 'scholarship',
-  FAKE_PAYOS = 'fake_payos',
+  PAYOS = 'PAYOS',
+  CASH = 'CASH',
+  SCHOLARSHIP = 'SCHOLARSHIP',
+  FAKE = 'FAKE',
 }
 
 export enum PaymentStatus {
@@ -15,6 +15,8 @@ export enum PaymentStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
   FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  PENDING_CASH = 'pending_cash',
 }
 
 @Schema({ timestamps: true })

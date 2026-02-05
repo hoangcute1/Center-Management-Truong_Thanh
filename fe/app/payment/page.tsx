@@ -126,7 +126,7 @@ export default function PaymentPage() {
     setSelectedIds([]);
   };
 
-  const handlePayment = async (method: "vnpay_test" | "cash" | "fake_payos") => {
+  const handlePayment = async (method: "PAYOS" | "CASH" | "FAKE") => {
     if (selectedIds.length === 0) {
       const msg = "Vui lòng chọn ít nhất 1 yêu cầu";
       setError(msg);
@@ -149,9 +149,9 @@ export default function PaymentPage() {
         studentId,
       });
 
-      if (method === "vnpay_test" && result.paymentUrl) {
+      if (method === "PAYOS" && result.paymentUrl) {
         window.location.href = result.paymentUrl;
-      } else if (method === "fake_payos" && result.checkoutUrl) {
+      } else if (method === "FAKE" && result.checkoutUrl) {
         window.location.href = result.checkoutUrl;
       } else {
         notify.success(
@@ -487,7 +487,7 @@ export default function PaymentPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   <button
-                    onClick={() => handlePayment("vnpay_test")}
+                    onClick={() => handlePayment("PAYOS")}
                     disabled={isLoading}
                     className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-red-500 hover:bg-red-50 transition-all"
                   >
@@ -495,14 +495,14 @@ export default function PaymentPage() {
                       <CreditCard className="w-6 h-6 text-red-600" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900">VNPay</p>
-                      <p className="text-sm text-gray-500">Thẻ ATM, Visa, QR Code</p>
+                      <p className="font-medium text-gray-900">PayOS</p>
+                      <p className="text-sm text-gray-500">QR Code / Mobile Banking</p>
                     </div>
                   </button>
 
                   {/* FAKE PAYOS */}
                   <button
-                    onClick={() => handlePayment("fake_payos")}
+                    onClick={() => handlePayment("FAKE")}
                     disabled={isLoading}
                     className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all"
                   >
@@ -511,16 +511,16 @@ export default function PaymentPage() {
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-gray-900">
-                        Thanh toán Online
+                        Thanh toán Online (Demo)
                       </p>
                       <p className="text-sm text-gray-500">
-                        PayOS / Credit Card
+                        Mô phỏng PayOS / Credit Card
                       </p>
                     </div>
                   </button>
 
                   <button
-                    onClick={() => handlePayment("cash")}
+                    onClick={() => handlePayment("CASH")}
                     disabled={isLoading}
                     className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all"
                   >
@@ -595,10 +595,10 @@ export default function PaymentPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium">
-                            {payment.method === 'vnpay_test'
-                              ? 'VNPay'
-                              : payment.method === 'fake_payos'
-                                ? 'Fake PayOS'
+                            {payment.method === 'PAYOS'
+                              ? 'PayOS'
+                              : payment.method === 'FAKE'
+                                ? 'Fake Demo'
                                 : 'Tiền mặt'}
                           </p>
                           <p className="text-xs text-gray-500">

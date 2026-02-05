@@ -8,7 +8,7 @@ export class CreatePaymentDto {
   @IsString()
   @IsNotEmpty()
   @IsNotEmpty()
-  method: 'vnpay_test' | 'cash' | 'fake_payos';
+  method: 'PAYOS' | 'CASH' | 'FAKE';
 
   @IsOptional()
   @IsString()

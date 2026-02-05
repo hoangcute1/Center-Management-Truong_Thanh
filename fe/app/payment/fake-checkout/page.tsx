@@ -70,7 +70,7 @@ function FakeCheckoutContent() {
                         <QrCode className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-2xl font-bold">Cổng Thanh Toán </h1>
-                    <p className="opacity-90 mt-1 pb-2"> PayOS / VNPay</p>
+                    <p className="opacity-90 mt-1 pb-2"> PayOS Demo Output</p>
                 </div>
 
                 {/* Info */}

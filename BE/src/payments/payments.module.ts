@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
-import { VnpayService } from './vnpay.service';
+
 import { Payment, PaymentSchema } from './schemas/payment.schema';
 import {
   PaymentTransaction,
@@ -11,6 +11,9 @@ import {
 import { PaymentRequestsModule } from '../payment-requests/payment-requests.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Branch, BranchSchema } from '../branches/schemas/branch.schema';
+
+import { PayosGateway } from './gateways/payos.gateway';
+import { PaymentGatewayFactory } from './gateways/gateway.factory';
 
 @Module({
   imports: [
@@ -23,7 +26,11 @@ import { Branch, BranchSchema } from '../branches/schemas/branch.schema';
     PaymentRequestsModule,
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService, VnpayService],
+  providers: [
+    PaymentsService,
+    PayosGateway,
+    PaymentGatewayFactory,
+  ],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}
