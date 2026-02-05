@@ -44,30 +44,21 @@ export class PaymentsController {
     );
   }
 
-  // ==================== VNPAY ====================
 
-  @Get('vnpay-test/return')
-  async vnpayReturn(
-    @Query() vnpParams: Record<string, any>,
-    @Res() res: Response,
+
+  // ==================== FAKE PAYOS ====================
+
+  @Post('fake/callback')
+  async fakePayosCallback(
+    @Body() body: { paymentId: string; status: 'SUCCESS' | 'CANCELLED' },
   ) {
-    const result = await this.paymentsService.handleVnpayReturn(vnpParams);
-
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const redirectUrl = `${frontendUrl}/payment-result?success=${result.success}&paymentId=${result.paymentId}&message=${encodeURIComponent(result.message)}`;
-
-    return res.redirect(redirectUrl);
+    return this.paymentsService.handleFakePayosCallback(
+      body.paymentId,
+      body.status,
+    );
   }
 
-  @Post('vnpay-test/ipn')
-  async vnpayIpn(@Body() vnpParams: Record<string, any>) {
-    return this.paymentsService.handleVnpayIpn(vnpParams);
-  }
 
-  @Get('vnpay-test/ipn')
-  async vnpayIpnGet(@Query() vnpParams: Record<string, any>) {
-    return this.paymentsService.handleVnpayIpn(vnpParams);
-  }
 
   // ==================== CASH ====================
 

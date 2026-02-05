@@ -17,10 +17,11 @@ import {
   TransactionType,
 } from './schemas/payment-transaction.schema';
 import { PaymentRequestsService } from '../payment-requests/payment-requests.service';
-import { VnpayService } from './vnpay.service';
 import { CreatePaymentDto, ConfirmCashPaymentDto } from './dto/payment.dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Branch, BranchDocument } from '../branches/schemas/branch.schema';
+import { PaymentGatewayFactory } from './gateways/gateway.factory';
+import { CreatePaymentParams } from './gateways/payment.gateway';
 
 @Injectable()
 export class PaymentsService {
@@ -31,7 +32,7 @@ export class PaymentsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Branch.name) private branchModel: Model<BranchDocument>,
     private paymentRequestsService: PaymentRequestsService,
-    private vnpayService: VnpayService,
+    private gatewayFactory: PaymentGatewayFactory,
   ) {}
 
 
@@ -45,6 +46,7 @@ export class PaymentsService {
   ): Promise<{
     paymentId: string;
     paymentUrl?: string;
+    checkoutUrl?: string;
     vnpTxnRef?: string;
     message?: string;
   }> {
@@ -90,50 +92,56 @@ export class PaymentsService {
       .filter((s) => s);
     const subjectName = [...new Set(subjects)].join(', ');
 
-    // 4. Tạo payment record với branch snapshot
+    // 4. Tạo payment record
+    const isCash = dto.method === PaymentMethod.CASH;
+    const initialStatus = isCash
+      ? PaymentStatus.PENDING_CASH
+      : PaymentStatus.PENDING;
+
     const payment = new this.paymentModel({
       requestIds: dto.requestIds.map((id) => new Types.ObjectId(id)),
       paidBy: new Types.ObjectId(userId),
       studentId: new Types.ObjectId(studentId),
       amount: totalAmount,
-      method:
-        dto.method === 'vnpay_test'
-          ? PaymentMethod.VNPAY_TEST
-          : PaymentMethod.CASH,
-      status: PaymentStatus.PENDING,
+      method: dto.method,
+      status: initialStatus,
       branchId: branchId ? new Types.ObjectId(branchId) : null,
       branchName: branchName,
       subjectName: subjectName || undefined,
     });
 
-    // 4. Xử lý theo payment method
-    if (dto.method === 'vnpay_test') {
-      // Create VNPay URL
+    // 5. Gateway Factory Logic
+    console.log(`PaymentsService requesting gateway for method: '${dto.method}'`);
+    const gateway = this.gatewayFactory.getByMethod(dto.method);
+    console.log(`Gateway obtained: ${gateway ? gateway.constructor.name : 'null'}`);
+
+    if (gateway) {
+      // PAYOS or FAKE
       const orderInfo = `Thanh toan hoc phi - ${requests.length} yeu cau`;
-      const { paymentUrl, vnpTxnRef } = this.vnpayService.createPaymentUrl({
+      const result = await gateway.createPayment({
         orderId: (payment._id as Types.ObjectId).toString(),
         amount: totalAmount,
         orderInfo,
         ipAddr,
+        requestIds: dto.requestIds,
       });
 
-      payment.vnpTxnRef = vnpTxnRef;
+      payment.vnpTxnRef = result.vnpTxnRef;
       await payment.save();
 
       await this.logTransaction(
         payment._id as Types.ObjectId,
         TransactionType.CREATE,
-        { vnpTxnRef, amount: totalAmount, requestIds: dto.requestIds },
-        'Created VNPay payment',
+        { ...result, amount: totalAmount, requestIds: dto.requestIds },
+        `Created ${dto.method} payment`,
       );
 
       return {
         paymentId: (payment._id as Types.ObjectId).toString(),
-        paymentUrl,
-        vnpTxnRef,
+        ...result,
       };
     } else {
-      // Cash payment
+      // CASH (Gateway is null)
       await payment.save();
 
       await this.logTransaction(
@@ -150,116 +158,39 @@ export class PaymentsService {
     }
   }
 
-  // ==================== VNPAY HANDLERS ====================
 
-  async handleVnpayReturn(
-    vnpParams: Record<string, any>,
-  ): Promise<{ success: boolean; paymentId: string; message: string }> {
-    const result = this.vnpayService.verifyReturnUrl(vnpParams);
 
-    if (!result.isValid) {
-      return { success: false, paymentId: '', message: 'Chữ ký không hợp lệ' };
-    }
+  // ==================== FAKE PAYOS HANDLERS ====================
 
-    const payment = await this.paymentModel.findOne({
-      vnpTxnRef: result.vnpTxnRef,
-    });
+  async handleFakePayosCallback(
+    paymentId: string,
+    status: 'SUCCESS' | 'CANCELLED',
+  ): Promise<{ success: boolean; message: string }> {
+    const payment = await this.paymentModel.findById(paymentId);
 
     if (!payment) {
-      return { success: false, paymentId: '', message: 'Không tìm thấy giao dịch' };
+      throw new NotFoundException('Không tìm thấy giao dịch');
     }
 
-    // Idempotent check
+    if (payment.method !== PaymentMethod.FAKE) {
+      throw new BadRequestException('Không phải giao dịch Fake PayOS');
+    }
+
     if (payment.status === PaymentStatus.SUCCESS) {
-      return {
-        success: true,
-        paymentId: (payment._id as Types.ObjectId).toString(),
-        message: 'Giao dịch đã được xử lý trước đó',
-      };
+      return { success: true, message: 'Giao dịch đã thành công trước đó' };
     }
 
-    // Log transaction
-    await this.logTransaction(
-      payment._id as Types.ObjectId,
-      TransactionType.RETURN_URL,
-      vnpParams,
-      `Return URL - Code: ${result.responseCode}`,
-    );
-
-    // Update payment
-    payment.vnpReturnData = vnpParams;
-    payment.vnpTransactionNo = result.transactionNo;
-    payment.vnpBankCode = result.bankCode;
-
-    if (result.responseCode === '00') {
-      payment.status = PaymentStatus.SUCCESS;
-      payment.paidAt = new Date();
-      await payment.save();
-
-      // Mark requests as paid
-      await this.paymentRequestsService.markAsPaid(
-        payment.requestIds.map((id) => id.toString()),
-        payment._id as Types.ObjectId,
-      );
-
-      return {
-        success: true,
-        paymentId: (payment._id as Types.ObjectId).toString(),
-        message: 'Thanh toán thành công',
-      };
-    } else {
-      payment.status = PaymentStatus.FAILED;
-      payment.failReason = this.vnpayService.getResponseMessage(
-        result.responseCode,
-      );
-      await payment.save();
-
-      return {
-        success: false,
-        paymentId: (payment._id as Types.ObjectId).toString(),
-        message: payment.failReason,
-      };
-    }
-  }
-
-  async handleVnpayIpn(
-    vnpParams: Record<string, any>,
-  ): Promise<{ RspCode: string; Message: string }> {
-    const result = this.vnpayService.verifyReturnUrl({ ...vnpParams });
-
-    if (!result.isValid) {
-      return { RspCode: '97', Message: 'Invalid signature' };
-    }
-
-    const payment = await this.paymentModel.findOne({
-      vnpTxnRef: result.vnpTxnRef,
-    });
-
-    if (!payment) {
-      return { RspCode: '01', Message: 'Order not found' };
-    }
-
-    // Idempotent check
-    if (payment.status === PaymentStatus.SUCCESS) {
-      return { RspCode: '00', Message: 'Already processed' };
-    }
-
-    // Log transaction
     await this.logTransaction(
       payment._id as Types.ObjectId,
       TransactionType.IPN,
-      vnpParams,
-      `IPN - Code: ${result.responseCode}`,
+      { status, paymentId },
+      `Fake PayOS Callback: ${status}`,
     );
 
-    // Update payment
-    payment.vnpIpnData = vnpParams;
-    payment.vnpTransactionNo = result.transactionNo;
-    payment.vnpBankCode = result.bankCode;
-
-    if (result.responseCode === '00') {
+    if (status === 'SUCCESS') {
       payment.status = PaymentStatus.SUCCESS;
       payment.paidAt = new Date();
+      payment.vnpTransactionNo = `FAKE_TXN_${Date.now()}`;
       await payment.save();
 
       // Mark requests as paid
@@ -267,15 +198,14 @@ export class PaymentsService {
         payment.requestIds.map((id) => id.toString()),
         payment._id as Types.ObjectId,
       );
-    } else {
-      payment.status = PaymentStatus.FAILED;
-      payment.failReason = this.vnpayService.getResponseMessage(
-        result.responseCode,
-      );
-      await payment.save();
-    }
 
-    return { RspCode: '00', Message: 'Confirm Success' };
+      return { success: true, message: 'Thanh toán thành công (Fake)' };
+    } else {
+      payment.status = PaymentStatus.CANCELLED;
+      payment.failReason = 'User cancelled implementation';
+      await payment.save();
+      return { success: false, message: 'Đã huỷ giao dịch' };
+    }
   }
 
   // ==================== CASH HANDLERS ====================
@@ -298,7 +228,7 @@ export class PaymentsService {
       return { success: true, message: 'Giao dịch đã được xác nhận trước đó' };
     }
 
-    if (payment.status !== PaymentStatus.PENDING) {
+    if (payment.status !== PaymentStatus.PENDING_CASH) {
       throw new BadRequestException('Giao dịch không ở trạng thái chờ xác nhận');
     }
 
@@ -330,7 +260,7 @@ export class PaymentsService {
     return this.paymentModel
       .find({
         method: PaymentMethod.CASH,
-        status: PaymentStatus.PENDING,
+        status: PaymentStatus.PENDING_CASH,
       })
       .populate('studentId', 'name email studentCode')
       .populate('paidBy', 'name email')

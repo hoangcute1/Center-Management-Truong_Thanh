@@ -10,6 +10,7 @@ import {
   CheckCircle,
   X,
   Gift,
+  Laptop,
 } from "lucide-react";
 import { useOrdersStore, Order } from "@/lib/stores/orders-store";
 import { usePaymentsStore } from "@/lib/stores/payments-store";
@@ -47,9 +48,9 @@ export default function CheckoutModal({
   const [step, setStep] = useState<"select" | "payment" | "processing">(
     "select"
   );
-  const [paymentMethod, setPaymentMethod] = useState<"vnpay" | "cash" | null>(
-    null
-  );
+  const [paymentMethod, setPaymentMethod] = useState<
+    "PAYOS" | "CASH" | "FAKE" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
 
@@ -133,20 +134,25 @@ export default function CheckoutModal({
       setError(null);
       setStep("processing");
 
-      const method = paymentMethod === "vnpay" ? "vnpay_test" : "cash";
+      const method = paymentMethod;
 
       const response = await createPayment({
-        requestIds: currentOrder.requestIds || [], // Ensure Order has requestIds
+        requestIds: currentOrder.requestIds || [],
         method,
         studentId: currentOrder.studentId
       });
 
-      if (method === "vnpay_test") {
-        // Redirect to VNPay
+      if (method === "PAYOS") {
         if (response.paymentUrl) {
           window.location.href = response.paymentUrl;
         } else {
-          throw new Error("Không nhận được link thanh toán VNPay");
+          throw new Error("Không nhận được link thanh toán PayOS");
+        }
+      } else if (method === "FAKE") {
+        if (response.checkoutUrl) {
+          window.location.href = response.checkoutUrl;
+        } else {
+          throw new Error("Không nhận được link fake checkout");
         }
       } else {
         notify.success(
@@ -219,8 +225,8 @@ export default function CheckoutModal({
                     <label
                       key={cls._id}
                       className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedClassIds.includes(cls._id)
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
                         }`}
                     >
                       <div className="flex items-center gap-3">
@@ -328,16 +334,16 @@ export default function CheckoutModal({
 
                 {/* VNPay */}
                 <label
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "vnpay"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "PAYOS"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
                     }`}
                 >
                   <input
                     type="radio"
                     name="payment"
-                    checked={paymentMethod === "vnpay"}
-                    onChange={() => setPaymentMethod("vnpay")}
+                    checked={paymentMethod === "PAYOS"}
+                    onChange={() => setPaymentMethod("PAYOS")}
                     className="w-5 h-5 text-blue-600"
                   />
                   <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
@@ -345,26 +351,53 @@ export default function CheckoutModal({
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      VNPay (Thẻ ATM/Visa/QR)
+                      PayOS
                     </p>
                     <p className="text-sm text-gray-500">
-                      Thanh toán online qua VNPay
+                      Thanh toán online (QR Code)
+                    </p>
+                  </div>
+                </label>
+
+                {/* Fake PayOS */}
+                <label
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "FAKE"
+                    ? "border-purple-500 bg-purple-50"
+                    : "border-gray-200 hover:border-gray-300"
+                    }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    checked={paymentMethod === "FAKE"}
+                    onChange={() => setPaymentMethod("FAKE")}
+                    className="w-5 h-5 text-purple-600"
+                  />
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Laptop className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      Thanh toán Online
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      PayOS / Credit Card
                     </p>
                   </div>
                 </label>
 
                 {/* Cash */}
                 <label
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "cash"
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 hover:border-gray-300"
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "CASH"
+                    ? "border-green-500 bg-green-50"
+                    : "border-gray-200 hover:border-gray-300"
                     }`}
                 >
                   <input
                     type="radio"
                     name="payment"
-                    checked={paymentMethod === "cash"}
-                    onChange={() => setPaymentMethod("cash")}
+                    checked={paymentMethod === "CASH"}
+                    onChange={() => setPaymentMethod("CASH")}
                     className="w-5 h-5 text-green-600"
                   />
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -391,8 +424,10 @@ export default function CheckoutModal({
                 <Button
                   onClick={handlePayment}
                   disabled={!paymentMethod || isLoading}
-                  className={`flex-1 ${paymentMethod === "vnpay"
-                      ? "bg-red-600 hover:bg-red-700"
+                  className={`flex-1 ${paymentMethod === "PAYOS"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : paymentMethod === "FAKE"
+                      ? "bg-purple-600 hover:bg-purple-700"
                       : "bg-green-600 hover:bg-green-700"
                     }`}
                 >
@@ -401,8 +436,10 @@ export default function CheckoutModal({
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                       Đang xử lý...
                     </>
-                  ) : paymentMethod === "vnpay" ? (
-                    "Thanh toán VNPay"
+                  ) : paymentMethod === "PAYOS" ? (
+                    "Thanh toán PayOS"
+                  ) : paymentMethod === "FAKE" ? (
+                    "Thanh toán Demo"
                   ) : (
                     "Xác nhận tiền mặt"
                   )}
