@@ -500,7 +500,7 @@ export class GradesService {
     const limit = query.limit || 10;
     
     // Lấy danh sách học sinh (có thể filter theo branch/class)
-    let studentFilter: any = { role: 'student', status: 'active' };
+    const studentFilter: any = { role: 'student', status: 'active' };
     
     if (query.branchId) {
       studentFilter.branchId = query.branchId;
