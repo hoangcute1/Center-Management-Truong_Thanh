@@ -159,6 +159,140 @@ export class PaymentsService {
   }
 
 
+  // ==================== PAYOS HANDLERS ====================
+
+  async handlePayosWebhook(webhookData: any): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('PayOS Webhook received:', webhookData);
+
+      // PayOS webhook structure: { code, desc, data: { orderCode, amount, ... }, signature }
+      if (!webhookData.data || !webhookData.data.orderCode) {
+        throw new BadRequestException('Invalid webhook data');
+      }
+
+      const { orderCode, amount, description, accountNumber, reference, transactionDateTime } = webhookData.data;
+
+      // Find payment by orderCode (stored in vnpTxnRef as PAYOS_{orderCode})
+      const payment = await this.paymentModel.findOne({
+        vnpTxnRef: `PAYOS_${orderCode}`,
+      });
+
+      if (!payment) {
+        console.error('Payment not found for orderCode:', orderCode);
+        return { success: false, message: 'Payment not found' };
+      }
+
+      // Idempotent check
+      if (payment.status === PaymentStatus.SUCCESS) {
+        return { success: true, message: 'Already processed' };
+      }
+
+      // Update payment status
+      payment.status = PaymentStatus.SUCCESS;
+      payment.paidAt = new Date(transactionDateTime);
+      payment.vnpTransactionNo = reference || `PAYOS_${orderCode}`;
+      await payment.save();
+
+      // Mark requests as paid
+      await this.paymentRequestsService.markAsPaid(
+        payment.requestIds.map((id) => id.toString()),
+        payment._id as Types.ObjectId,
+      );
+
+      // Log transaction
+      await this.logTransaction(
+        payment._id as Types.ObjectId,
+        TransactionType.IPN,
+        webhookData,
+        'PayOS Webhook: SUCCESS',
+      );
+
+      console.log('PayOS payment processed successfully:', payment._id);
+
+      return { success: true, message: 'Payment confirmed' };
+    } catch (error) {
+      console.error('PayOS Webhook Error:', error);
+      throw error;
+    }
+  }
+
+  async handlePayosReturn(
+    queryParams: Record<string, any>,
+  ): Promise<{ success: boolean; paymentId: string; message: string }> {
+    try {
+      console.log('PayOS Return URL params:', queryParams);
+
+      // PayOS return URL có: code, id, cancel, status, orderCode
+      const { code, orderCode, status, cancel } = queryParams;
+
+      if (!orderCode) {
+        return { success: false, paymentId: '', message: 'Missing orderCode' };
+      }
+
+      const payment = await this.paymentModel.findOne({
+        vnpTxnRef: `PAYOS_${orderCode}`,
+      });
+
+      if (!payment) {
+        return { success: false, paymentId: '', message: 'Không tìm thấy giao dịch' };
+      }
+
+      // Check if cancelled
+      if (cancel === 'true') {
+        payment.status = PaymentStatus.CANCELLED;
+        payment.failReason = 'User cancelled';
+        await payment.save();
+
+        await this.logTransaction(
+          payment._id as Types.ObjectId,
+          TransactionType.RETURN_URL,
+          queryParams,
+          'PayOS Return: CANCELLED',
+        );
+
+        return {
+          success: false,
+          paymentId: (payment._id as Types.ObjectId).toString(),
+          message: 'Giao dịch đã bị hủy',
+        };
+      }
+
+      // If status === 'PAID' or code === '00', mark as success (webhook will confirm later)
+      if (status === 'PAID' || code === '00') {
+        payment.status = PaymentStatus.SUCCESS;
+        payment.paidAt = new Date();
+        await payment.save();
+
+        await this.paymentRequestsService.markAsPaid(
+          payment.requestIds.map((id) => id.toString()),
+          payment._id as Types.ObjectId,
+        );
+
+        await this.logTransaction(
+          payment._id as Types.ObjectId,
+          TransactionType.RETURN_URL,
+          queryParams,
+          'PayOS Return: SUCCESS',
+        );
+
+        return {
+          success: true,
+          paymentId: (payment._id as Types.ObjectId).toString(),
+          message: 'Thanh toán thành công',
+        };
+      }
+
+      // Pending or other status
+      return {
+        success: false,
+        paymentId: (payment._id as Types.ObjectId).toString(),
+        message: 'Đang xử lý giao dịch',
+      };
+    } catch (error) {
+      console.error('PayOS Return Error:', error);
+      throw error;
+    }
+  }
 
   // ==================== FAKE PAYOS HANDLERS ====================
 
