@@ -44,6 +44,27 @@ export class PaymentsController {
     );
   }
 
+  // ==================== PAYOS ====================
+
+  @Get('payos/return')
+  async payosReturn(
+    @Query() queryParams: Record<string, any>,
+    @Res() res: Response,
+  ) {
+    const result = await this.paymentsService.handlePayosReturn(queryParams);
+
+    const frontendUrl = process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3001';
+    const redirectUrl = `${frontendUrl}/payment-result?success=${result.success}&paymentId=${result.paymentId}&message=${encodeURIComponent(result.message)}`;
+
+    return res.redirect(redirectUrl);
+  }
+
+  @Post('payos/webhook')
+  async payosWebhook(@Body() webhookData: any) {
+    console.log('PayOS Webhook endpoint hit');
+    return this.paymentsService.handlePayosWebhook(webhookData);
+  }
+
 
 
   // ==================== FAKE PAYOS ====================
