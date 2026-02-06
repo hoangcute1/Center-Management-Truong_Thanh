@@ -96,6 +96,17 @@ export default function AdminLayout() {
           },
         }}
       />
+      <Stack.Screen
+        name="evaluations"
+        options={{
+          headerShown: true,
+          title: "Quản lý đánh giá",
+          headerLeft: () => <BackButton />,
+          headerStyle: {
+            backgroundColor: "#EC4899",
+          },
+        }}
+      />
     </Stack>
   );
 }
