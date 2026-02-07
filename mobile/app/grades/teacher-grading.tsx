@@ -512,9 +512,12 @@ export default function TeacherGradingScreen() {
     };
 
     // Filter classes for teacher
-    const teacherClasses = classes.filter(
-        (c) => c.teacherId?._id === user?._id || c.teacherId === user?._id
-    );
+    const teacherClasses = classes.filter((c) => {
+        const teacherId = typeof c.teacherId === "object" && c.teacherId !== null
+            ? (c.teacherId as any)._id
+            : c.teacherId;
+        return teacherId === user?._id || c.teacher?._id === user?._id;
+    });
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>

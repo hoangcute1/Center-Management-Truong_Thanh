@@ -294,14 +294,11 @@ export default function ClassesScreen() {
     }
   };
 
-  const getTeacherName = (classItem: Class): string => {
-    if (
-      typeof classItem.teacherId === "object" &&
-      (classItem.teacherId?.fullName || classItem.teacherId?.name)
-    ) {
+  const getTeacherName = (classItem: any): string => {
+    if (classItem.teacher) {
       return (
-        classItem.teacherId.fullName ||
-        classItem.teacherId.name ||
+        classItem.teacher?.fullName ||
+        classItem.teacher?.name ||
         "Chưa phân công"
       );
     }
@@ -309,9 +306,9 @@ export default function ClassesScreen() {
     return "Chưa phân công";
   };
 
-  const getBranchName = (classItem: Class): string => {
-    if (typeof classItem.branchId === "object" && classItem.branchId?.name) {
-      return classItem.branchId.name;
+  const getBranchName = (classItem: any): string => {
+    if (classItem.branch) {
+      return classItem.branch?.name;
     }
     if (classItem.branch?.name) return classItem.branch.name;
     return "Chưa xác định";
@@ -571,7 +568,7 @@ export default function ClassesScreen() {
                   <View style={styles.detailHeader}>
                     <LinearGradient
                       colors={getSubjectColors(selectedClass.subject)}
-                      style={styles.detailIconBg}
+                      style={styles.detailHeaderIconBg}
                     >
                       <Ionicons name="book" size={32} color="#FFFFFF" />
                     </LinearGradient>
@@ -834,7 +831,7 @@ export default function ClassesScreen() {
                   >
                     {createForm.subject
                       ? SUBJECTS.find((s) => s.value === createForm.subject)
-                          ?.label
+                        ?.label
                       : "Chọn môn học"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -892,7 +889,7 @@ export default function ClassesScreen() {
                   >
                     {createForm.branchId
                       ? branches.find((b) => b._id === createForm.branchId)
-                          ?.name
+                        ?.name
                       : "Chọn cơ sở"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -915,9 +912,9 @@ export default function ClassesScreen() {
                   >
                     {createForm.teacherId
                       ? teachers.find((t) => t._id === createForm.teacherId)
-                          ?.fullName ||
-                        teachers.find((t) => t._id === createForm.teacherId)
-                          ?.name
+                        ?.fullName ||
+                      teachers.find((t) => t._id === createForm.teacherId)
+                        ?.name
                       : "Chọn giáo viên"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -961,7 +958,7 @@ export default function ClassesScreen() {
                               style={[
                                 styles.dayPickerItem,
                                 sch.dayOfWeek === day &&
-                                  styles.dayPickerItemActive,
+                                styles.dayPickerItemActive,
                               ]}
                               onPress={() =>
                                 updateSchedule(index, "dayOfWeek", day)
@@ -971,7 +968,7 @@ export default function ClassesScreen() {
                                 style={[
                                   styles.dayPickerText,
                                   sch.dayOfWeek === day &&
-                                    styles.dayPickerTextActive,
+                                  styles.dayPickerTextActive,
                                 ]}
                               >
                                 {DAYS_OF_WEEK[day]}
@@ -1083,7 +1080,7 @@ export default function ClassesScreen() {
                   style={[
                     styles.pickerItem,
                     createForm.subject === item.value &&
-                      styles.pickerItemActive,
+                    styles.pickerItemActive,
                   ]}
                   onPress={() => {
                     setCreateForm({ ...createForm, subject: item.value });
@@ -1094,7 +1091,7 @@ export default function ClassesScreen() {
                     style={[
                       styles.pickerItemText,
                       createForm.subject === item.value &&
-                        styles.pickerItemTextActive,
+                      styles.pickerItemTextActive,
                     ]}
                   >
                     {item.label}
@@ -1141,7 +1138,7 @@ export default function ClassesScreen() {
                     style={[
                       styles.pickerItemText,
                       createForm.grade === item.value &&
-                        styles.pickerItemTextActive,
+                      styles.pickerItemTextActive,
                     ]}
                   >
                     {item.label}
@@ -1188,7 +1185,7 @@ export default function ClassesScreen() {
                     style={[
                       styles.pickerItemText,
                       createForm.branchId === item._id &&
-                        styles.pickerItemTextActive,
+                      styles.pickerItemTextActive,
                     ]}
                   >
                     {item.name}
@@ -1225,7 +1222,7 @@ export default function ClassesScreen() {
                   style={[
                     styles.pickerItem,
                     createForm.teacherId === item._id &&
-                      styles.pickerItemActive,
+                    styles.pickerItemActive,
                   ]}
                   onPress={() => {
                     setCreateForm({ ...createForm, teacherId: item._id });
@@ -1237,7 +1234,7 @@ export default function ClassesScreen() {
                       style={[
                         styles.pickerItemText,
                         createForm.teacherId === item._id &&
-                          styles.pickerItemTextActive,
+                        styles.pickerItemTextActive,
                       ]}
                     >
                       {item.fullName || item.name || "Giáo viên"}
@@ -1524,7 +1521,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
-  detailIconBg: {
+  detailHeaderIconBg: {
     width: 72,
     height: 72,
     borderRadius: 24,

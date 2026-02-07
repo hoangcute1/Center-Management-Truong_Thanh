@@ -2,15 +2,15 @@ import { create } from "zustand";
 import api from "@/lib/api";
 import { translateErrorMessage } from "./auth-store";
 
-export interface Session {
+export interface ScheduleSession {
   _id: string;
   classId:
-    | string
-    | {
-        _id: string;
-        name: string;
-        subject?: string;
-      };
+  | string
+  | {
+    _id: string;
+    name: string;
+    subject?: string;
+  };
   startTime: string;
   endTime: string;
   topic?: string;
@@ -37,7 +37,7 @@ export interface ScheduleItem {
 }
 
 interface ScheduleState {
-  sessions: Session[];
+  sessions: ScheduleSession[];
   schedule: ScheduleItem[];
   isLoading: boolean;
   error: string | null;

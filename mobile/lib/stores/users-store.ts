@@ -2,10 +2,11 @@ import { create } from "zustand";
 import api from "@/lib/api";
 import { translateErrorMessage } from "./auth-store";
 
-export interface User {
+export interface UsersStoreUser {
   _id: string;
   id?: string;
   name: string;
+  fullName?: string;
   email: string;
   phone?: string;
   role: "admin" | "teacher" | "student" | "parent";
@@ -17,7 +18,7 @@ export interface User {
 }
 
 interface UsersState {
-  users: User[];
+  users: UsersStoreUser[];
   isLoading: boolean;
   error: string | null;
 }
@@ -49,7 +50,7 @@ export const useUsersStore = create<UsersState & UsersActions>((set) => ({
         : response.data.users || [];
 
       set({
-        users: users.map((u: User) => ({ ...u, id: u._id })),
+        users: users.map((u: UsersStoreUser) => ({ ...u, id: u._id })),
         isLoading: false,
       });
     } catch (error: any) {

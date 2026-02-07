@@ -66,7 +66,7 @@ class SocketService {
             console.log('[Socket] Disconnected from server');
         });
 
-        this.socket.on('connect_error', (error) => {
+        this.socket.on('connect_error', (error: any) => {
             console.error('[Socket] Connection error:', error);
         });
 

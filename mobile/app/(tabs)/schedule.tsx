@@ -483,7 +483,7 @@ export default function ScheduleScreen() {
         typeof cls.teacherId === "object" && cls.teacherId?.name
           ? cls.teacherId.name
           : users.find((u) => u._id === cls.teacherId)?.name ||
-            "Chưa phân công";
+          "Chưa phân công";
 
       const branchName =
         typeof cls.branchId === "object" && cls.branchId?.name
@@ -491,7 +491,7 @@ export default function ScheduleScreen() {
           : branches.find((b) => b._id === cls.branchId)?.name || "";
 
       if (cls.schedule && cls.schedule.length > 0) {
-        cls.schedule.forEach((sch) => {
+        cls.schedule.forEach((sch: any) => {
           if (sch.dayOfWeek === dayIndex) {
             timetable.push({
               classId: cls._id,
@@ -557,7 +557,7 @@ export default function ScheduleScreen() {
         typeof cls.teacherId === "object" && cls.teacherId?.name
           ? cls.teacherId.name
           : users.find((u) => u._id === cls.teacherId)?.name ||
-            "Chưa phân công";
+          "Chưa phân công";
 
       const branchName =
         typeof cls.branchId === "object" && cls.branchId?.name
@@ -614,21 +614,21 @@ export default function ScheduleScreen() {
       user?.role === "parent"
         ? classes // Parent: classes already filtered by childId from API
         : classes.filter((cls) => {
-            // Check if user is in studentIds
-            if (cls.studentIds && cls.studentIds.includes(user._id))
-              return true;
-            // Check if user is in students array
-            if (cls.students && cls.students.some((s) => s._id === user._id))
-              return true;
-            return false;
-          });
+          // Check if user is in studentIds
+          if (cls.studentIds && cls.studentIds.includes(user._id))
+            return true;
+          // Check if user is in students array
+          if (cls.students && cls.students.some((s) => s._id === user._id))
+            return true;
+          return false;
+        });
 
     studentClasses.forEach((cls, classIndex) => {
       const teacherName =
         typeof cls.teacherId === "object" && cls.teacherId
           ? (cls.teacherId as any).fullName ||
-            (cls.teacherId as any).name ||
-            "Giáo viên"
+          (cls.teacherId as any).name ||
+          "Giáo viên"
           : "Giáo viên";
 
       if (cls.schedule && cls.schedule.length > 0) {
@@ -715,12 +715,12 @@ export default function ScheduleScreen() {
         user?.role === "parent"
           ? classes
           : classes.filter((cls) => {
-              if (cls.studentIds && cls.studentIds.includes(user._id))
-                return true;
-              if (cls.students && cls.students.some((s) => s._id === user._id))
-                return true;
-              return false;
-            });
+            if (cls.studentIds && cls.studentIds.includes(user._id))
+              return true;
+            if (cls.students && cls.students.some((s) => s._id === user._id))
+              return true;
+            return false;
+          });
 
       return studentClasses.some(
         (cls) =>
@@ -959,8 +959,8 @@ export default function ScheduleScreen() {
       Alert.alert(
         "Lỗi",
         error?.response?.data?.message ||
-          error.message ||
-          "Không thể lưu điểm danh. Vui lòng thử lại.",
+        error.message ||
+        "Không thể lưu điểm danh. Vui lòng thử lại.",
       );
     } finally {
       setIsSavingAttendance(false);
@@ -1333,22 +1333,22 @@ export default function ScheduleScreen() {
               )
             )
           ) : // List View - show all classes
-          adminClassList.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <LinearGradient
-                colors={["#F3F4F6", "#E5E7EB"]}
-                style={styles.emptyIconBg}
-              >
-                <Ionicons name="school-outline" size={48} color="#9CA3AF" />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>Không có lớp học</Text>
-              <Text style={styles.emptyText}>
-                Chưa có lớp học nào trong hệ thống
-              </Text>
-            </View>
-          ) : (
-            adminClassList.map((cls) => renderAdminClassCard(cls))
-          )}
+            adminClassList.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <LinearGradient
+                  colors={["#F3F4F6", "#E5E7EB"]}
+                  style={styles.emptyIconBg}
+                >
+                  <Ionicons name="school-outline" size={48} color="#9CA3AF" />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>Không có lớp học</Text>
+                <Text style={styles.emptyText}>
+                  Chưa có lớp học nào trong hệ thống
+                </Text>
+              </View>
+            ) : (
+              adminClassList.map((cls) => renderAdminClassCard(cls))
+            )}
         </ScrollView>
 
         {/* Branch Picker Modal */}
@@ -1409,7 +1409,7 @@ export default function ScheduleScreen() {
                       style={[
                         styles.pickerItemText,
                         selectedBranch === branch._id &&
-                          styles.pickerItemTextActive,
+                        styles.pickerItemTextActive,
                       ]}
                     >
                       {branch.name}
@@ -1480,7 +1480,7 @@ export default function ScheduleScreen() {
                   <View style={styles.classDetailSection}>
                     <Text style={styles.sectionTitle}>Lịch học cố định</Text>
                     {selectedClassDetail.schedule &&
-                    selectedClassDetail.schedule.length > 0 ? (
+                      selectedClassDetail.schedule.length > 0 ? (
                       selectedClassDetail.schedule.map(
                         (sch: any, idx: number) => (
                           <View key={idx} style={styles.scheduleItem}>
@@ -2118,7 +2118,7 @@ export default function ScheduleScreen() {
                         style={[
                           styles.attendanceStatusBtn,
                           record.status === "present" &&
-                            styles.attendanceStatusBtnActive,
+                          styles.attendanceStatusBtnActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "present")
@@ -2137,7 +2137,7 @@ export default function ScheduleScreen() {
                           styles.attendanceStatusBtn,
                           styles.attendanceStatusBtnAbsent,
                           record.status === "absent" &&
-                            styles.attendanceStatusBtnAbsentActive,
+                          styles.attendanceStatusBtnAbsentActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "absent")
@@ -2156,7 +2156,7 @@ export default function ScheduleScreen() {
                           styles.attendanceStatusBtn,
                           styles.attendanceStatusBtnLate,
                           record.status === "late" &&
-                            styles.attendanceStatusBtnLateActive,
+                          styles.attendanceStatusBtnLateActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "late")

@@ -6,11 +6,12 @@ export interface AttendanceRecord {
   _id: string;
   sessionId: string;
   studentId:
-    | string
-    | {
-        _id: string;
-        fullName: string;
-      };
+  | string
+  | {
+    _id: string;
+    fullName: string;
+    name?: string;
+  };
   status: "present" | "absent" | "late" | "excused";
   notes?: string;
   createdAt: Date;
