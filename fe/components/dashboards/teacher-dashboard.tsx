@@ -319,8 +319,8 @@ function StudentDetailModal({
                       <p className="text-[10px] text-gray-500">
                         {
                           GRADE_CATEGORY_LABELS[
-                            grade.gradingSheetId
-                              ?.category as keyof typeof GRADE_CATEGORY_LABELS
+                          grade.gradingSheetId
+                            ?.category as keyof typeof GRADE_CATEGORY_LABELS
                           ]
                         }{" "}
                         • {new Date(grade.gradedAt).toLocaleDateString()}
@@ -743,9 +743,8 @@ function TimetableAttendanceModal({
             {rows.map((r) => (
               <div
                 key={r.studentId}
-                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${
-                  !canEdit ? "opacity-60" : ""
-                }`}
+                className={`flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 ${!canEdit ? "opacity-60" : ""
+                  }`}
               >
                 <div className="space-y-1">
                   <p className="font-medium text-gray-900">{r.name}</p>
@@ -1127,11 +1126,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                     ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     : "border-gray-300"
-                }`}
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -1140,11 +1138,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                     ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     : "border-gray-300"
-                }`}
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1177,11 +1174,10 @@ function SettingsModal({
               Trình độ chuyên môn
             </label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
-              }`}
+                }`}
               value={
                 isEditing
                   ? formData.qualification
@@ -1198,11 +1194,10 @@ function SettingsModal({
             <label className="text-gray-700 font-medium">Ghi chú</label>
             <textarea
               rows={3}
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
-              }`}
+                }`}
               value={
                 isEditing
                   ? formData.teacherNote
@@ -1656,9 +1651,8 @@ export default function TeacherDashboard({
         await api.post("/notifications", {
           userId: record.studentId,
           title: "Điểm danh buổi học",
-          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-            classData.name
-          } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
+          message: `Bạn đã được điểm danh "${statusText}" cho buổi học ${classData.name
+            } ngày ${new Date(session.startTime).toLocaleDateString("vi-VN")}`,
           type: record.status === "absent" ? "warning" : "info",
           category: "attendance",
         });
@@ -1723,9 +1717,8 @@ export default function TeacherDashboard({
             await api.post("/notifications", {
               userId: record.studentId,
               title: "Điểm danh buổi học",
-              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${
-                schedule.className
-              } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
+              body: `Bạn đã được điểm danh "${statusText}" cho buổi học ${schedule.className
+                } ngày ${fullDate.toLocaleDateString("vi-VN")}`,
               type: record.status === "absent" ? "warning" : "info",
             });
           } catch (notifError) {
@@ -1784,7 +1777,7 @@ export default function TeacherDashboard({
   }, [classes]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
       <ToastContainer />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -2115,7 +2108,7 @@ export default function TeacherDashboard({
                         {selectedClass.students?.length || 0})
                       </p>
                       {!selectedClass.students ||
-                      selectedClass.students.length === 0 ? (
+                        selectedClass.students.length === 0 ? (
                         <p className="text-sm text-gray-500">
                           Lớp chưa có học sinh nào
                         </p>
@@ -2200,9 +2193,8 @@ export default function TeacherDashboard({
                             return (
                               <div
                                 key={`${sch.classId}-${idx}`}
-                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
-                                  canAttend ? "ring-2 ring-green-400" : ""
-                                }`}
+                                className={`rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 space-y-2 text-center shadow-sm cursor-pointer hover:shadow-md transition-shadow ${canAttend ? "ring-2 ring-green-400" : ""
+                                  }`}
                                 onClick={() => {
                                   if (classData) {
                                     setTimetableAttendance({
@@ -2324,131 +2316,130 @@ export default function TeacherDashboard({
                     {teachingDocuments.map((doc) => {
                       const fileType = getFileType(doc.originalFileName);
                       return (
-                      <div
-                        key={doc._id}
-                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                              fileType === "PDF"
-                                ? "bg-red-100"
-                                : fileType === "DOCX"
-                                  ? "bg-blue-100"
-                                  : fileType === "PPTX"
-                                    ? "bg-orange-100"
-                                    : fileType === "XLSX"
-                                      ? "bg-green-100"
-                                      : "bg-gray-100"
-                            }`}
-                          >
-                            <FileIcon
-                              className={`h-6 w-6 ${
-                                fileType === "PDF"
-                                  ? "text-red-600"
+                        <div
+                          key={doc._id}
+                          className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`h-12 w-12 rounded-lg flex items-center justify-center ${fileType === "PDF"
+                                  ? "bg-red-100"
                                   : fileType === "DOCX"
-                                    ? "text-blue-600"
+                                    ? "bg-blue-100"
                                     : fileType === "PPTX"
-                                      ? "text-orange-600"
+                                      ? "bg-orange-100"
                                       : fileType === "XLSX"
-                                        ? "text-green-600"
-                                        : "text-gray-600"
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {doc.title}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                              <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                {fileType}
-                              </span>
-                              <span>•</span>
-                              <span>
-                                {doc.classIds.map((c) => c.name).join(", ") ||
-                                  "Tất cả lớp"}
-                              </span>
-                              <span>•</span>
-                              <span>
-                                {new Date(doc.createdAt).toLocaleDateString(
-                                  "vi-VN",
-                                )}
-                              </span>
-                              {doc.visibility === "community" && (
-                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                  🌐 Cộng đồng
+                                        ? "bg-green-100"
+                                        : "bg-gray-100"
+                                }`}
+                            >
+                              <FileIcon
+                                className={`h-6 w-6 ${fileType === "PDF"
+                                    ? "text-red-600"
+                                    : fileType === "DOCX"
+                                      ? "text-blue-600"
+                                      : fileType === "PPTX"
+                                        ? "text-orange-600"
+                                        : fileType === "XLSX"
+                                          ? "text-green-600"
+                                          : "text-gray-600"
+                                  }`}
+                              />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {doc.title}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                  {fileType}
                                 </span>
+                                <span>•</span>
+                                <span>
+                                  {doc.classIds.map((c) => c.name).join(", ") ||
+                                    "Tất cả lớp"}
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  {new Date(doc.createdAt).toLocaleDateString(
+                                    "vi-VN",
+                                  )}
+                                </span>
+                                {doc.visibility === "community" && (
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                    🌐 Cộng đồng
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right hidden sm:block">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {doc.downloadCount} lượt tải
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <a
+                                href={`${API_BASE_URL}/documents/${doc._id}/file?token=${accessToken}`}
+                                target="_self"
+                                rel="noopener noreferrer"
+                                onClick={() => incrementDownload(doc._id)}
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex items-center gap-1"
+                                >
+                                  <DownloadIcon className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Tải</span>
+                                </Button>
+                              </a>
+                              {doc.visibility === "class" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-purple-600 hover:bg-purple-50"
+                                  onClick={() => {
+                                    shareToCommunity(doc._id);
+                                    toast.success("Đã chia sẻ ra cộng đồng!");
+                                  }}
+                                >
+                                  🌐 Chia sẻ
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-blue-600 hover:bg-blue-50"
+                                  onClick={() => {
+                                    restrictToClass(doc._id);
+                                    toast.success("Đã giới hạn chỉ lớp học!");
+                                  }}
+                                >
+                                  🔒 Giới hạn
+                                </Button>
                               )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  if (
+                                    confirm("Bạn có chắc muốn xoá tài liệu này?")
+                                  ) {
+                                    deleteDocument(doc._id);
+                                    toast.success("Đã xoá tài liệu!");
+                                  }
+                                }}
+                              >
+                                Xoá
+                              </Button>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right hidden sm:block">
-                            <p className="text-sm font-semibold text-gray-900">
-                              {doc.downloadCount} lượt tải
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <a
-                              href={`${API_BASE_URL}/documents/${doc._id}/file?token=${accessToken}`}
-                              target="_self"
-                              rel="noopener noreferrer"
-                              onClick={() => incrementDownload(doc._id)}
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-1"
-                              >
-                                <DownloadIcon className="h-4 w-4" />
-                                <span className="hidden sm:inline">Tải</span>
-                              </Button>
-                            </a>
-                            {doc.visibility === "class" ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-purple-600 hover:bg-purple-50"
-                                onClick={() => {
-                                  shareToCommunity(doc._id);
-                                  toast.success("Đã chia sẻ ra cộng đồng!");
-                                }}
-                              >
-                                🌐 Chia sẻ
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-blue-600 hover:bg-blue-50"
-                                onClick={() => {
-                                  restrictToClass(doc._id);
-                                  toast.success("Đã giới hạn chỉ lớp học!");
-                                }}
-                              >
-                                🔒 Giới hạn
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => {
-                                if (
-                                  confirm("Bạn có chắc muốn xoá tài liệu này?")
-                                ) {
-                                  deleteDocument(doc._id);
-                                  toast.success("Đã xoá tài liệu!");
-                                }
-                              }}
-                            >
-                              Xoá
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );})}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -2517,7 +2508,7 @@ export default function TeacherDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -2545,11 +2536,10 @@ export default function TeacherDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      rankingView === key
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
                         ? "bg-white text-blue-700 shadow-sm"
                         : "text-gray-600 hover:bg-white/50"
-                    }`}
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {leaderboardTabIcons[key as RankingCategory]}
@@ -2573,27 +2563,25 @@ export default function TeacherDashboard({
                   {rankingView === "score" && leaderboard?.score?.map((row) => (
                     <div
                       key={`score-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                        row.rank === 1
+                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
                           ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
                           : row.rank === 2
                             ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                             : row.rank === 3
                               ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
                               : "border-gray-100 bg-white hover:border-blue-200"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-4">
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                            row.rank === 1
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
                               ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
                               : row.rank === 2
                                 ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
                                 : row.rank === 3
                                   ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
                                   : "bg-gray-100 text-gray-600"
-                          }`}
+                            }`}
                         >
                           {row.rank === 1 && "🏆"}
                           {row.rank === 2 && "🥈"}
@@ -2619,27 +2607,25 @@ export default function TeacherDashboard({
                   {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
                     <div
                       key={`attendance-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                        row.rank === 1
+                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
                           ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
                           : row.rank === 2
                             ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                             : row.rank === 3
                               ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
                               : "border-gray-100 bg-white hover:border-blue-200"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-4">
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                            row.rank === 1
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
                               ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
                               : row.rank === 2
                                 ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
                                 : row.rank === 3
                                   ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
                                   : "bg-gray-100 text-gray-600"
-                          }`}
+                            }`}
                         >
                           {row.rank === 1 && "🏆"}
                           {row.rank === 2 && "🥈"}
@@ -2667,11 +2653,11 @@ export default function TeacherDashboard({
                     (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
                     (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
                   ) && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-4xl mb-2">📊</p>
-                      <p>Chưa có dữ liệu xếp hạng</p>
-                    </div>
-                  )}
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>Chưa có dữ liệu xếp hạng</p>
+                      </div>
+                    )}
                 </div>
               )}
 
@@ -2902,13 +2888,12 @@ function UploadDocumentModal({
         <div className="space-y-4">
           {/* Drag & Drop Zone */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-              isDragging
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
                 ? "border-blue-500 bg-blue-50"
                 : selectedFile
                   ? "border-green-500 bg-green-50"
                   : "border-gray-300 hover:border-gray-400"
-            }`}
+              }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -2998,11 +2983,10 @@ function UploadDocumentModal({
                     key={cls._id}
                     type="button"
                     onClick={() => toggleClass(cls._id)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      selectedClassIds.includes(cls._id)
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
                         ? "bg-blue-600 text-white"
                         : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
-                    }`}
+                      }`}
                   >
                     {cls.name}
                   </button>

@@ -545,12 +545,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : "Không xác định"}
                 </p>
               </div>
@@ -572,12 +572,12 @@ function UserDetailModal({
                 <p className="font-medium text-gray-900">
                   {user.updatedAt
                     ? new Date(user.updatedAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : "Không xác định"}
                 </p>
               </div>
@@ -1055,13 +1055,12 @@ function EditUserModal({
                           <button
                             type="button"
                             onClick={() => toggleCategory(cat.subjects)}
-                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                              cat.subjects.every((s) =>
-                                formData.subjects.includes(s),
-                              )
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
+                              formData.subjects.includes(s),
+                            )
                                 ? "bg-purple-600 text-white"
                                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            }`}
+                              }`}
                           >
                             {cat.category}
                           </button>
@@ -1072,11 +1071,10 @@ function EditUserModal({
                               key={subject}
                               type="button"
                               onClick={() => toggleSubject(subject)}
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${
-                                formData.subjects.includes(subject)
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all ${formData.subjects.includes(subject)
                                   ? "bg-purple-500 text-white"
                                   : "bg-white text-gray-600 border border-gray-200 hover:border-purple-400"
-                              }`}
+                                }`}
                             >
                               #{subject}
                             </button>
@@ -1493,13 +1491,12 @@ function AddModal({
                         <button
                           type="button"
                           onClick={() => toggleCategory(cat.subjects)}
-                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${
-                            cat.subjects.every((s) =>
-                              selectedSubjects.includes(s),
-                            )
+                          className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
+                            selectedSubjects.includes(s),
+                          )
                               ? "bg-blue-600 text-white"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          }`}
+                            }`}
                         >
                           {cat.category}
                         </button>
@@ -1518,11 +1515,10 @@ function AddModal({
                             key={subject}
                             type="button"
                             onClick={() => toggleSubject(subject)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                              selectedSubjects.includes(subject)
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${selectedSubjects.includes(subject)
                                 ? "bg-blue-500 text-white shadow-sm"
                                 : "bg-white text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600"
-                            }`}
+                              }`}
                           >
                             #{subject}
                           </button>
@@ -1791,11 +1787,10 @@ function SettingsModal({
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Họ và tên</label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
-              }`}
+                }`}
               value={isEditing ? formData.name : user.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               readOnly={!isEditing}
@@ -1814,11 +1809,10 @@ function SettingsModal({
           <div className="space-y-2">
             <label className="text-gray-700 font-medium">Số điện thoại</label>
             <input
-              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                isEditing
+              className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
                   ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   : "border-gray-300"
-              }`}
+                }`}
               value={isEditing ? formData.phone : user.phone || "Chưa cập nhật"}
               onChange={(e) => handleInputChange("phone", e.target.value)}
               readOnly={!isEditing}
@@ -2172,13 +2166,13 @@ export default function AdminDashboard({
   // Apply search filter
   const searchFilteredUsers = searchQuery.trim()
     ? filteredUsers.filter((u) => {
-        const query = searchQuery.toLowerCase().trim();
-        return (
-          u.name?.toLowerCase().includes(query) ||
-          u.email?.toLowerCase().includes(query) ||
-          u.phone?.toLowerCase().includes(query)
-        );
-      })
+      const query = searchQuery.toLowerCase().trim();
+      return (
+        u.name?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        u.phone?.toLowerCase().includes(query)
+      );
+    })
     : filteredUsers;
 
   const apiStudents = searchFilteredUsers.filter((u) => u.role === "student");
@@ -2467,7 +2461,7 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
       {/* Header với thiết kế hiện đại */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
@@ -3063,13 +3057,12 @@ export default function AdminDashboard({
                             </p>
                           </div>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              course.status === "active"
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${course.status === "active"
                                 ? "bg-emerald-100 text-emerald-700"
                                 : course.status === "completed"
                                   ? "bg-gray-100 text-gray-700"
                                   : "bg-amber-100 text-amber-700"
-                            }`}
+                              }`}
                           >
                             {course.status === "active"
                               ? "Đang mở"
@@ -3225,34 +3218,34 @@ export default function AdminDashboard({
                       setShowModal(
                         activeAccountTab === "students"
                           ? {
-                              title: "Thêm học sinh",
+                            title: "Thêm học sinh",
+                            fields: [
+                              "Họ và tên",
+                              "Email",
+                              "Số điện thoại",
+                              "Tên phụ huynh",
+                              "SĐT phụ huynh",
+                            ],
+                          }
+                          : activeAccountTab === "parents"
+                            ? {
+                              title: "Thêm phụ huynh",
                               fields: [
                                 "Họ và tên",
                                 "Email",
                                 "Số điện thoại",
-                                "Tên phụ huynh",
-                                "SĐT phụ huynh",
+                                "Email con (học sinh)",
                               ],
                             }
-                          : activeAccountTab === "parents"
-                            ? {
-                                title: "Thêm phụ huynh",
-                                fields: [
-                                  "Họ và tên",
-                                  "Email",
-                                  "Số điện thoại",
-                                  "Email con (học sinh)",
-                                ],
-                              }
                             : {
-                                title: "Thêm giáo viên",
-                                fields: [
-                                  "Họ và tên",
-                                  "Email",
-                                  "Số điện thoại",
-                                  "Môn dạy",
-                                ],
-                              },
+                              title: "Thêm giáo viên",
+                              fields: [
+                                "Họ và tên",
+                                "Email",
+                                "Số điện thoại",
+                                "Môn dạy",
+                              ],
+                            },
                       )
                     }
                   >
@@ -3265,33 +3258,30 @@ export default function AdminDashboard({
               <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
                 <button
                   onClick={() => setActiveAccountTab("students")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "students"
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "students"
                       ? "bg-white text-blue-700 shadow-sm"
                       : "text-gray-600 hover:bg-white/50"
-                  }`}
+                    }`}
                 >
                   <span>👨‍🎓</span>
                   <span>Học sinh ({apiStudents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("parents")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "parents"
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "parents"
                       ? "bg-white text-blue-700 shadow-sm"
                       : "text-gray-600 hover:bg-white/50"
-                  }`}
+                    }`}
                 >
                   <span>👨‍👩‍👧</span>
                   <span>Phụ huynh ({apiParents.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveAccountTab("teachers")}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    activeAccountTab === "teachers"
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${activeAccountTab === "teachers"
                       ? "bg-white text-blue-700 shadow-sm"
                       : "text-gray-600 hover:bg-white/50"
-                  }`}
+                    }`}
                 >
                   <span>👨‍🏫</span>
                   <span>Giáo viên ({apiTeachers.length})</span>
@@ -3312,8 +3302,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có học sinh tại cơ sở "${getBranchName(
-                                effectiveBranchFilter,
-                              )}"`
+                              effectiveBranchFilter,
+                            )}"`
                             : "Chưa có học sinh"}
                         </div>
                       ) : (
@@ -3348,8 +3338,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {s.createdAt
                                   ? new Date(s.createdAt).toLocaleDateString(
-                                      "vi-VN",
-                                    )
+                                    "vi-VN",
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -3374,8 +3364,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có phụ huynh tại cơ sở "${getBranchName(
-                                effectiveBranchFilter,
-                              )}"`
+                              effectiveBranchFilter,
+                            )}"`
                             : "Chưa có phụ huynh"}
                         </div>
                       ) : (
@@ -3409,8 +3399,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {p.createdAt
                                   ? new Date(p.createdAt).toLocaleDateString(
-                                      "vi-VN",
-                                    )
+                                    "vi-VN",
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -3435,8 +3425,8 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có giáo viên tại cơ sở "${getBranchName(
-                                effectiveBranchFilter,
-                              )}"`
+                              effectiveBranchFilter,
+                            )}"`
                             : "Chưa có giáo viên"}
                         </div>
                       ) : (
@@ -3475,8 +3465,8 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {t.createdAt
                                   ? new Date(t.createdAt).toLocaleDateString(
-                                      "vi-VN",
-                                    )
+                                    "vi-VN",
+                                  )
                                   : ""}
                               </p>
                               <Button
@@ -3522,11 +3512,10 @@ export default function AdminDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                      rankingView === key
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
                         ? "bg-white text-blue-700 shadow-sm"
                         : "text-gray-600 hover:bg-white/50"
-                    }`}
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -3553,27 +3542,25 @@ export default function AdminDashboard({
                     leaderboard?.score?.map((row) => (
                       <div
                         key={`score-${row.rank}-${row.studentId}`}
-                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                          row.rank === 1
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
                             ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
                             : row.rank === 2
                               ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                               : row.rank === 3
                                 ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
                                 : "border-gray-100 bg-white hover:border-blue-200"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                              row.rank === 1
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
                                 ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
                                 : row.rank === 2
                                   ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
                                   : row.rank === 3
                                     ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
                                     : "bg-gray-100 text-gray-600"
-                            }`}
+                              }`}
                           >
                             {row.rank === 1 && "🏆"}
                             {row.rank === 2 && "🥈"}
@@ -3607,27 +3594,25 @@ export default function AdminDashboard({
                     leaderboard?.attendance?.map((row) => (
                       <div
                         key={`attendance-${row.rank}-${row.studentId}`}
-                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${
-                          row.rank === 1
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
                             ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
                             : row.rank === 2
                               ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                               : row.rank === 3
                                 ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
                                 : "border-gray-100 bg-white hover:border-blue-200"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                              row.rank === 1
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
                                 ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
                                 : row.rank === 2
                                   ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
                                   : row.rank === 3
                                     ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
                                     : "bg-gray-100 text-gray-600"
-                            }`}
+                              }`}
                           >
                             {row.rank === 1 && "🏆"}
                             {row.rank === 2 && "🥈"}
@@ -3838,11 +3823,10 @@ export default function AdminDashboard({
                     className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
                   >
                     <div
-                      className={`absolute inset-0 bg-gradient-to-br ${
-                        financeDashboard.summary.profit >= 0
+                      className={`absolute inset-0 bg-gradient-to-br ${financeDashboard.summary.profit >= 0
                           ? "from-blue-500 to-indigo-600"
                           : "from-orange-500 to-red-600"
-                      } opacity-90`}
+                        } opacity-90`}
                     />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
@@ -4065,11 +4049,10 @@ export default function AdminDashboard({
                             </td>
                             <td className="py-3 px-4 text-right">
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  row.profit >= 0
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${row.profit >= 0
                                     ? "bg-emerald-100 text-emerald-700"
                                     : "bg-red-100 text-red-700"
-                                }`}
+                                  }`}
                               >
                                 {formatCurrency(row.profit)}
                               </span>
@@ -4221,11 +4204,10 @@ export default function AdminDashboard({
                       </div>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            branch.status === "active"
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${branch.status === "active"
                               ? "bg-emerald-100 text-emerald-700"
                               : "bg-gray-100 text-gray-600"
-                          }`}
+                            }`}
                         >
                           {branch.status === "active"
                             ? "✅ Hoạt động"
@@ -4556,11 +4538,11 @@ export default function AdminDashboard({
           classData={classStudentsModal}
           branchId={
             typeof classStudentsModal.branchId === "object" &&
-            classStudentsModal.branchId
+              classStudentsModal.branchId
               ? classStudentsModal.branchId._id
               : classStudentsModal.branchId ||
-                classStudentsModal.branch?._id ||
-                ""
+              classStudentsModal.branch?._id ||
+              ""
           }
           onClose={() => setClassStudentsModal(null)}
           onUpdate={() => {

@@ -742,11 +742,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 readOnly={!isEditing}
@@ -788,11 +787,10 @@ function SettingsModal({
               <label className="text-gray-700 font-medium">Ngày sinh</label>
               <input
                 type={isEditing ? "date" : "text"}
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing
                     ? formData.dateOfBirth
@@ -809,11 +807,10 @@ function SettingsModal({
             <div className="space-y-2">
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
-                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${
-                  isEditing
-                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    : "border-gray-300"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
+                  }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
                 }
@@ -1007,7 +1004,7 @@ export default function StudentDashboard({
 
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
-  
+
   // Leaderboard store
   const {
     leaderboard,
@@ -1573,46 +1570,46 @@ export default function StudentDashboard({
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
     ? [
-        {
-          label: "Khóa học",
-          value: dashboardData.classes.length,
-          note: "Đang theo học",
-          icon: "📚",
-          color: "from-blue-500 to-blue-600",
-        },
-        {
-          label: "Buổi học tới",
-          value: dashboardData.upcomingSessions.length,
-          note: "Sắp diễn ra",
-          icon: "📅",
-          color: "from-emerald-500 to-emerald-600",
-        },
-        {
-          label: "Điểm TB",
-          value:
-            dashboardData.recentGrades.length > 0
-              ? (
-                  dashboardData.recentGrades.reduce(
-                    (acc, g) => acc + g.percentage,
-                    0,
-                  ) / dashboardData.recentGrades.length
-                ).toFixed(1)
-              : "N/A",
-          note:
-            dashboardData.recentGrades.length > 0
-              ? "Đạt kết quả"
-              : "Chưa có điểm",
-          icon: "⭐",
-          color: "from-amber-500 to-orange-500",
-        },
-        {
-          label: "Chuyên cần",
-          value: `${dashboardData.attendanceStats.rate || 0}%`,
-          note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
-          icon: "✅",
-          color: "from-purple-500 to-purple-600",
-        },
-      ]
+      {
+        label: "Khóa học",
+        value: dashboardData.classes.length,
+        note: "Đang theo học",
+        icon: "📚",
+        color: "from-blue-500 to-blue-600",
+      },
+      {
+        label: "Buổi học tới",
+        value: dashboardData.upcomingSessions.length,
+        note: "Sắp diễn ra",
+        icon: "📅",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        label: "Điểm TB",
+        value:
+          dashboardData.recentGrades.length > 0
+            ? (
+              dashboardData.recentGrades.reduce(
+                (acc, g) => acc + g.percentage,
+                0,
+              ) / dashboardData.recentGrades.length
+            ).toFixed(1)
+            : "N/A",
+        note:
+          dashboardData.recentGrades.length > 0
+            ? "Đạt kết quả"
+            : "Chưa có điểm",
+        icon: "⭐",
+        color: "from-amber-500 to-orange-500",
+      },
+      {
+        label: "Chuyên cần",
+        value: `${dashboardData.attendanceStats.rate || 0}%`,
+        note: `${dashboardData.attendanceStats.present}/${dashboardData.attendanceStats.total} buổi`,
+        icon: "✅",
+        color: "from-purple-500 to-purple-600",
+      },
+    ]
     : overviewCards;
 
   const statusStyle = (status: DaySchedule["status"]) => {
@@ -1628,12 +1625,12 @@ export default function StudentDashboard({
       };
     return {
       label: "Chưa xác nhận",
-      className: "bg-gray-200 text-gray-700 hover:bg-gray-200",
+      className: "bg-[#89CFF0]/30 text-blue-700 hover:bg-[#89CFF0]/40",
     };
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
       <ToastContainer />
       {/* Header với thiết kế hiện đại */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
@@ -2009,25 +2006,22 @@ export default function StudentDashboard({
                 {badges.map((b) => (
                   <div
                     key={b.title}
-                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
-                      b.earned
-                        ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
-                        : "border-gray-100 bg-gray-50"
-                    }`}
+                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${b.earned
+                      ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
+                      : "border-gray-100 bg-gray-50"
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className={`text-3xl ${
-                          b.earned ? "" : "grayscale opacity-50"
-                        }`}
+                        className={`text-3xl ${b.earned ? "" : "grayscale opacity-50"
+                          }`}
                       >
                         {b.icon}
                       </span>
                       <div>
                         <p
-                          className={`font-bold ${
-                            b.earned ? "text-emerald-700" : "text-gray-500"
-                          }`}
+                          className={`font-bold ${b.earned ? "text-emerald-700" : "text-gray-500"
+                            }`}
                         >
                           {b.title}
                         </p>
@@ -2125,22 +2119,20 @@ export default function StudentDashboard({
                   return (
                     <div
                       key={slot.day}
-                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
-                        isToday
-                          ? "border-blue-400 ring-2 ring-blue-100"
-                          : isPast
-                            ? "border-gray-200 opacity-80"
-                            : "border-gray-100"
-                      }`}
+                      className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${isToday
+                        ? "border-blue-400 ring-2 ring-blue-100"
+                        : isPast
+                          ? "border-gray-200 opacity-80"
+                          : "border-gray-100"
+                        }`}
                     >
                       <div
-                        className={`px-3 py-3 text-center ${
-                          isToday
-                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
-                            : isPast
-                              ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
-                              : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
-                        }`}
+                        className={`px-3 py-3 text-center ${isToday
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                          : isPast
+                            ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white"
+                            : "bg-gradient-to-r from-gray-700 to-gray-800 text-white"
+                          }`}
                       >
                         <p className="text-xs font-bold leading-tight">
                           {slot.day}
@@ -2163,11 +2155,10 @@ export default function StudentDashboard({
                       {slot.code ? (
                         <div className="flex-1 p-3 space-y-2 text-center">
                           <div
-                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
-                              isPast
-                                ? "bg-gray-100 text-gray-600"
-                                : "bg-blue-100 text-blue-700"
-                            }`}
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${isPast
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-blue-100 text-blue-700"
+                              }`}
                           >
                             {slot.subject || slot.code}
                           </div>
@@ -2192,17 +2183,16 @@ export default function StudentDashboard({
                             {/* Attendance Status */}
                             {slot.attendanceStatus ? (
                               <div
-                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${
-                                  slot.attendanceStatus === "present"
-                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                    : slot.attendanceStatus === "absent"
-                                      ? "bg-red-100 text-red-700 border border-red-200"
-                                      : slot.attendanceStatus === "late"
-                                        ? "bg-amber-100 text-amber-700 border border-amber-200"
-                                        : slot.attendanceStatus === "excused"
-                                          ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                          : "bg-gray-100 text-gray-600"
-                                }`}
+                                className={`w-full text-xs rounded-xl py-2 px-3 font-medium ${slot.attendanceStatus === "present"
+                                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                  : slot.attendanceStatus === "absent"
+                                    ? "bg-red-100 text-red-700 border border-red-200"
+                                    : slot.attendanceStatus === "late"
+                                      ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                      : slot.attendanceStatus === "excused"
+                                        ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                        : "bg-gray-100 text-gray-600"
+                                  }`}
                               >
                                 {slot.attendanceStatus === "present" &&
                                   "✅ Có mặt"}
@@ -2425,15 +2415,14 @@ export default function StudentDashboard({
                         {subject.data.map((item, i) => (
                           <div
                             key={i}
-                            className={`px-3 py-2 rounded-lg text-sm ${
-                              item.score >= 8
-                                ? "bg-green-100 text-green-700"
-                                : item.score >= 6.5
-                                  ? "bg-blue-100 text-blue-700"
-                                  : item.score >= 5
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-red-100 text-red-700"
-                            }`}
+                            className={`px-3 py-2 rounded-lg text-sm ${item.score >= 8
+                              ? "bg-green-100 text-green-700"
+                              : item.score >= 6.5
+                                ? "bg-blue-100 text-blue-700"
+                                : item.score >= 5
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
                             title={`${item.label} - ${item.date}`}
                           >
                             <span className="font-bold">{item.score}</span>
@@ -2484,11 +2473,10 @@ export default function StudentDashboard({
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-gray-900">{g.subject}</p>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            g.status === "Tốt"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
+                          className={`text-xs px-2 py-0.5 rounded-full ${g.status === "Tốt"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                            }`}
                         >
                           {g.status}
                         </span>
@@ -2496,13 +2484,12 @@ export default function StudentDashboard({
                       <p className="text-xs text-gray-500 mt-0.5">{g.detail}</p>
                       <div className="mt-2 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            g.score >= 80
-                              ? "bg-gradient-to-r from-emerald-400 to-green-500"
-                              : g.score >= 70
-                                ? "bg-gradient-to-r from-blue-400 to-blue-500"
-                                : "bg-gradient-to-r from-amber-400 to-orange-500"
-                          }`}
+                          className={`h-full rounded-full transition-all duration-500 ${g.score >= 80
+                            ? "bg-gradient-to-r from-emerald-400 to-green-500"
+                            : g.score >= 70
+                              ? "bg-gradient-to-r from-blue-400 to-blue-500"
+                              : "bg-gradient-to-r from-amber-400 to-orange-500"
+                            }`}
                           style={{ width: `${g.score}%` }}
                         />
                       </div>
@@ -2542,11 +2529,10 @@ export default function StudentDashboard({
                   <button
                     key={key}
                     onClick={() => setRankingView(key as RankingCategory)}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                      rankingView === key
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-gray-700 hover:bg-white"
-                    }`}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${rankingView === key
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-gray-700 hover:bg-white"
+                      }`}
                   >
                     <span className="text-base leading-none">
                       {tabIcons[key as RankingCategory]}
@@ -2570,11 +2556,10 @@ export default function StudentDashboard({
                   {rankingView === "score" && leaderboard?.score?.map((row) => (
                     <div
                       key={`score-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${
-                        row.studentId === (authUser?._id || user.id)
-                          ? "border-blue-300 bg-blue-50"
-                          : "border-gray-200 bg-white"
-                      }`}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${row.studentId === (authUser?._id || user.id)
+                        ? "border-blue-300 bg-blue-50"
+                        : "border-gray-200 bg-white"
+                        }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
@@ -2617,11 +2602,10 @@ export default function StudentDashboard({
                   {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
                     <div
                       key={`attendance-${row.rank}-${row.studentId}`}
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${
-                        row.studentId === (authUser?._id || user.id)
-                          ? "border-emerald-300 bg-emerald-50"
-                          : "border-gray-200 bg-white"
-                      }`}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${row.studentId === (authUser?._id || user.id)
+                        ? "border-emerald-300 bg-emerald-50"
+                        : "border-gray-200 bg-white"
+                        }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
@@ -2666,11 +2650,11 @@ export default function StudentDashboard({
                     (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
                     (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
                   ) && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-4xl mb-2">📊</p>
-                      <p>Chưa có dữ liệu xếp hạng</p>
-                    </div>
-                  )}
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>Chưa có dữ liệu xếp hạng</p>
+                      </div>
+                    )}
                 </div>
               )}
 
@@ -2678,7 +2662,7 @@ export default function StudentDashboard({
               <div className="rounded-xl bg-blue-50 text-blue-700 text-sm text-center px-4 py-3">
                 Vị trí hiện tại của bạn:{" "}
                 <span className="font-semibold">
-                  {rankingView === "score" 
+                  {rankingView === "score"
                     ? (myRank?.scoreRank ? `Hạng ${myRank.scoreRank}` : "Chưa có xếp hạng")
                     : (myRank?.attendanceRank ? `Hạng ${myRank.attendanceRank}` : "Chưa có xếp hạng")
                   }
@@ -2718,22 +2702,20 @@ export default function StudentDashboard({
                           {c.avatar}
                         </div>
                         <span
-                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
-                            c.status === "online"
-                              ? "bg-emerald-500"
-                              : "bg-gray-300"
-                          }`}
+                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${c.status === "online"
+                            ? "bg-emerald-500"
+                            : "bg-gray-300"
+                            }`}
                         />
                       </div>
                       <div>
                         <p className="font-bold text-gray-900">{c.name}</p>
                         <p className="text-sm text-gray-500">{c.subject}</p>
                         <p
-                          className={`text-xs mt-0.5 ${
-                            c.status === "online"
-                              ? "text-emerald-600"
-                              : "text-gray-400"
-                          }`}
+                          className={`text-xs mt-0.5 ${c.status === "online"
+                            ? "text-emerald-600"
+                            : "text-gray-400"
+                            }`}
                         >
                           {c.status === "online"
                             ? "● Đang hoạt động"
@@ -3065,7 +3047,7 @@ export default function StudentDashboard({
           <TabsContent value="incidents" className="mt-6">
             <IncidentReportModal
               isOpen={true}
-              onClose={() => {}}
+              onClose={() => { }}
               userName={user.name}
               userEmail={user.email}
               userRole={user.role}
@@ -3162,32 +3144,29 @@ function StudentDocumentsModal({
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setFilter("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "all"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "all"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             Tất cả ({documents.length})
           </button>
           <button
             onClick={() => setFilter("class")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "class"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "class"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             🔒 Lớp học (
             {documents.filter((d) => d.visibility === "class").length})
           </button>
           <button
             onClick={() => setFilter("community")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "community"
-                ? "bg-purple-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === "community"
+              ? "bg-purple-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             🌐 Cộng đồng (
             {documents.filter((d) => d.visibility === "community").length})
