@@ -152,6 +152,18 @@ export interface User {
   teacherNote?: string; // Ghi chú về giáo viên
   qualification?: string; // Trình độ học vấn
   experienceYears?: number; // Số năm kinh nghiệm
+
+  // Thông tin chung/bổ sung
+  studentCode?: string;
+  teacherCode?: string;
+  parentCode?: string;
+  gender?: string;
+  parentName?: string;
+  parentPhone?: string;
+  childEmail?: string;
+  hasScholarship?: boolean;
+  scholarshipType?: "teacher_child" | "poor_family" | "orphan";
+  scholarshipPercent?: number;
 }
 
 interface AuthState {

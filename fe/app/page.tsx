@@ -60,6 +60,16 @@ export default function Home() {
     name: user.name,
     email: user.email,
     role: user.role || "student",
+    phone: user.phone,
+    avatarUrl: user.avatarUrl,
+    studentCode: user.studentCode || "",
+    teacherCode: user.teacherCode || "",
+    parentCode: user.parentCode || "",
+    gender: user.gender || "other",
+    dateOfBirth: user.dateOfBirth,
+    parentName: user.parentName,
+    parentPhone: user.parentPhone,
+    childEmail: user.childEmail,
   };
 
   return (
