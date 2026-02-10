@@ -1083,7 +1083,7 @@ export default function ParentDashboard({
           dashboardData.recentGrades.length > 0
             ? (
               dashboardData.recentGrades.reduce(
-                (acc, g) => acc + g.percentage,
+                (acc, g) => acc + (g.percentage ?? 0),
                 0,
               ) /
               dashboardData.recentGrades.length /
