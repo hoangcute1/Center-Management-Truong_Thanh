@@ -224,21 +224,23 @@ export default function AdminDashboardScreen() {
 
   const fetchUserStats = async () => {
     try {
-      // Fetch user counts by role
+      // Fetch user counts by role - BE returns full array, so we count length
       const [studentsRes, teachersRes, parentsRes] = await Promise.all([
-        api.get("/users?role=student&limit=1"),
-        api.get("/users?role=teacher&limit=1"),
-        api.get("/users?role=parent&limit=1"),
+        api.get("/users?role=student"),
+        api.get("/users?role=teacher"),
+        api.get("/users?role=parent"),
       ]);
 
+      // API returns array directly
+      const studentsCount = Array.isArray(studentsRes.data) ? studentsRes.data.length : 0;
+      const teachersCount = Array.isArray(teachersRes.data) ? teachersRes.data.length : 0;
+      const parentsCount = Array.isArray(parentsRes.data) ? parentsRes.data.length : 0;
+
       setStats({
-        students: studentsRes.data.total || studentsRes.data.length || 0,
-        teachers: teachersRes.data.total || teachersRes.data.length || 0,
-        parents: parentsRes.data.total || parentsRes.data.length || 0,
-        totalUsers:
-          (studentsRes.data.total || 0) +
-          (teachersRes.data.total || 0) +
-          (parentsRes.data.total || 0),
+        students: studentsCount,
+        teachers: teachersCount,
+        parents: parentsCount,
+        totalUsers: studentsCount + teachersCount + parentsCount,
       });
     } catch (error) {
       console.error("Error fetching user stats:", error);

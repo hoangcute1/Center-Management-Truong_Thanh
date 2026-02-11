@@ -290,6 +290,47 @@ export class SessionsService {
     return sessions;
   }
 
+  // Lấy lịch của người dùng hiện tại (student hoặc teacher)
+  async getMySessions(user: UserDocument) {
+    // Mặc định lấy lịch từ 7 ngày trước đến 30 ngày sau
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+
+    const userId = user._id.toString();
+    const role = user.role;
+
+    if (role === 'teacher') {
+      return this.getTeacherSchedule(userId, startDate.toISOString(), endDate.toISOString());
+    } else if (role === 'student') {
+      return this.getStudentSchedule(userId, startDate.toISOString(), endDate.toISOString());
+    }
+
+    // For parents, get sessions of their children
+    if (role === 'parent' && user.childrenIds?.length) {
+      const allSessions: SessionDocument[] = [];
+      for (const childId of user.childrenIds) {
+        const childSessions = await this.getStudentSchedule(
+          childId.toString(),
+          startDate.toISOString(),
+          endDate.toISOString(),
+        );
+        allSessions.push(...childSessions);
+      }
+      // Loại bỏ sessions trùng lặp dựa trên _id
+      const uniqueSessions = allSessions.filter(
+        (session, index, self) =>
+          index === self.findIndex((s) => s._id.toString() === session._id.toString()),
+      );
+      return uniqueSessions.sort(
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+      );
+    }
+
+    return [];
+  }
+
   // Lấy lịch của một học sinh
   async getStudentSchedule(
     studentId: string,

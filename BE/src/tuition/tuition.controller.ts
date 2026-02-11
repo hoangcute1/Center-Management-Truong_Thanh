@@ -36,6 +36,20 @@ export class TuitionController {
     return this.tuitionService.listForUser(user);
   }
 
+  // Endpoint cho học sinh lấy học phí của mình
+  @Get('my')
+  @Roles(UserRole.Student)
+  getMyTuition(@CurrentUser() user: UserDocument) {
+    return this.tuitionService.getStudentTuition(user._id.toString());
+  }
+
+  // Endpoint cho phụ huynh lấy học phí của con
+  @Get('my-children')
+  @Roles(UserRole.Parent)
+  getChildrenTuition(@CurrentUser() user: UserDocument) {
+    return this.tuitionService.getChildrenTuition(user);
+  }
+
   @Patch(':id')
   @Roles(UserRole.Admin)
   update(@Param('id') id: string, @Body() dto: UpdateInvoiceDto) {
