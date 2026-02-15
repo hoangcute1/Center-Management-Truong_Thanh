@@ -30,3 +30,4 @@ export {
 } from "./schedule-store";
 export { useChatStore } from "./chat-store";
 export { useAdminStatsStore, type DashboardOverviewResponse } from "./admin-stats-store";
+export { useLeaderboardStore } from "./leaderboard-store";

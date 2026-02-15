@@ -1444,7 +1444,7 @@ export default function TeacherDashboard({
   const {
     leaderboard,
     loading: leaderboardLoading,
-    fetchLeaderboard,
+    fetchTeacherLeaderboard,
   } = useLeaderboardStore();
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
@@ -1474,9 +1474,9 @@ export default function TeacherDashboard({
     // Fetch documents
     fetchMyDocuments();
 
-    // Fetch leaderboard for all students
-    fetchLeaderboard({ limit: 10 });
-  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments, fetchLeaderboard]);
+    // Fetch leaderboard for teacher's students
+    fetchTeacherLeaderboard({ limit: 10 });
+  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments, fetchTeacherLeaderboard]);
 
   // Set first class as selected when classes load
   useEffect(() => {

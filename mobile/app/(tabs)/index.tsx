@@ -434,6 +434,14 @@ const getQuickActions = (
         onPress: () => router.push("/(tabs)/incidents"),
       },
       {
+        icon: "trophy" as const,
+        label: "Xếp hạng",
+        subtitle: "Bảng xếp hạng",
+        colors: ["#F59E0B", "#D97706"],
+        badge: 0,
+        onPress: () => router.push("/leaderboard"),
+      },
+      {
         icon: "star" as const,
         label: "Đánh giá",
         subtitle: "Xem đánh giá",

@@ -25,12 +25,16 @@ export default function LeaderboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { user } = useAuthStore();
-  const { leaderboard, myRank, loading, fetchLeaderboard, fetchMyRank } =
+  const { leaderboard, myRank, loading, fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank } =
     useLeaderboardStore();
 
   // Fetch leaderboard data on mount
   useEffect(() => {
-    fetchLeaderboard();
+    if (user?.role === "teacher") {
+      fetchTeacherLeaderboard({ limit: 20 });
+    } else {
+      fetchLeaderboard({ limit: 20 });
+    }
     if (user?.role === "student") {
       fetchMyRank();
     }
@@ -39,12 +43,16 @@ export default function LeaderboardScreen() {
   // Pull to refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLeaderboard();
+    if (user?.role === "teacher") {
+      await fetchTeacherLeaderboard({ limit: 20 });
+    } else {
+      await fetchLeaderboard({ limit: 20 });
+    }
     if (user?.role === "student") {
       await fetchMyRank();
     }
     setRefreshing(false);
-  }, [fetchLeaderboard, fetchMyRank, user?.role]);
+  }, [fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank, user?.role]);
 
   // Get current leaderboard data based on active tab
   const currentScoreData = leaderboard?.score || [];
