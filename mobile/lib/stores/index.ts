@@ -12,3 +12,4 @@ export * from "./users-store";
 export * from "./feedback-store";
 export * from "./leaderboard-store";
 export * from "./chat-store";
+export * from "./finance-store";
