@@ -143,20 +143,26 @@ export class GradesController {
 
   @Get('leaderboard/teacher')
   @Roles(UserRole.Teacher)
-  @ApiOperation({ summary: 'Lấy bảng xếp hạng học sinh trong các lớp của giáo viên' })
+  @ApiOperation({ summary: 'Lấy bảng xếp hạng tất cả học sinh trong cơ sở của giáo viên' })
   @ApiQuery({ name: 'classId', required: false, description: 'Filter by specific class ID' })
   @ApiQuery({ name: 'limit', required: false, description: 'Limit number of results', example: 10 })
   getTeacherLeaderboard(
     @CurrentUser() teacher: UserDocument,
     @Query() query: LeaderboardQueryDto,
   ) {
-    return this.gradesService.getTeacherLeaderboard(teacher._id.toString(), query);
+    // Giáo viên xem bảng xếp hạng toàn bộ học sinh cùng cơ sở
+    const branchId = (teacher as any).branchId;
+    if (branchId && !query.branchId) {
+      query.branchId = branchId;
+    }
+    return this.gradesService.getLeaderboard(query);
   }
 
   @Get('leaderboard/my-rank')
   @Roles(UserRole.Student)
-  @ApiOperation({ summary: 'Lấy thứ hạng của học sinh hiện tại trong toàn trung tâm' })
+  @ApiOperation({ summary: 'Lấy thứ hạng của học sinh hiện tại trong cơ sở' })
   getMyOverallRank(@CurrentUser() student: UserDocument) {
-    return this.gradesService.getStudentOverallRank(student._id.toString());
+    const branchId = (student as any).branchId;
+    return this.gradesService.getStudentOverallRank(student._id.toString(), branchId);
   }
 }

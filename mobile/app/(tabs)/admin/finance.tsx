@@ -386,10 +386,12 @@ export default function FinanceScreen() {
         {/* Filters: Branch + Year */}
         <View style={styles.filterSection}>
           <View style={styles.filterRow}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 2 }}>
               <BranchPicker branches={branches} selectedBranch={selectedBranch} onSelect={setSelectedBranch} />
             </View>
-            <YearPicker selectedYear={selectedYear} onSelect={setSelectedYear} />
+            <View style={{ flex: 1 }}>
+              <YearPicker selectedYear={selectedYear} onSelect={setSelectedYear} />
+            </View>
           </View>
         </View>
 
@@ -950,8 +952,10 @@ const pickerStyles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 8,
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -964,8 +968,10 @@ const pickerStyles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 6,
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,

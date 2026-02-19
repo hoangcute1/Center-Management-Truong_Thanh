@@ -800,14 +800,18 @@ export class GradesService {
   }
 
   /**
-   * Lấy thứ hạng của học sinh hiện tại trong toàn bộ trung tâm
+   * Lấy thứ hạng của học sinh hiện tại trong cơ sở của họ
    */
-  async getStudentOverallRank(studentId: string): Promise<{
+  async getStudentOverallRank(studentId: string, branchId?: string): Promise<{
     scoreRank: number | null;
     attendanceRank: number | null;
     totalStudents: number;
   }> {
-    const leaderboard = await this.getLeaderboard({ limit: 9999 });
+    const query: LeaderboardQueryDto = { limit: 9999 };
+    if (branchId) {
+      query.branchId = branchId;
+    }
+    const leaderboard = await this.getLeaderboard(query);
     
     const scoreItem = leaderboard.score.find(item => item.studentId === studentId);
     const attendanceItem = leaderboard.attendance.find(item => item.studentId === studentId);

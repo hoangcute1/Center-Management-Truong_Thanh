@@ -19,6 +19,8 @@ import {
   useClassesStore,
   usePaymentRequestsStore,
   useIncidentsStore,
+  useScheduleStore,
+  useFeedbackStore,
   getUserDisplayName,
 } from "@/lib/stores";
 import { router } from "expo-router";
@@ -500,6 +502,8 @@ export default function HomeScreen() {
     fetchChildrenRequests,
   } = usePaymentRequestsStore();
   const { myIncidents, fetchMyIncidents } = useIncidentsStore();
+  const { sessions, fetchMySessions } = useScheduleStore();
+  const { myRatings, fetchMyRatings } = useFeedbackStore();
 
   const role = user?.role || "student";
   const [childInfo, setChildInfo] = useState<{
@@ -673,6 +677,8 @@ export default function HomeScreen() {
       await fetchMyIncidents();
     } else if (role === "teacher") {
       await fetchClasses();
+      await fetchMySessions();
+      await fetchMyRatings();
       await fetchMyIncidents();
     } else {
       await fetchClasses();
@@ -1133,7 +1139,7 @@ export default function HomeScreen() {
         {role === "teacher" && (
           <View style={styles.section}>
             <View style={styles.teacherStatsCard}>
-              <Text style={styles.teacherStatsTitle}>Thống kê tháng này</Text>
+              <Text style={styles.teacherStatsTitle}>Thống kê</Text>
               <View style={styles.teacherStatsGrid}>
                 <View style={styles.teacherStatItem}>
                   <LinearGradient
@@ -1142,7 +1148,9 @@ export default function HomeScreen() {
                   >
                     <Ionicons name="calendar" size={18} color="#FFFFFF" />
                   </LinearGradient>
-                  <Text style={styles.teacherStatValue}>12</Text>
+                  <Text style={styles.teacherStatValue}>
+                    {sessions.filter((s) => new Date(s.endTime) < new Date()).length}
+                  </Text>
                   <Text style={styles.teacherStatLabel}>Buổi đã dạy</Text>
                 </View>
                 <View style={styles.teacherStatItem}>
@@ -1150,10 +1158,10 @@ export default function HomeScreen() {
                     colors={["#3B82F6", "#2563EB"]}
                     style={styles.teacherStatIcon}
                   >
-                    <Ionicons name="people" size={18} color="#FFFFFF" />
+                    <Ionicons name="school" size={18} color="#FFFFFF" />
                   </LinearGradient>
-                  <Text style={styles.teacherStatValue}>95%</Text>
-                  <Text style={styles.teacherStatLabel}>Tỉ lệ đi học</Text>
+                  <Text style={styles.teacherStatValue}>{classes.length}</Text>
+                  <Text style={styles.teacherStatLabel}>Lớp đang dạy</Text>
                 </View>
                 <View style={styles.teacherStatItem}>
                   <LinearGradient
@@ -1162,7 +1170,11 @@ export default function HomeScreen() {
                   >
                     <Ionicons name="star" size={18} color="#FFFFFF" />
                   </LinearGradient>
-                  <Text style={styles.teacherStatValue}>4.8</Text>
+                  <Text style={styles.teacherStatValue}>
+                    {myRatings?.stats?.averageRating
+                      ? myRatings.stats.averageRating.toFixed(1)
+                      : "—"}
+                  </Text>
                   <Text style={styles.teacherStatLabel}>Đánh giá</Text>
                 </View>
               </View>

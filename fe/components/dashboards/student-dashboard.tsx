@@ -1559,8 +1559,12 @@ export default function StudentDashboard({
       fetchDashboardData(studentId).catch(console.error);
       // Fetch attendance records for this student
       fetchAttendance({ studentId }).catch(console.error);
-      // Fetch leaderboard
-      fetchLeaderboard({ limit: 10 }).catch(console.error);
+      // Fetch leaderboard (scoped to student's branch)
+      const leaderboardParams: { branchId?: string; limit: number } = { limit: 10 };
+      if (authUser?.branchId) {
+        leaderboardParams.branchId = authUser.branchId;
+      }
+      fetchLeaderboard(leaderboardParams).catch(console.error);
       // Fetch my rank
       fetchMyRank().catch(console.error);
     }

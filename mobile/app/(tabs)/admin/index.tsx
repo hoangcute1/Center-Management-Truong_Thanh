@@ -330,7 +330,7 @@ export default function AdminDashboardScreen() {
       trend: "Chờ xử lý",
       icon: "warning" as const,
       colors:
-        pendingIncidents > 0 ? ["#EF4444", "#DC2626"] : ["#8B5CF6", "#7C3AED"],
+        pendingIncidents > 0 ? ["#EF4444", "#DC2626"] : ["#10B981", "#059669"],
     },
   ];
 
@@ -380,7 +380,7 @@ export default function AdminDashboardScreen() {
           <RefreshControl
             refreshing={isLoading || classesLoading || incidentsLoading}
             onRefresh={onRefresh}
-            tintColor="#8B5CF6"
+            tintColor="#10B981"
           />
         }
         showsVerticalScrollIndicator={false}
@@ -393,13 +393,13 @@ export default function AdminDashboardScreen() {
             left: 0,
             right: 0,
             height: 1000,
-            backgroundColor: "#8B5CF6", // Matches header top color
+            backgroundColor: "#10B981", // Matches header top color
           }}
         />
 
         {/* Welcome Header */}
         <LinearGradient
-          colors={["#8B5CF6", "#7C3AED"]}
+          colors={["#10B981", "#059669"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.welcomeGradient, { paddingTop: insets.top + 20 }]}
@@ -581,7 +581,7 @@ export default function AdminDashboardScreen() {
               style={styles.seeAllButton}
             >
               <Text style={styles.seeAllText}>Xem chi tiết</Text>
-              <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
             </TouchableOpacity>
           </View>
 
@@ -779,7 +779,7 @@ export default function AdminDashboardScreen() {
               style={styles.seeAllButton}
             >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
-              <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
             </TouchableOpacity>
           </View>
 
@@ -845,7 +845,7 @@ export default function AdminDashboardScreen() {
                 style={styles.seeAllButton}
               >
                 <Text style={styles.seeAllText}>Xem tất cả</Text>
-                <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+                <Ionicons name="chevron-forward" size={16} color="#10B981" />
               </TouchableOpacity>
             </View>
 
@@ -880,7 +880,7 @@ export default function AdminDashboardScreen() {
               style={styles.seeAllButton}
             >
               <Text style={styles.seeAllText}>Quản lý</Text>
-              <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
             </TouchableOpacity>
           </View>
 
@@ -890,7 +890,7 @@ export default function AdminDashboardScreen() {
               <Text style={styles.branchesLabel}>Cơ sở đang hoạt động</Text>
             </View>
             <LinearGradient
-              colors={["#8B5CF6", "#7C3AED"]}
+              colors={["#10B981", "#059669"]}
               style={styles.branchesIconBg}
             >
               <Ionicons name="business" size={28} color="#FFFFFF" />
@@ -974,7 +974,7 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 14,
-    color: "#8B5CF6",
+    color: "#10B981",
     fontWeight: "600",
   },
   // Stats Grid
@@ -1347,7 +1347,7 @@ const styles = StyleSheet.create({
   branchesCount: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#8B5CF6",
+    color: "#10B981",
   },
   branchesLabel: {
     fontSize: 14,

@@ -1257,7 +1257,7 @@ function AddModal({
       scholarshipType,
       scholarshipPercent,
     });
-    const submitData = { ...formData, branchId: selectedBranch };
+    const submitData: Record<string, string> = { ...formData, branchId: selectedBranch };
     if (isTeacherForm && selectedSubjects.length > 0) {
       submitData["Môn dạy"] = selectedSubjects.join(", ");
     }
@@ -2007,6 +2007,7 @@ export default function AdminDashboard({
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchOption | null>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
+  const [leaderboardBranch, setLeaderboardBranch] = useState<string>("");
   const [selectedUserDetail, setSelectedUserDetail] =
     useState<UserDetail | null>(null);
   const [editingUser, setEditingUser] = useState<UserDetail | null>(null);
@@ -2197,7 +2198,7 @@ export default function AdminDashboard({
     fetchClasses().catch(() => {
       console.log("Could not fetch classes - make sure backend is running");
     });
-    // Fetch leaderboard
+    // Fetch leaderboard (initial - all branches)
     fetchLeaderboard({ limit: 10 }).catch(() => {
       console.log("Could not fetch leaderboard - make sure backend is running");
     });
@@ -2214,6 +2215,15 @@ export default function AdminDashboard({
     fetchLeaderboard,
     fetchDashboardOverview,
   ]);
+
+  // Re-fetch leaderboard when branch filter changes
+  useEffect(() => {
+    const params: { branchId?: string; limit: number } = { limit: 10 };
+    if (leaderboardBranch) {
+      params.branchId = leaderboardBranch;
+    }
+    fetchLeaderboard(params).catch(() => {});
+  }, [leaderboardBranch, fetchLeaderboard]);
 
   // Fetch finance dashboard when switching to finance tab or branch/year changes
   useEffect(() => {
@@ -3494,16 +3504,31 @@ export default function AdminDashboard({
           {/* Tab Bảng xếp hạng */}
           <TabsContent value="leaderboard" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏆</span>
-                <div>
-                  <p className="font-bold text-gray-900 text-lg">
-                    Bảng Xếp Hạng
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Vinh danh những nỗ lực xuất sắc
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🏆</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      Bảng Xếp Hạng
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Vinh danh những nỗ lực xuất sắc
+                    </p>
+                  </div>
                 </div>
+                {/* Branch Filter */}
+                <select
+                  value={leaderboardBranch}
+                  onChange={(e) => setLeaderboardBranch(e.target.value)}
+                  className="rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tất cả cơ sở</option>
+                  {branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Ranking Category Tabs */}
@@ -4339,7 +4364,7 @@ export default function AdminDashboard({
 
           {/* Tab Đánh giá Giáo viên */}
           <TabsContent value="evaluations" className="mt-6">
-            <AdminEvaluationManager userId={user.id} />
+            <AdminEvaluationManager />
           </TabsContent>
 
           {/* Tab Cài đặt */}

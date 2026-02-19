@@ -519,7 +519,7 @@ export default function AdminAttendanceScreen() {
             colors={["#6366F1", "#4F46E5"]}
             style={styles.statCardIcon}
           >
-            <Ionicons name="book" size={18} color="#FFFFFF" />
+            <Ionicons name="book" size={14} color="#FFFFFF" />
           </LinearGradient>
           <Text style={[styles.statValue, { color: "#6366F1" }]}>
             {stats.totalClasses}
@@ -531,7 +531,7 @@ export default function AdminAttendanceScreen() {
             colors={["#10B981", "#059669"]}
             style={styles.statCardIcon}
           >
-            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={14} color="#FFFFFF" />
           </LinearGradient>
           <Text style={[styles.statValue, { color: "#10B981" }]}>
             {stats.presentRate}%
@@ -543,7 +543,7 @@ export default function AdminAttendanceScreen() {
             colors={["#F59E0B", "#D97706"]}
             style={styles.statCardIcon}
           >
-            <Ionicons name="people" size={18} color="#FFFFFF" />
+            <Ionicons name="people" size={14} color="#FFFFFF" />
           </LinearGradient>
           <Text style={[styles.statValue, { color: "#F59E0B" }]}>
             {stats.totalStudents}
@@ -1048,11 +1048,11 @@ const styles = StyleSheet.create({
   },
   // Header
   header: {
-    paddingTop: 16,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   headerContent: {
     flexDirection: "row",
@@ -1063,7 +1063,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -1081,14 +1081,14 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    marginTop: 16,
-    gap: 10,
+    marginTop: 12,
+    gap: 8,
   },
   statCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 10,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1097,21 +1097,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statCardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
   },
   // View Mode Toggle

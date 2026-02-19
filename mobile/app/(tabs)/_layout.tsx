@@ -35,7 +35,7 @@ export default function TabsLayout() {
       case "parent":
         return "#F59E0B";
       case "admin":
-        return "#8B5CF6";
+        return "#10B981";
       default:
         return "#3B82F6";
     }
@@ -165,14 +165,14 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Materials - visible for teacher and student */}
+      {/* Materials - visible for student only */}
       <Tabs.Screen
         name="materials"
         options={{
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
           href:
-            role === "teacher" || role === "student"
+            role === "student"
               ? "/(tabs)/materials"
               : null,
           tabBarIcon: ({ color, focused }) => (
@@ -206,14 +206,14 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Evaluations - visible for student and teacher */}
+      {/* Evaluations - visible for student only */}
       <Tabs.Screen
         name="evaluations"
         options={{
           title: "Đánh giá",
-          headerTitle: role === "teacher" ? "Đánh giá của tôi" : "Đánh giá GV",
+          headerTitle: "Đánh giá GV",
           href:
-            role === "student" || role === "teacher"
+            role === "student"
               ? "/(tabs)/evaluations"
               : null,
           tabBarIcon: ({ color, focused }) => (

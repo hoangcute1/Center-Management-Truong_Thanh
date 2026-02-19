@@ -33,7 +33,12 @@ export default function LeaderboardScreen() {
     if (user?.role === "teacher") {
       fetchTeacherLeaderboard({ limit: 20 });
     } else {
-      fetchLeaderboard({ limit: 20 });
+      // Student/parent: filter by their branch
+      const params: { branchId?: string; limit: number } = { limit: 20 };
+      if (user?.branchId) {
+        params.branchId = user.branchId;
+      }
+      fetchLeaderboard(params);
     }
     if (user?.role === "student") {
       fetchMyRank();
@@ -46,13 +51,17 @@ export default function LeaderboardScreen() {
     if (user?.role === "teacher") {
       await fetchTeacherLeaderboard({ limit: 20 });
     } else {
-      await fetchLeaderboard({ limit: 20 });
+      const params: { branchId?: string; limit: number } = { limit: 20 };
+      if (user?.branchId) {
+        params.branchId = user.branchId;
+      }
+      await fetchLeaderboard(params);
     }
     if (user?.role === "student") {
       await fetchMyRank();
     }
     setRefreshing(false);
-  }, [fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank, user?.role]);
+  }, [fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank, user?.role, user?.branchId]);
 
   // Get current leaderboard data based on active tab
   const currentScoreData = leaderboard?.score || [];

@@ -8,11 +8,13 @@ import {
   RefreshControl,
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useLeaderboardStore } from "@/lib/stores";
+import { useBranchesStore } from "@/lib/stores";
 
 const { width } = Dimensions.get("window");
 
@@ -46,18 +48,38 @@ export default function LeaderboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] =
     useState<RankingCategory>("score");
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
 
   const { leaderboard, loading, fetchLeaderboard } = useLeaderboardStore();
+  const { branches, fetchBranches } = useBranchesStore();
 
   useEffect(() => {
+    fetchBranches();
     fetchLeaderboard({ limit: 20 });
   }, []);
 
+  useEffect(() => {
+    const params: { branchId?: string; limit: number } = { limit: 20 };
+    if (selectedBranch) {
+      params.branchId = selectedBranch;
+    }
+    fetchLeaderboard(params);
+  }, [selectedBranch]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLeaderboard({ limit: 20 });
+    const params: { branchId?: string; limit: number } = { limit: 20 };
+    if (selectedBranch) {
+      params.branchId = selectedBranch;
+    }
+    await fetchLeaderboard(params);
     setRefreshing(false);
-  }, [fetchLeaderboard]);
+  }, [fetchLeaderboard, selectedBranch]);
+
+  const selectedBranchName = selectedBranch
+    ? branches.find((b) => b._id === selectedBranch)?.name || "Cơ sở"
+    : "Tất cả cơ sở";
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return "🥇";
@@ -106,6 +128,38 @@ export default function LeaderboardScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      {/* Branch Picker Modal - outside ScrollView for proper rendering */}
+      <Modal visible={showBranchPicker} transparent animationType="fade" onRequestClose={() => setShowBranchPicker(false)}>
+        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowBranchPicker(false)}>
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              <TouchableOpacity
+                style={[styles.pickerOption, !selectedBranch && styles.pickerOptionActive]}
+                onPress={() => { setSelectedBranch(""); setShowBranchPicker(false); }}
+              >
+                <Text style={[styles.pickerOptionText, !selectedBranch && styles.pickerOptionTextActive]}>
+                  🏢 Tất cả cơ sở
+                </Text>
+                {!selectedBranch && <Ionicons name="checkmark-circle" size={20} color="#F59E0B" />}
+              </TouchableOpacity>
+              {branches.map((branch) => (
+                <TouchableOpacity
+                  key={branch._id}
+                  style={[styles.pickerOption, selectedBranch === branch._id && styles.pickerOptionActive]}
+                  onPress={() => { setSelectedBranch(branch._id); setShowBranchPicker(false); }}
+                >
+                  <Text style={[styles.pickerOptionText, selectedBranch === branch._id && styles.pickerOptionTextActive]}>
+                    📍 {branch.name}
+                  </Text>
+                  {selectedBranch === branch._id && <Ionicons name="checkmark-circle" size={20} color="#F59E0B" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -126,6 +180,18 @@ export default function LeaderboardScreen() {
             </View>
           </View>
         </LinearGradient>
+
+        {/* Branch Picker */}
+        <View style={styles.branchPickerSection}>
+          <TouchableOpacity
+            style={styles.branchPickerTrigger}
+            onPress={() => setShowBranchPicker(true)}
+          >
+            <Ionicons name="business" size={18} color="#F59E0B" />
+            <Text style={styles.branchPickerText} numberOfLines={1}>{selectedBranchName}</Text>
+            <Ionicons name="chevron-down" size={18} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
 
         {/* Category Selector */}
         <View style={styles.section}>
@@ -762,5 +828,80 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(255,255,255,0.9)",
     marginTop: 4,
+  },
+  // Branch Picker
+  branchPickerSection: {
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  branchPickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: "#FCD34D",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  branchPickerText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    flex: 1,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  pickerContainer: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  pickerOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  pickerOptionActive: {
+    backgroundColor: "#FFFBEB",
+  },
+  pickerOptionText: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  pickerOptionTextActive: {
+    color: "#D97706",
+    fontWeight: "700",
   },
 });
