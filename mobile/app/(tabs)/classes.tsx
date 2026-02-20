@@ -613,6 +613,22 @@ export default function ClassesScreen() {
                         {selectedClass.isActive ? "Đang học" : "Đã kết thúc"}
                       </Text>
                     </View>
+                    {/* Total Students Badge */}
+                    <View style={{
+                      marginTop: 12,
+                      backgroundColor: '#EFF6FF',
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}>
+                      <Ionicons name="people" size={20} color="#3B82F6" />
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E40AF' }}>
+                        Tổng số học sinh: {selectedClass.students?.length || selectedClass.studentIds?.length || 0}
+                      </Text>
+                    </View>
                   </View>
 
                   {/* Info Cards */}
