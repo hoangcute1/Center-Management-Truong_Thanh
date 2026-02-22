@@ -449,7 +449,7 @@ const getQuickActions = (
         subtitle: "Xem đánh giá",
         colors: ["#8B5CF6", "#7C3AED"],
         badge: 0,
-        onPress: () => router.push("/(tabs)/profile"),
+        onPress: () => router.push("/(tabs)/evaluations"),
       },
     ],
     admin: [

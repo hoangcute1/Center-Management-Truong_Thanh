@@ -155,16 +155,63 @@ export default function EvaluationsScreen() {
     </View>
   );
 
-  // Render for Teacher - show their ratings
+  // Helper functions for rating badge (like web)
+  const getRatingBadge = (
+    rating: number,
+  ): { label: string; bgColor: string; textColor: string } => {
+    if (rating >= 4.5)
+      return {
+        label: "Xuất sắc",
+        bgColor: "#D1FAE5",
+        textColor: "#065F46",
+      };
+    if (rating >= 4)
+      return { label: "Tốt", bgColor: "#DBEAFE", textColor: "#1E40AF" };
+    if (rating >= 3)
+      return { label: "Khá", bgColor: "#FEF3C7", textColor: "#92400E" };
+    if (rating >= 2)
+      return {
+        label: "Trung bình",
+        bgColor: "#FFEDD5",
+        textColor: "#9A3412",
+      };
+    return {
+      label: "Cần cải thiện",
+      bgColor: "#FEE2E2",
+      textColor: "#991B1B",
+    };
+  };
+
+  const getRatingColor = (rating: number): string => {
+    if (rating >= 4.5) return "#059669";
+    if (rating >= 4) return "#2563EB";
+    if (rating >= 3) return "#D97706";
+    return "#DC2626";
+  };
+
+  // Render for Teacher - show their ratings (like web)
   if (isTeacher) {
+    const avgRating = myRatings?.stats?.averageRating || 0;
+    const badge = getRatingBadge(avgRating);
+    const goodRatings =
+      myRatings?.feedbacks.filter((f) => f.rating >= 4).length || 0;
+    const commentCount =
+      myRatings?.feedbacks.filter((f) => f.comment).length || 0;
+    const highestCriteria = myRatings?.stats?.averageCriteria
+      ? Math.max(
+          ...Object.values(myRatings.stats.averageCriteria).filter(Boolean),
+        )
+      : 0;
+
     return (
       <ScrollView
         style={[styles.container, isDark && styles.containerDark]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <LinearGradient colors={["#10B981", "#059669"]} style={styles.header}>
+        <LinearGradient colors={["#8B5CF6", "#6D28D9"]} style={styles.header}>
           <Ionicons name="star" size={32} color="#fff" />
           <Text style={styles.headerTitle}>Đánh giá của tôi</Text>
           <Text style={styles.headerSubtitle}>Xem đánh giá từ học sinh</Text>
@@ -173,7 +220,7 @@ export default function EvaluationsScreen() {
         {loading ? (
           <ActivityIndicator
             size="large"
-            color="#10B981"
+            color="#8B5CF6"
             style={styles.loader}
           />
         ) : myRatings?.totalFeedbacks === 0 ? (
@@ -189,112 +236,203 @@ export default function EvaluationsScreen() {
           </View>
         ) : (
           <>
-            {/* Stats Card */}
-            <View style={[styles.statsCard, isDark && styles.cardDark]}>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {myRatings?.stats.averageRating?.toFixed(1) || "0"}
-                  </Text>
-                  <Text style={[styles.statLabel, isDark && styles.textMuted]}>
-                    Điểm TB
-                  </Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {myRatings?.totalFeedbacks || 0}
-                  </Text>
-                  <Text style={[styles.statLabel, isDark && styles.textMuted]}>
-                    Tổng đánh giá
-                  </Text>
-                </View>
-              </View>
-              <StarRating
-                value={Math.round(myRatings?.stats.averageRating || 0)}
-                disabled
-              />
-            </View>
-
-            {/* Criteria Breakdown */}
-            {myRatings?.stats.averageCriteria && (
-              <View style={[styles.criteriaCard, isDark && styles.cardDark]}>
-                <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
-                  Chi tiết tiêu chí
-                </Text>
-                {(
-                  Object.keys(CRITERIA_LABELS) as Array<
-                    keyof EvaluationCriteria
-                  >
-                ).map((key) => (
-                  <View key={key} style={styles.criteriaRow}>
-                    <Text
-                      style={[styles.criteriaLabel, isDark && styles.textMuted]}
-                    >
-                      {CRITERIA_LABELS[key]}
-                    </Text>
-                    <View style={styles.criteriaValue}>
-                      <StarRating
-                        value={Math.round(
-                          myRatings.stats.averageCriteria![key] || 0,
-                        )}
-                        size={16}
-                        disabled
-                      />
-                      <Text
-                        style={[
-                          styles.criteriaScore,
-                          isDark && styles.textDark,
-                        ]}
-                      >
-                        {myRatings.stats.averageCriteria![key]?.toFixed(1) ||
-                          "-"}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Recent Feedbacks */}
-            <View style={[styles.feedbacksSection, isDark && styles.cardDark]}>
-              <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
-                Nhận xét gần đây
-              </Text>
-              {myRatings?.feedbacks.slice(0, 5).map((fb) => (
-                <View
-                  key={fb._id}
+            {/* Overview Card - like web */}
+            <View style={[styles.overviewCard, isDark && styles.cardDark]}>
+              <View style={styles.overviewRatingSection}>
+                <Text
                   style={[
-                    styles.feedbackCard,
-                    isDark && styles.feedbackCardDark,
+                    styles.bigRating,
+                    { color: getRatingColor(avgRating) },
                   ]}
                 >
-                  <View style={styles.feedbackHeader}>
-                    <StarRating value={fb.rating} size={14} disabled />
-                    <Text style={styles.feedbackDate}>
-                      {new Date(fb.createdAt).toLocaleDateString("vi-VN")}
-                    </Text>
-                  </View>
-                  {fb.className && (
-                    <Text style={styles.feedbackClass}>
-                      Lớp: {fb.className}
-                    </Text>
-                  )}
-                  {fb.comment && (
+                  {avgRating.toFixed(1)}
+                </Text>
+                <StarRating value={Math.round(avgRating)} disabled size={22} />
+                <View
+                  style={[
+                    styles.ratingBadge,
+                    { backgroundColor: badge.bgColor },
+                  ]}
+                >
+                  <Text
+                    style={[styles.ratingBadgeText, { color: badge.textColor }]}
+                  >
+                    {badge.label}
+                  </Text>
+                </View>
+                <Text style={[styles.totalFeedbackText, isDark && styles.textMuted]}>
+                  Dựa trên {myRatings?.totalFeedbacks || 0} đánh giá
+                </Text>
+              </View>
+
+              {/* Criteria Progress Bars - like web */}
+              {myRatings?.stats?.averageCriteria && (
+                <View style={styles.criteriaProgressSection}>
+                  <View style={styles.criteriaProgressHeader}>
+                    <Ionicons
+                      name="trending-up"
+                      size={16}
+                      color="#6B7280"
+                    />
                     <Text
                       style={[
-                        styles.feedbackComment,
-                        isDark && styles.textMuted,
+                        styles.criteriaProgressTitle,
+                        isDark && styles.textDark,
                       ]}
                     >
-                      "{fb.comment}"
+                      Chi tiết đánh giá
                     </Text>
-                  )}
+                  </View>
+                  {(
+                    Object.keys(CRITERIA_LABELS) as Array<
+                      keyof EvaluationCriteria
+                    >
+                  ).map((key) => {
+                    const value =
+                      myRatings.stats.averageCriteria![key] || 0;
+                    const percentage = (value / 5) * 100;
+                    return (
+                      <View key={key} style={styles.criteriaProgressRow}>
+                        <View style={styles.criteriaProgressLabelRow}>
+                          <Text
+                            style={[
+                              styles.criteriaProgressLabel,
+                              isDark && styles.textMuted,
+                            ]}
+                          >
+                            {CRITERIA_LABELS[key]}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.criteriaProgressValue,
+                              isDark && styles.textDark,
+                            ]}
+                          >
+                            {value.toFixed(1)}
+                          </Text>
+                        </View>
+                        <View style={styles.progressBarBg}>
+                          <View
+                            style={[
+                              styles.progressBarFill,
+                              {
+                                width: `${percentage}%`,
+                                backgroundColor:
+                                  value >= 4
+                                    ? "#10B981"
+                                    : value >= 3
+                                      ? "#F59E0B"
+                                      : "#EF4444",
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
-              ))}
+              )}
+            </View>
+
+            {/* Quick Stats Grid - like web */}
+            <View style={styles.quickStatsGrid}>
+              <View style={[styles.quickStatCard, isDark && styles.cardDark]}>
+                <Ionicons name="ribbon" size={28} color="#F59E0B" />
+                <Text style={[styles.quickStatValue, isDark && styles.textDark]}>
+                  {myRatings?.totalFeedbacks || 0}
+                </Text>
+                <Text style={[styles.quickStatLabel, isDark && styles.textMuted]}>
+                  Tổng đánh giá
+                </Text>
+              </View>
+              <View style={[styles.quickStatCard, isDark && styles.cardDark]}>
+                <Ionicons name="star" size={28} color="#F59E0B" />
+                <Text style={[styles.quickStatValue, isDark && styles.textDark]}>
+                  {goodRatings}
+                </Text>
+                <Text style={[styles.quickStatLabel, isDark && styles.textMuted]}>
+                  Đánh giá tốt
+                </Text>
+              </View>
+              <View style={[styles.quickStatCard, isDark && styles.cardDark]}>
+                <Ionicons name="chatbubble" size={28} color="#3B82F6" />
+                <Text style={[styles.quickStatValue, isDark && styles.textDark]}>
+                  {commentCount}
+                </Text>
+                <Text style={[styles.quickStatLabel, isDark && styles.textMuted]}>
+                  Có nhận xét
+                </Text>
+              </View>
+              <View style={[styles.quickStatCard, isDark && styles.cardDark]}>
+                <Ionicons name="trending-up" size={28} color="#10B981" />
+                <Text style={[styles.quickStatValue, isDark && styles.textDark]}>
+                  {highestCriteria ? highestCriteria.toFixed(1) : "-"}
+                </Text>
+                <Text style={[styles.quickStatLabel, isDark && styles.textMuted]}>
+                  Điểm cao nhất
+                </Text>
+              </View>
+            </View>
+
+            {/* Feedback Comments - like web */}
+            <View style={[styles.feedbacksSection, isDark && styles.cardDark]}>
+              <View style={styles.feedbacksSectionHeader}>
+                <Ionicons name="chatbubbles" size={20} color="#3B82F6" />
+                <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
+                  Nhận xét từ học sinh
+                </Text>
+              </View>
+              {myRatings?.feedbacks.filter((f) => f.comment).length === 0 ? (
+                <View style={styles.noCommentsState}>
+                  <Ionicons name="happy-outline" size={40} color="#D1D5DB" />
+                  <Text style={styles.noCommentsText}>
+                    Chưa có nhận xét nào
+                  </Text>
+                </View>
+              ) : (
+                myRatings?.feedbacks
+                  .filter((f) => f.comment)
+                  .map((fb) => (
+                    <View
+                      key={fb._id}
+                      style={[
+                        styles.feedbackCard,
+                        isDark && styles.feedbackCardDark,
+                      ]}
+                    >
+                      <View style={styles.feedbackHeader}>
+                        <View style={styles.feedbackHeaderLeft}>
+                          <StarRating value={fb.rating} size={14} disabled />
+                          {fb.className && (
+                            <View style={styles.classNameBadge}>
+                              <Text style={styles.classNameBadgeText}>
+                                {fb.className}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.feedbackDate}>
+                          {new Date(fb.createdAt).toLocaleDateString("vi-VN")}
+                        </Text>
+                      </View>
+                      {fb.comment && (
+                        <Text
+                          style={[
+                            styles.feedbackComment,
+                            isDark && styles.textMuted,
+                          ]}
+                        >
+                          "{fb.comment}"
+                        </Text>
+                      )}
+                    </View>
+                  ))
+              )}
             </View>
           </>
         )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     );
   }
@@ -809,5 +947,149 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  // ===== New teacher evaluation styles (like web) =====
+  overviewCard: {
+    backgroundColor: "#fff",
+    margin: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  overviewRatingSection: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  bigRating: {
+    fontSize: 56,
+    fontWeight: "bold",
+  },
+  ratingBadge: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  ratingBadgeText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  totalFeedbackText: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 8,
+  },
+  criteriaProgressSection: {
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    paddingTop: 16,
+  },
+  criteriaProgressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
+  criteriaProgressTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  criteriaProgressRow: {
+    marginBottom: 14,
+  },
+  criteriaProgressLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  criteriaProgressLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  criteriaProgressValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  quickStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 12,
+    gap: 8,
+    marginBottom: 8,
+  },
+  quickStatCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    width: "48%",
+    flexGrow: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  quickStatValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#111827",
+    marginTop: 8,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  feedbacksSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  noCommentsState: {
+    alignItems: "center",
+    paddingVertical: 32,
+  },
+  noCommentsText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 8,
+  },
+  classNameBadge: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  classNameBadgeText: {
+    fontSize: 11,
+    color: "#6B7280",
+  },
+  feedbackHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });

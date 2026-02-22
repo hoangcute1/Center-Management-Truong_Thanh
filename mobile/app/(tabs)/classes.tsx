@@ -112,6 +112,10 @@ export default function ClassesScreen() {
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
   const [showGradePicker, setShowGradePicker] = useState(false);
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+  const [showStudentsList, setShowStudentsList] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentsList, setStudentsList] = useState<Array<{_id: string; fullName?: string; name?: string; email: string}>>([]);
 
   const isAdmin = user?.role === "admin";
   const isParent = user?.role === "parent";
@@ -194,6 +198,9 @@ export default function ClassesScreen() {
     setIsDetailVisible(false);
     setSelectedClass(null);
     setIsEditing(false);
+    setShowStudentsList(false);
+    setStudentsList([]);
+    setStudentSearchQuery("");
   };
 
   const openCreateModal = () => {
@@ -532,11 +539,17 @@ export default function ClassesScreen() {
         <SafeAreaView style={styles.modalContainer}>
           {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={closeDetail} style={styles.backButton}>
+            <TouchableOpacity onPress={() => {
+              if (showStudentsList) {
+                setShowStudentsList(false);
+              } else {
+                closeDetail();
+              }
+            }} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {isEditing ? "Chỉnh sửa lớp học" : "Chi tiết lớp học"}
+              {showStudentsList ? "Danh sách học sinh" : isEditing ? "Chỉnh sửa lớp học" : "Chi tiết lớp học"}
             </Text>
             {isAdmin && !isEditing && (
               <TouchableOpacity
@@ -554,14 +567,156 @@ export default function ClassesScreen() {
                 <Ionicons name="close" size={22} color="#6B7280" />
               </TouchableOpacity>
             )}
-            {!isAdmin && <View style={{ width: 40 }} />}
+            {!isAdmin && !showStudentsList && <View style={{ width: 40 }} />}
+            {showStudentsList && <View style={{ width: 40 }} />}
           </View>
 
-          {selectedClass && (
-            <ScrollView
-              style={styles.modalContent}
-              showsVerticalScrollIndicator={false}
-            >
+          {selectedClass && showStudentsList ? (
+            /* ===== STUDENT LIST VIEW (inside detail modal) ===== */
+            <View style={{ flex: 1 }}>
+              {/* Class info header */}
+              <LinearGradient
+                colors={getSubjectColors(selectedClass.subject)}
+                style={{
+                  marginHorizontal: 16,
+                  marginTop: 12,
+                  borderRadius: 16,
+                  padding: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <Ionicons name="book" size={24} color="#FFFFFF" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                    {selectedClass.name}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>
+                    {getSubjectLabel(selectedClass.subject)} • {studentsList.length} học sinh
+                  </Text>
+                </View>
+              </LinearGradient>
+
+              {/* Search bar */}
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginTop: 12,
+                  marginBottom: 8,
+                  backgroundColor: "#F3F4F6",
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 12,
+                }}
+              >
+                <Ionicons name="search" size={20} color="#9CA3AF" />
+                <TextInput
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    fontSize: 15,
+                    color: "#111827",
+                  }}
+                  placeholder="Tìm kiếm học sinh..."
+                  placeholderTextColor="#9CA3AF"
+                  value={studentSearchQuery}
+                  onChangeText={setStudentSearchQuery}
+                />
+                {studentSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setStudentSearchQuery("")}>
+                    <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Student list */}
+              {loadingStudents ? (
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 60 }}>
+                  <ActivityIndicator size="large" color="#3B82F6" />
+                  <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 12 }}>
+                    Đang tải danh sách học sinh...
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={studentsList.filter((s) => {
+                    if (!studentSearchQuery.trim()) return true;
+                    const q = studentSearchQuery.toLowerCase();
+                    const sName = (s.fullName || s.name || "").toLowerCase();
+                    const sEmail = (s.email || "").toLowerCase();
+                    return sName.includes(q) || sEmail.includes(q);
+                  })}
+                  keyExtractor={(item) => item._id}
+                  contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item, index }) => (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "#FFFFFF",
+                        borderRadius: 14,
+                        padding: 14,
+                        marginBottom: 8,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.04,
+                        shadowRadius: 4,
+                        elevation: 1,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 32, height: 32, borderRadius: 16,
+                          backgroundColor: index < 3 ? "#EFF6FF" : "#F3F4F6",
+                          justifyContent: "center", alignItems: "center", marginRight: 12,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: index < 3 ? "#3B82F6" : "#6B7280" }}>
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 44, height: 44, borderRadius: 22,
+                          backgroundColor: "#EFF6FF",
+                          justifyContent: "center", alignItems: "center", marginRight: 12,
+                        }}
+                      >
+                        <Text style={{ fontSize: 16, fontWeight: "bold", color: "#3B82F6" }}>
+                          {(item.fullName || item.name || "?").charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: "600", color: "#111827" }}>
+                          {item.fullName || item.name || "Chưa cập nhật"}
+                        </Text>
+                        <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}>
+                          {item.email}
+                        </Text>
+                      </View>
+                      <Ionicons name="person-circle-outline" size={24} color="#D1D5DB" />
+                    </View>
+                  )}
+                  ListEmptyComponent={
+                    <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                      <Ionicons name="people-outline" size={56} color="#D1D5DB" />
+                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#6B7280", marginTop: 12 }}>
+                        {studentSearchQuery ? "Không tìm thấy học sinh" : "Chưa có học sinh"}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 4 }}>
+                        {studentSearchQuery ? "Thử tìm với từ khóa khác" : "Lớp học chưa có học sinh nào"}
+                      </Text>
+                    </View>
+                  }
+                />
+              )}
+            </View>
+          ) : selectedClass ? (
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
               {!isEditing ? (
                 <>
                   {/* Class Header */}
@@ -613,23 +768,55 @@ export default function ClassesScreen() {
                         {selectedClass.isActive ? "Đang học" : "Đã kết thúc"}
                       </Text>
                     </View>
-                    {/* Total Students Badge */}
-                    <View style={{
-                      marginTop: 12,
+                  </View>
+
+                  {/* Student Details Button */}
+                  <TouchableOpacity
+                    style={{
+                      marginBottom: 16,
                       backgroundColor: '#EFF6FF',
-                      borderRadius: 12,
+                      borderRadius: 14,
                       paddingHorizontal: 16,
-                      paddingVertical: 8,
+                      paddingVertical: 14,
                       flexDirection: 'row',
                       alignItems: 'center',
-                      gap: 8,
-                    }}>
-                      <Ionicons name="people" size={20} color="#3B82F6" />
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E40AF' }}>
-                        Tổng số học sinh: {selectedClass.students?.length || selectedClass.studentIds?.length || 0}
+                      borderWidth: 1,
+                      borderColor: '#DBEAFE',
+                    }}
+                    onPress={async () => {
+                      setStudentSearchQuery("");
+                      setShowStudentsList(true);
+                      setLoadingStudents(true);
+                      try {
+                        const response = await api.get(`/classes/${selectedClass._id}`);
+                        const classData = response.data;
+                        if (classData.studentIds && Array.isArray(classData.studentIds) && classData.studentIds.length > 0 && typeof classData.studentIds[0] === 'object') {
+                          setStudentsList(classData.studentIds);
+                        } else if (classData.students && Array.isArray(classData.students)) {
+                          setStudentsList(classData.students);
+                        } else {
+                          setStudentsList([]);
+                        }
+                      } catch (err) {
+                        console.error('Error fetching class students:', err);
+                        setStudentsList(selectedClass.students || []);
+                      } finally {
+                        setLoadingStudents(false);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="people" size={20} color="#3B82F6" />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E40AF' }}>
+                        Chi tiết học sinh
+                      </Text>
+                      <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                        {selectedClass.students?.length || selectedClass.studentIds?.length || 0} học sinh trong lớp
                       </Text>
                     </View>
-                  </View>
+                    <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+                  </TouchableOpacity>
 
                   {/* Info Cards */}
                   <View style={styles.infoGrid}>
@@ -783,7 +970,7 @@ export default function ClassesScreen() {
                 </View>
               )}
             </ScrollView>
-          )}
+          ) : null}
         </SafeAreaView>
       </Modal>
 
@@ -1584,13 +1771,16 @@ const styles = StyleSheet.create({
   infoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: -6,
+    gap: 10,
     marginBottom: 24,
   },
   infoCard: {
-    width: "50%",
-    paddingHorizontal: 6,
-    marginBottom: 12,
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
   },
   infoLabel: {
     fontSize: 12,
@@ -1602,9 +1792,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#1F2937",
-    backgroundColor: "#F9FAFB",
-    padding: 12,
-    borderRadius: 12,
   },
   scheduleSection: {
     marginBottom: 24,

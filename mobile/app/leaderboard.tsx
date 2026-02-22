@@ -287,6 +287,35 @@ export default function LeaderboardScreen() {
           />
         }
       >
+        {/* Summary Stats Banner */}
+        {leaderboard?.summary && (
+          <View style={styles.summaryBanner}>
+            <View style={styles.summaryItem}>
+              <Ionicons name="people" size={20} color="#3B82F6" />
+              <Text style={styles.summaryValue}>
+                {leaderboard.summary.totalStudents}
+              </Text>
+              <Text style={styles.summaryLabel}>Học sinh</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="school" size={20} color="#F59E0B" />
+              <Text style={styles.summaryValue}>
+                {leaderboard.summary.averageScore?.toFixed(1) || "0"}
+              </Text>
+              <Text style={styles.summaryLabel}>TB điểm</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="calendar" size={20} color="#10B981" />
+              <Text style={styles.summaryValue}>
+                {leaderboard.summary.averageAttendanceRate?.toFixed(0) || "0"}%
+              </Text>
+              <Text style={styles.summaryLabel}>Chuyên cần</Text>
+            </View>
+          </View>
+        )}
+
         {activeTab === "score" ? (
           // SCORE LEADERBOARD
           <>
@@ -479,6 +508,40 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  summaryBanner: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginTop: 4,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 4,
   },
   emptyContainer: {
     alignItems: "center",

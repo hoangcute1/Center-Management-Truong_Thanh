@@ -206,16 +206,13 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Evaluations - visible for student only */}
+      {/* Evaluations - hidden from tab bar, accessible via quick action */}
       <Tabs.Screen
         name="evaluations"
         options={{
           title: "Đánh giá",
-          headerTitle: "Đánh giá GV",
-          href:
-            role === "student"
-              ? "/(tabs)/evaluations"
-              : null,
+          headerTitle: role === "teacher" ? "Đánh giá của tôi" : "Đánh giá GV",
+          href: null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
