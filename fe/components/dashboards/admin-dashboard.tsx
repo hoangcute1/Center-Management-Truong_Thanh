@@ -30,72 +30,39 @@ import ClassStudentsModal from "@/components/pages/class-students-modal";
 import ScheduleManager from "@/components/pages/schedule-manager";
 import AttendanceManager from "@/components/pages/attendance-manager";
 import IncidentsManager from "@/components/pages/incidents-manager";
+import AdminEvaluationManager from "@/components/admin-evaluation-manager";
 import { useBranchesStore } from "@/lib/stores/branches-store";
 import { useClassesStore } from "@/lib/stores/classes-store";
 import { useUsersStore, type ImportResponse } from "@/lib/stores/users-store";
 import { usePaymentsStore } from "@/lib/stores/payments-store";
 import { useFinanceStore } from "@/lib/stores/finance-store";
+import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
+import { useAdminStatsStore } from "@/lib/stores/admin-stats-store";
 import ExpenseModal from "@/components/modals/expense-modal";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
-
-
 interface AdminDashboardProps {
-  user: { id: string; name: string; email: string; role: string; phone?: string; avatarURL?: string };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    avatarUrl?: string;
+  };
   onLogout: () => void;
 }
 
-type RankingCategory = "score" | "attendance" | "diligence";
+type RankingCategory = "score" | "attendance";
 
-const overviewStats = [
-  {
-    label: "Học sinh",
-    value: 248,
-    trend: "+12% so với tháng trước",
-    positive: true,
-    icon: "👨‍🎓",
-    color: "from-blue-500 to-blue-600",
-  },
-  {
-    label: "Giáo viên",
-    value: 18,
-    trend: "Hoạt động",
-    positive: true,
-    icon: "👨‍🏫",
-    color: "from-emerald-500 to-emerald-600",
-  },
-  {
-    label: "Doanh thu tháng",
-    value: "75 Tr",
-    trend: "+29% so với tháng trước",
-    positive: true,
-    icon: "💰",
-    color: "from-amber-500 to-orange-500",
-  },
-  {
-    label: "Khóa học",
-    value: 12,
-    trend: "Đang mở",
-    positive: true,
-    icon: "📚",
-    color: "from-purple-500 to-purple-600",
-  },
-];
+// Removed mock overviewStats - now using real data from API
 
-const revenueByMonth = [
-  { month: "Tháng 1", revenue: 52 },
-  { month: "Tháng 2", revenue: 60 },
-  { month: "Tháng 3", revenue: 58 },
-  { month: "Tháng 4", revenue: 72 },
-  { month: "Tháng 5", revenue: 68 },
-  { month: "Tháng 6", revenue: 75 },
-];
+// Removed mock revenueByMonth - now using real data from API
 
 // Mock data này sẽ được thay thế bằng data thật từ API trong Tab Tài chính
 // financeSummary và financeChart đã bị xóa và thay bằng dữ liệu động
 
 const accounts = {
-
   students: [
     {
       name: "Nguyễn Văn A",
@@ -162,152 +129,29 @@ const accounts = {
   ],
 };
 
-const pieData = [
-  { name: "Toán", value: 40 },
-  { name: "Anh Văn", value: 35 },
-  { name: "Vật Lý", value: 15 },
-  { name: "Khác", value: 10 },
+// Removed mock pieData - now using real studentsBySubject from API
+
+const pieColors = [
+  "#3b82f6",
+  "#f97316",
+  "#10b981",
+  "#8b5cf6",
+  "#ec4899",
+  "#6366f1",
 ];
 
-const pieColors = ["#3b82f6", "#f97316", "#10b981", "#8b5cf6"];
-
-// Leaderboard data
+// Leaderboard options (removed "diligence" / "Chăm chỉ")
 const leaderboardOptions: Record<
   RankingCategory,
   { label: string; desc: string }
 > = {
   score: { label: "Top điểm", desc: "Điểm trung bình cao" },
   attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
-  diligence: { label: "Chăm chỉ", desc: "Hoàn thành bài tập" },
-};
-
-const leaderboardData: Record<
-  RankingCategory,
-  {
-    rank: number;
-    name: string;
-    className: string;
-    metric: string;
-    detail: string;
-  }[]
-> = {
-  score: [
-    {
-      rank: 1,
-      name: "Nguyễn Văn A",
-      className: "Lớp Toán 12A1",
-      metric: "9.8",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 2,
-      name: "Trần Thị B",
-      className: "Lớp Anh Văn 12B2",
-      metric: "9.6",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 3,
-      name: "Lê Văn C",
-      className: "Lớp Vật Lý 11C1",
-      metric: "9.5",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 4,
-      name: "Phạm Minh D",
-      className: "Lớp Hóa Học 10A2",
-      metric: "9.2",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 5,
-      name: "Hoàng An E",
-      className: "Lớp Toán 11B1",
-      metric: "9.0",
-      detail: "Top Điểm",
-    },
-  ],
-  attendance: [
-    {
-      rank: 1,
-      name: "Trần Minh T",
-      className: "Đã theo học 240 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 2,
-      name: "Lê Hải Y",
-      className: "Đã theo học 210 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 3,
-      name: "Nguyễn Công P",
-      className: "Đã theo học 180 ngày",
-      metric: "98%",
-      detail: "Nghỉ 1 buổi có phép",
-    },
-    {
-      rank: 4,
-      name: "Đặng Thu H",
-      className: "Đã theo học 150 ngày",
-      metric: "97%",
-      detail: "Nghỉ 1 buổi",
-    },
-    {
-      rank: 5,
-      name: "Vũ Gia K",
-      className: "Đã theo học 130 ngày",
-      metric: "96%",
-      detail: "Nghỉ 1 buổi",
-    },
-  ],
-  diligence: [
-    {
-      rank: 1,
-      name: "Bùi Xuân H",
-      className: "Hoàn thành 150 bài tập",
-      metric: "Level 15",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 2,
-      name: "Ngô Quốc B",
-      className: "Hoàn thành 142 bài tập",
-      metric: "Level 14",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 3,
-      name: "Lý Gia L",
-      className: "Hoàn thành 128 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 4,
-      name: "Mai Thanh V",
-      className: "Hoàn thành 125 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 5,
-      name: "Đỗ Mạnh Q",
-      className: "Hoàn thành 118 bài tập",
-      metric: "Level 11",
-      detail: "Chăm Chỉ",
-    },
-  ],
 };
 
 const tabIcons: Record<RankingCategory, string> = {
   score: "🏆",
   attendance: "👥",
-  diligence: "⚡",
 };
 
 interface BranchOption {
@@ -330,7 +174,7 @@ interface UserDetail {
   status?: string;
   avatarUrl?: string;
   dateOfBirth?: string;
-  gender?: "male" | "female" | "other";
+  gender?: string;
   createdAt?: string;
   updatedAt?: string;
   expiresAt?: string;
@@ -528,8 +372,12 @@ function UserDetailModal({
 
           {/* Thông tin học bổng (cho học sinh) */}
           {user.role === "student" && (
-            <div className={`rounded-xl p-4 space-y-3 ${user.hasScholarship ? 'bg-amber-50' : 'bg-gray-50'}`}>
-              <h4 className={`font-semibold flex items-center gap-2 ${user.hasScholarship ? 'text-amber-800' : 'text-gray-600'}`}>
+            <div
+              className={`rounded-xl p-4 space-y-3 ${user.hasScholarship ? "bg-amber-50" : "bg-gray-50"}`}
+            >
+              <h4
+                className={`font-semibold flex items-center gap-2 ${user.hasScholarship ? "text-amber-800" : "text-gray-600"}`}
+              >
                 <span>🎓</span> Học bổng
               </h4>
               {user.hasScholarship ? (
@@ -537,9 +385,13 @@ function UserDetailModal({
                   <div>
                     <p className="text-gray-500">Loại học bổng</p>
                     <p className="font-medium text-gray-900">
-                      {user.scholarshipType === 'teacher_child' ? '👨‍🏫 Con giáo viên' :
-                        user.scholarshipType === 'poor_family' ? '🏠 Hộ nghèo' :
-                          user.scholarshipType === 'orphan' ? '💙 Con mồ côi' : 'Không xác định'}
+                      {user.scholarshipType === "teacher_child"
+                        ? "👨‍🏫 Con giáo viên"
+                        : user.scholarshipType === "poor_family"
+                          ? "🏠 Hộ nghèo"
+                          : user.scholarshipType === "orphan"
+                            ? "💙 Con mồ côi"
+                            : "Không xác định"}
                     </p>
                   </div>
                   <div>
@@ -551,17 +403,26 @@ function UserDetailModal({
                   <div className="sm:col-span-2">
                     <div className="bg-amber-100 rounded-lg p-2">
                       <p className="text-sm text-amber-800">
-                        💡 Học sinh được giảm <strong>{user.scholarshipPercent || 0}%</strong> học phí do thuộc diện <strong>
-                          {user.scholarshipType === 'teacher_child' ? 'Con giáo viên' :
-                            user.scholarshipType === 'poor_family' ? 'Hộ nghèo' :
-                              user.scholarshipType === 'orphan' ? 'Con mồ côi' : ''}
+                        💡 Học sinh được giảm{" "}
+                        <strong>{user.scholarshipPercent || 0}%</strong> học phí
+                        do thuộc diện{" "}
+                        <strong>
+                          {user.scholarshipType === "teacher_child"
+                            ? "Con giáo viên"
+                            : user.scholarshipType === "poor_family"
+                              ? "Hộ nghèo"
+                              : user.scholarshipType === "orphan"
+                                ? "Con mồ côi"
+                                : ""}
                         </strong>
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 italic">Học sinh không có học bổng</p>
+                <p className="text-sm text-gray-500 italic">
+                  Học sinh không có học bổng
+                </p>
               )}
             </div>
           )}
@@ -863,7 +724,8 @@ function EditUserModal({
     }
 
     if (isParent) {
-      updateData.childEmail = formData.childEmail.trim().toLowerCase() || undefined;
+      updateData.childEmail =
+        formData.childEmail.trim().toLowerCase() || undefined;
     }
 
     await onSave(updateData);
@@ -871,10 +733,14 @@ function EditUserModal({
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case "student": return { label: "Học sinh", icon: "👨‍🎓" };
-      case "parent": return { label: "Phụ huynh", icon: "👨‍👩‍👧" };
-      case "teacher": return { label: "Giáo viên", icon: "👨‍🏫" };
-      default: return { label: role, icon: "👤" };
+      case "student":
+        return { label: "Học sinh", icon: "👨‍🎓" };
+      case "parent":
+        return { label: "Phụ huynh", icon: "👨‍👩‍👧" };
+      case "teacher":
+        return { label: "Giáo viên", icon: "👨‍🏫" };
+      default:
+        return { label: role, icon: "👤" };
     }
   };
 
@@ -889,8 +755,12 @@ function EditUserModal({
             ✏️
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Chỉnh sửa {roleInfo.label.toLowerCase()}</h3>
-            <p className="text-sm text-gray-500">{roleInfo.icon} {user.name}</p>
+            <h3 className="text-lg font-bold text-gray-900">
+              Chỉnh sửa {roleInfo.label.toLowerCase()}
+            </h3>
+            <p className="text-sm text-gray-500">
+              {roleInfo.icon} {user.name}
+            </p>
           </div>
         </div>
 
@@ -900,22 +770,30 @@ function EditUserModal({
             <label className="text-sm font-medium text-gray-700">Cơ sở</label>
             <select
               value={formData.branchId}
-              onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, branchId: e.target.value })
+              }
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">-- Chọn cơ sở --</option>
               {branches.map((branch) => (
-                <option key={branch._id} value={branch._id}>{branch.name}</option>
+                <option key={branch._id} value={branch._id}>
+                  {branch.name}
+                </option>
               ))}
             </select>
           </div>
 
           {/* Họ tên */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Họ tên <span className="text-red-500">*</span></label>
+            <label className="text-sm font-medium text-gray-700">
+              Họ tên <span className="text-red-500">*</span>
+            </label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               className="rounded-xl border-gray-200"
             />
           </div>
@@ -933,10 +811,14 @@ function EditUserModal({
 
           {/* Số điện thoại */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Số điện thoại</label>
+            <label className="text-sm font-medium text-gray-700">
+              Số điện thoại
+            </label>
             <Input
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               className="rounded-xl border-gray-200"
             />
           </div>
@@ -945,19 +827,27 @@ function EditUserModal({
           {!isParent && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Ngày sinh</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Ngày sinh
+                </label>
                 <Input
                   type="date"
                   value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dateOfBirth: e.target.value })
+                  }
                   className="rounded-xl border-gray-200"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Giới tính</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Giới tính
+                </label>
                 <select
                   value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, gender: e.target.value as any })
+                  }
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">-- Chọn --</option>
@@ -971,10 +861,14 @@ function EditUserModal({
 
           {/* Trạng thái */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Trạng thái</label>
+            <label className="text-sm font-medium text-gray-700">
+              Trạng thái
+            </label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value })
+              }
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="active">Hoạt động</option>
@@ -988,22 +882,35 @@ function EditUserModal({
             <>
               {/* Thông tin phụ huynh */}
               <div className="border rounded-xl p-3 space-y-3 bg-emerald-50">
-                <h4 className="text-sm font-semibold text-emerald-800">👨‍👩‍👧 Thông tin phụ huynh</h4>
+                <h4 className="text-sm font-semibold text-emerald-800">
+                  👨‍👩‍👧 Thông tin phụ huynh
+                </h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-600">Tên phụ huynh</label>
+                    <label className="text-xs font-medium text-gray-600">
+                      Tên phụ huynh
+                    </label>
                     <Input
                       value={formData.parentName}
-                      onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, parentName: e.target.value })
+                      }
                       className="rounded-lg border-gray-200 text-sm"
                       placeholder="Nhập tên"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-600">SĐT phụ huynh</label>
+                    <label className="text-xs font-medium text-gray-600">
+                      SĐT phụ huynh
+                    </label>
                     <Input
                       value={formData.parentPhone}
-                      onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          parentPhone: e.target.value,
+                        })
+                      }
                       className="rounded-lg border-gray-200 text-sm"
                       placeholder="Nhập SĐT"
                     />
@@ -1014,12 +921,19 @@ function EditUserModal({
               {/* Học bổng */}
               <div className="border rounded-xl p-3 space-y-3 bg-amber-50">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-amber-800">🎓 Học bổng</h4>
+                  <h4 className="text-sm font-semibold text-amber-800">
+                    🎓 Học bổng
+                  </h4>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.hasScholarship}
-                      onChange={(e) => setFormData({ ...formData, hasScholarship: e.target.checked })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          hasScholarship: e.target.checked,
+                        })
+                      }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
@@ -1028,10 +942,17 @@ function EditUserModal({
                 {formData.hasScholarship && (
                   <div className="space-y-3 pt-2 border-t border-amber-200">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-600">Loại học bổng <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-medium text-gray-600">
+                        Loại học bổng <span className="text-red-500">*</span>
+                      </label>
                       <select
                         value={formData.scholarshipType}
-                        onChange={(e) => setFormData({ ...formData, scholarshipType: e.target.value as any })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            scholarshipType: e.target.value as any,
+                          })
+                        }
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                       >
                         <option value="">-- Chọn loại --</option>
@@ -1041,7 +962,9 @@ function EditUserModal({
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-600">Phần trăm (%)</label>
+                      <label className="text-xs font-medium text-gray-600">
+                        Phần trăm (%)
+                      </label>
                       <div className="flex items-center gap-3">
                         <input
                           type="range"
@@ -1049,7 +972,12 @@ function EditUserModal({
                           max="100"
                           step="5"
                           value={formData.scholarshipPercent}
-                          onChange={(e) => setFormData({ ...formData, scholarshipPercent: parseInt(e.target.value) })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              scholarshipPercent: parseInt(e.target.value),
+                            })
+                          }
                           className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
                         />
                         <input
@@ -1058,12 +986,20 @@ function EditUserModal({
                           max="100"
                           value={formData.scholarshipPercent}
                           onChange={(e) => {
-                            const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                            setFormData({ ...formData, scholarshipPercent: val });
+                            const val = Math.min(
+                              100,
+                              Math.max(0, parseInt(e.target.value) || 0),
+                            );
+                            setFormData({
+                              ...formData,
+                              scholarshipPercent: val,
+                            });
                           }}
                           className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-center"
                         />
-                        <span className="text-sm font-semibold text-amber-600">%</span>
+                        <span className="text-sm font-semibold text-amber-600">
+                          %
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1077,7 +1013,9 @@ function EditUserModal({
             <>
               {/* Môn dạy */}
               <div className="border rounded-xl p-3 space-y-3 bg-purple-50">
-                <h4 className="text-sm font-semibold text-purple-800">📚 Môn dạy</h4>
+                <h4 className="text-sm font-semibold text-purple-800">
+                  📚 Môn dạy
+                </h4>
                 <div
                   onClick={() => setShowSubjectPicker(!showSubjectPicker)}
                   className="w-full min-h-[42px] rounded-xl border border-gray-200 px-3 py-2 text-sm cursor-pointer bg-white hover:border-purple-400"
@@ -1085,14 +1023,28 @@ function EditUserModal({
                   {formData.subjects.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {formData.subjects.map((subject) => (
-                        <span key={subject} className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                        <span
+                          key={subject}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium"
+                        >
                           #{subject}
-                          <button type="button" onClick={(e) => { e.stopPropagation(); toggleSubject(subject); }} className="hover:text-purple-900">×</button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSubject(subject);
+                            }}
+                            className="hover:text-purple-900"
+                          >
+                            ×
+                          </button>
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-gray-400">Nhấn để chọn môn dạy...</span>
+                    <span className="text-gray-400">
+                      Nhấn để chọn môn dạy...
+                    </span>
                   )}
                 </div>
                 {showSubjectPicker && (
@@ -1103,7 +1055,9 @@ function EditUserModal({
                           <button
                             type="button"
                             onClick={() => toggleCategory(cat.subjects)}
-                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) => formData.subjects.includes(s))
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
+                              formData.subjects.includes(s),
+                            )
                               ? "bg-purple-600 text-white"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                               }`}
@@ -1135,10 +1089,17 @@ function EditUserModal({
               {/* Trình độ & Ghi chú */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">Trình độ</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Trình độ
+                  </label>
                   <select
                     value={formData.qualification}
-                    onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        qualification: e.target.value,
+                      })
+                    }
                     className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Chọn --</option>
@@ -1150,10 +1111,14 @@ function EditUserModal({
                   </select>
                 </div>
                 <div className="space-y-1 col-span-2">
-                  <label className="text-sm font-medium text-gray-700">Ghi chú</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Ghi chú
+                  </label>
                   <textarea
                     value={formData.teacherNote}
-                    onChange={(e) => setFormData({ ...formData, teacherNote: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, teacherNote: e.target.value })
+                    }
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none"
                     placeholder="Ghi chú về giáo viên..."
@@ -1166,15 +1131,21 @@ function EditUserModal({
           {/* === PARENT SPECIFIC === */}
           {isParent && (
             <div className="border rounded-xl p-3 space-y-3 bg-indigo-50">
-              <h4 className="text-sm font-semibold text-indigo-800">👧 Email con (học sinh)</h4>
+              <h4 className="text-sm font-semibold text-indigo-800">
+                👧 Email con (học sinh)
+              </h4>
               <Input
                 type="email"
                 value={formData.childEmail}
-                onChange={(e) => setFormData({ ...formData, childEmail: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, childEmail: e.target.value })
+                }
                 className="rounded-lg border-gray-200"
                 placeholder="email.hocsinh@example.com"
               />
-              <p className="text-xs text-gray-500">Nhập email của học sinh để liên kết tài khoản</p>
+              <p className="text-xs text-gray-500">
+                Nhập email của học sinh để liên kết tài khoản
+              </p>
             </div>
           )}
         </div>
@@ -1261,7 +1232,7 @@ function AddModal({
     setSelectedSubjects((prev) =>
       prev.includes(subject)
         ? prev.filter((s) => s !== subject)
-        : [...prev, subject]
+        : [...prev, subject],
     );
   };
 
@@ -1286,7 +1257,7 @@ function AddModal({
       scholarshipType,
       scholarshipPercent,
     });
-    const submitData = { ...formData, branchId: selectedBranch };
+    const submitData: Record<string, string> = { ...formData, branchId: selectedBranch };
     if (isTeacherForm && selectedSubjects.length > 0) {
       submitData["Môn dạy"] = selectedSubjects.join(", ");
     }
@@ -1441,7 +1412,9 @@ function AddModal({
                         max="100"
                         step="5"
                         value={scholarshipPercent}
-                        onChange={(e) => setScholarshipPercent(parseInt(e.target.value))}
+                        onChange={(e) =>
+                          setScholarshipPercent(parseInt(e.target.value))
+                        }
                         className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
                       <input
@@ -1450,12 +1423,17 @@ function AddModal({
                         max="100"
                         value={scholarshipPercent}
                         onChange={(e) => {
-                          const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                          const val = Math.min(
+                            100,
+                            Math.max(0, parseInt(e.target.value) || 0),
+                          );
                           setScholarshipPercent(val);
                         }}
                         className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-center"
                       />
-                      <span className="text-sm font-semibold text-blue-600">%</span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        %
+                      </span>
                     </div>
                     <p className="text-xs text-gray-500 italic">
                       Học sinh được giảm {scholarshipPercent}% học phí
@@ -1514,7 +1492,7 @@ function AddModal({
                           type="button"
                           onClick={() => toggleCategory(cat.subjects)}
                           className={`text-xs font-semibold px-2 py-1 rounded-lg transition-colors ${cat.subjects.every((s) =>
-                            selectedSubjects.includes(s)
+                            selectedSubjects.includes(s),
                           )
                             ? "bg-blue-600 text-white"
                             : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -1525,7 +1503,7 @@ function AddModal({
                         <span className="text-xs text-gray-400">
                           {
                             cat.subjects.filter((s) =>
-                              selectedSubjects.includes(s)
+                              selectedSubjects.includes(s),
                             ).length
                           }
                           /{cat.subjects.length}
@@ -1602,7 +1580,9 @@ function SettingsModal({
   };
   onClose: () => void;
 }) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1770,7 +1750,10 @@ function SettingsModal({
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
-            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -1780,7 +1763,20 @@ function SettingsModal({
                 onClick={() => setShowImagePreview(false)}
                 className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
           </div>
@@ -2011,6 +2007,7 @@ export default function AdminDashboard({
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchOption | null>(null);
   const [rankingView, setRankingView] = useState<RankingCategory>("score");
+  const [leaderboardBranch, setLeaderboardBranch] = useState<string>("");
   const [selectedUserDetail, setSelectedUserDetail] =
     useState<UserDetail | null>(null);
   const [editingUser, setEditingUser] = useState<UserDetail | null>(null);
@@ -2029,7 +2026,8 @@ export default function AdminDashboard({
   // Fetch full user data
   useEffect(() => {
     if (user?.id) {
-      api.get(`/users/${user.id}`)
+      api
+        .get(`/users/${user.id}`)
         .then((res: any) => {
           const userData = res.data.user || res.data;
           setFullUserDetails(userData);
@@ -2040,21 +2038,23 @@ export default function AdminDashboard({
     }
   }, [user.id]);
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarURL || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
 
   // Sync avatarPreview when user prop changes
   useEffect(() => {
-    if (user.avatarURL) {
-      setAvatarPreview(user.avatarURL);
+    if (user.avatarUrl) {
+      setAvatarPreview(user.avatarUrl);
     }
-  }, [user.avatarURL]);
+  }, [user.avatarUrl]);
 
   // Sync avatarPreview when fullUserDetails is loaded
   useEffect(() => {
-    if (fullUserDetails?.avatarURL) {
-      setAvatarPreview(fullUserDetails.avatarURL);
-    } else if (fullUserDetails?.avatarUrl) {
+    if (fullUserDetails?.avatarUrl) {
       setAvatarPreview(fullUserDetails.avatarUrl);
+    } else if (fullUserDetails?.avatarURL) {
+      setAvatarPreview(fullUserDetails.avatarURL);
     }
   }, [fullUserDetails]);
 
@@ -2077,7 +2077,10 @@ export default function AdminDashboard({
   // Handle click outside to close profile dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     }
@@ -2104,6 +2107,20 @@ export default function AdminDashboard({
     isLoading: usersLoading,
   } = useUsersStore();
 
+  // Leaderboard store
+  const {
+    leaderboard,
+    loading: leaderboardLoading,
+    fetchLeaderboard,
+  } = useLeaderboardStore();
+
+  // Admin stats store (for dashboard overview)
+  const {
+    dashboardData,
+    loading: statsLoading,
+    fetchDashboardOverview,
+  } = useAdminStatsStore();
+
   // Finance store (new)
   const {
     dashboard: financeDashboard,
@@ -2119,7 +2136,9 @@ export default function AdminDashboard({
 
   // Finance state
   const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear(),
+  );
   const [showExpenseModal, setShowExpenseModal] = useState(false);
 
   // State for add user modal
@@ -2128,8 +2147,6 @@ export default function AdminDashboard({
 
   // Kiểm tra xem user có phải admin không
   const isAdmin = user.role === "admin";
-
-
 
   // State for branch filter - Nếu không phải admin, mặc định là branchId của user
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
@@ -2181,12 +2198,39 @@ export default function AdminDashboard({
     fetchClasses().catch(() => {
       console.log("Could not fetch classes - make sure backend is running");
     });
-  }, [fetchBranches, fetchUsers, fetchClasses]);
+    // Fetch leaderboard (initial - all branches)
+    fetchLeaderboard({ limit: 10 }).catch(() => {
+      console.log("Could not fetch leaderboard - make sure backend is running");
+    });
+    // Fetch admin stats overview
+    fetchDashboardOverview().catch(() => {
+      console.log(
+        "Could not fetch dashboard stats - make sure backend is running",
+      );
+    });
+  }, [
+    fetchBranches,
+    fetchUsers,
+    fetchClasses,
+    fetchLeaderboard,
+    fetchDashboardOverview,
+  ]);
+
+  // Re-fetch leaderboard when branch filter changes
+  useEffect(() => {
+    const params: { branchId?: string; limit: number } = { limit: 10 };
+    if (leaderboardBranch) {
+      params.branchId = leaderboardBranch;
+    }
+    fetchLeaderboard(params).catch(() => {});
+  }, [leaderboardBranch, fetchLeaderboard]);
 
   // Fetch finance dashboard when switching to finance tab or branch/year changes
   useEffect(() => {
     if (activeTab === "finance") {
-      console.log(`🔄 Fetching finance dashboard: branch=${selectedBranch}, year=${selectedYear}`);
+      console.log(
+        `🔄 Fetching finance dashboard: branch=${selectedBranch}, year=${selectedYear}`,
+      );
       fetchDashboard(selectedBranch, selectedYear);
 
       // Fetch expenses only if specific branch selected
@@ -2203,15 +2247,32 @@ export default function AdminDashboard({
     } else if (amount >= 1000) {
       return `${(amount / 1000).toFixed(0)}K`;
     }
-    return amount.toLocaleString('vi-VN');
+    return amount.toLocaleString("vi-VN");
   };
 
   const getMonthName = (month: number): string => {
-    const names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    const names = [
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7",
+      "T8",
+      "T9",
+      "T10",
+      "T11",
+      "T12",
+    ];
     return names[month - 1] || `T${month}`;
   };
 
-  const handleAddExpense = async (data: { amount: number; description: string; expenseDate: string }) => {
+  const handleAddExpense = async (data: {
+    amount: number;
+    description: string;
+    expenseDate: string;
+  }) => {
     try {
       await createExpense({
         branchId: selectedBranch,
@@ -2221,7 +2282,9 @@ export default function AdminDashboard({
       // Refresh data parallel
       await Promise.all([
         fetchDashboard(selectedBranch, selectedYear),
-        selectedBranch !== "ALL" ? fetchExpenses(selectedBranch) : Promise.resolve(),
+        selectedBranch !== "ALL"
+          ? fetchExpenses(selectedBranch)
+          : Promise.resolve(),
       ]);
 
       // Modal auto closes via onSubmit prop
@@ -2259,7 +2322,7 @@ export default function AdminDashboard({
   const handleDeleteBranch = async (branchId: string) => {
     if (
       confirm(
-        "Bạn có chắc muốn xóa cơ sở này? Hành động này không thể hoàn tác."
+        "Bạn có chắc muốn xóa cơ sở này? Hành động này không thể hoàn tác.",
       )
     ) {
       try {
@@ -2292,7 +2355,7 @@ export default function AdminDashboard({
   const handleImportUsers = async (
     file: File,
     role: "student" | "teacher" | "parent",
-    branchId: string
+    branchId: string,
   ): Promise<ImportResponse> => {
     return await importUsers(file, role, branchId);
   };
@@ -2368,7 +2431,8 @@ export default function AdminDashboard({
         apiData.hasScholarship = data["hasScholarship"] === "true";
         if (apiData.hasScholarship && data["scholarshipType"]) {
           apiData.scholarshipType = data["scholarshipType"];
-          apiData.scholarshipPercent = parseInt(data["scholarshipPercent"]) || 0;
+          apiData.scholarshipPercent =
+            parseInt(data["scholarshipPercent"]) || 0;
         }
       }
 
@@ -2407,7 +2471,7 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
       {/* Header với thiết kế hiện đại */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
@@ -2454,8 +2518,12 @@ export default function AdminDashboard({
                 <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                   {/* Thông tin user tóm tắt */}
                   <div className="px-4 py-3 border-b border-gray-100 mb-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email}
+                    </p>
                   </div>
 
                   <button
@@ -2466,7 +2534,22 @@ export default function AdminDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-circle-user-round-icon lucide-circle-user-round"
+                      >
+                        <path d="M18 20a6 6 0 0 0-12 0" />
+                        <circle cx="12" cy="10" r="4" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
                     </span>
                     Hồ sơ
                   </button>
@@ -2479,7 +2562,22 @@ export default function AdminDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-log-out-icon lucide-log-out"
+                      >
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      </svg>
                     </span>
                     Đăng xuất
                   </button>
@@ -2583,6 +2681,12 @@ export default function AdminDashboard({
               🐛 Sự cố
             </TabsTrigger>
             <TabsTrigger
+              value="evaluations"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              ⭐ Đánh giá GV
+            </TabsTrigger>
+            <TabsTrigger
               value="settings"
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
@@ -2592,163 +2696,261 @@ export default function AdminDashboard({
 
           {/* Tab Tổng quan */}
           <TabsContent value="overview" className="mt-6">
-            {/* Overview Cards với gradient */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {overviewStats.map((stat) => (
-                <Card
-                  key={stat.label}
-                  className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-90`}
-                  />
-                  <div className="relative p-5 text-white">
-                    <div className="flex items-start justify-between">
+            {statsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Đang tải dữ liệu...</span>
+              </div>
+            ) : (
+              <>
+                {/* Overview Cards với gradient */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* Học sinh */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">
+                            Học sinh
+                          </p>
+                          <p className="text-3xl font-bold mt-2">
+                            {dashboardData?.overview?.students?.total || 0}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {dashboardData?.overview?.students?.trend ||
+                              "Đang tải..."}
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">👨‍🎓</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Giáo viên */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">
+                            Giáo viên
+                          </p>
+                          <p className="text-3xl font-bold mt-2">
+                            {dashboardData?.overview?.teachers?.total || 0}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {dashboardData?.overview?.teachers?.active || 0}{" "}
+                            đang hoạt động
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">👨‍🏫</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Doanh thu tháng */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-500 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">
+                            Doanh thu tháng
+                          </p>
+                          <p className="text-3xl font-bold mt-2">
+                            {dashboardData?.overview?.revenue?.thisMonth
+                              ? `${Math.round(dashboardData.overview.revenue.thisMonth / 1000000)} Tr`
+                              : "0 Tr"}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {dashboardData?.overview?.revenue?.trend ||
+                              "Đang tải..."}
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">💰</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Khóa học */}
+                  <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90" />
+                    <div className="relative p-5 text-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white/80 text-sm font-medium">
+                            Khóa học
+                          </p>
+                          <p className="text-3xl font-bold mt-2">
+                            {dashboardData?.overview?.classes?.total ||
+                              classes.length ||
+                              0}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">
+                            {dashboardData?.overview?.classes?.active || 0} đang
+                            mở
+                          </p>
+                        </div>
+                        <span className="text-4xl opacity-80">📚</span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Charts Section */}
+                <div className="grid gap-6 lg:grid-cols-2 mt-6">
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">📈</span>
                       <div>
-                        <p className="text-white/80 text-sm font-medium">
-                          {stat.label}
+                        <p className="font-bold text-gray-900">
+                          Doanh thu theo tháng
                         </p>
-                        <p className="text-3xl font-bold mt-2">{stat.value}</p>
-                        <p className="text-white/70 text-xs mt-1">
-                          {stat.trend}
+                        <p className="text-xs text-gray-500">
+                          Biểu đồ doanh thu 6 tháng gần nhất (triệu đồng)
                         </p>
                       </div>
-                      <span className="text-4xl opacity-80">{stat.icon}</span>
                     </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid gap-6 lg:grid-cols-2 mt-6">
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">📈</span>
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      Doanh thu theo tháng
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Biểu đồ doanh thu 6 tháng gần nhất
-                    </p>
-                  </div>
-                </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueByMonth}>
-                      <defs>
-                        <linearGradient
-                          id="colorRevenue"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0.3}
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={dashboardData?.revenueByMonth || []}>
+                          <defs>
+                            <linearGradient
+                              id="colorRevenue"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#3b82f6"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#3b82f6"
+                                stopOpacity={0}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#e5e7eb"
                           />
-                          <stop
-                            offset="95%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0}
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fontSize: 11, fill: "#6b7280" }}
                           />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="month"
-                        tick={{ fontSize: 11, fill: "#6b7280" }}
-                      />
-                      <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "white",
-                          border: "none",
-                          borderRadius: "12px",
-                          boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="#3b82f6"
-                        strokeWidth={3}
-                        fill="url(#colorRevenue)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+                          <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "white",
+                              border: "none",
+                              borderRadius: "12px",
+                              boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                            }}
+                            formatter={(value: number) => [
+                              `${value} triệu`,
+                              "Doanh thu",
+                            ]}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#3b82f6"
+                            strokeWidth={3}
+                            fill="url(#colorRevenue)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
 
-              <Card className="p-6 bg-white border-0 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">🎯</span>
-                  <div>
-                    <p className="font-bold text-gray-900">Phân bổ học sinh</p>
-                    <p className="text-xs text-gray-500">Theo môn học</p>
-                  </div>
+                  <Card className="p-6 bg-white border-0 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-2xl">🎯</span>
+                      <div>
+                        <p className="font-bold text-gray-900">
+                          Phân bổ học sinh
+                        </p>
+                        <p className="text-xs text-gray-500">Theo môn học</p>
+                      </div>
+                    </div>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={dashboardData?.studentsBySubject || []}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            innerRadius={60}
+                            label={({ name, percent }) =>
+                              `${name} ${(percent * 100).toFixed(0)}%`
+                            }
+                          >
+                            {(dashboardData?.studentsBySubject || []).map(
+                              (_, idx) => (
+                                <Cell
+                                  key={idx}
+                                  fill={pieColors[idx % pieColors.length]}
+                                />
+                              ),
+                            )}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
                 </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        innerRadius={60}
-                        label={({ name, percent }) =>
-                          `${name} ${(percent * 100).toFixed(0)}%`
-                        }
-                      >
-                        {pieData.map((_, idx) => (
-                          <Cell key={idx} fill={pieColors[idx]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
 
-            {/* Quick Stats */}
-            <div className="grid gap-4 md:grid-cols-3 mt-6">
-              <Card className="p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">✅</span>
-                  <div>
-                    <p className="text-sm text-gray-600">Tỷ lệ đi học</p>
-                    <p className="text-2xl font-bold text-emerald-700">95.2%</p>
-                  </div>
+                {/* Quick Stats */}
+                <div className="grid gap-4 md:grid-cols-3 mt-6">
+                  <Card className="p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">✅</span>
+                      <div>
+                        <p className="text-sm text-gray-600">Tỷ lệ đi học</p>
+                        <p className="text-2xl font-bold text-emerald-700">
+                          {dashboardData?.attendanceRate || 0}%
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">📊</span>
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          Điểm TB toàn trường
+                        </p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {dashboardData?.averageScore || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🎓</span>
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          Học sinh mới tháng này
+                        </p>
+                        <p className="text-2xl font-bold text-amber-700">
+                          +{dashboardData?.newStudentsThisMonth || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
-              </Card>
-              <Card className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">📊</span>
-                  <div>
-                    <p className="text-sm text-gray-600">Điểm TB toàn trường</p>
-                    <p className="text-2xl font-bold text-blue-700">8.2</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">🎓</span>
-                  <div>
-                    <p className="text-sm text-gray-600">
-                      Học sinh mới tháng này
-                    </p>
-                    <p className="text-2xl font-bold text-amber-700">+24</p>
-                  </div>
-                </div>
-              </Card>
-            </div>
+              </>
+            )}
           </TabsContent>
 
           {/* Tab Khóa học */}
@@ -3053,7 +3255,7 @@ export default function AdminDashboard({
                                 "Số điện thoại",
                                 "Môn dạy",
                               ],
-                            }
+                            },
                       )
                     }
                   >
@@ -3110,7 +3312,7 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có học sinh tại cơ sở "${getBranchName(
-                              effectiveBranchFilter
+                              effectiveBranchFilter,
                             )}"`
                             : "Chưa có học sinh"}
                         </div>
@@ -3132,8 +3334,8 @@ export default function AdminDashboard({
                                   {s.email}
                                 </p>
                                 <p className="text-xs text-gray-400">
-                                  {s.phone || "Chưa có SĐT"} • ID:{" "}
-                                  {s._id?.slice(-6)}
+                                  {s.phone || "Chưa có SĐT"} • MSHS:{" "}
+                                  {s.studentCode || s._id?.slice(-6)}
                                 </p>
                                 {isAdmin && (
                                   <p className="text-xs text-blue-600 font-medium mt-1">
@@ -3146,7 +3348,7 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {s.createdAt
                                   ? new Date(s.createdAt).toLocaleDateString(
-                                    "vi-VN"
+                                    "vi-VN",
                                   )
                                   : ""}
                               </p>
@@ -3156,7 +3358,7 @@ export default function AdminDashboard({
                                 className="mt-2 rounded-lg"
                                 onClick={() =>
                                   setSelectedUserDetail(
-                                    s as unknown as UserDetail
+                                    s as unknown as UserDetail,
                                   )
                                 }
                               >
@@ -3172,7 +3374,7 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có phụ huynh tại cơ sở "${getBranchName(
-                              effectiveBranchFilter
+                              effectiveBranchFilter,
                             )}"`
                             : "Chưa có phụ huynh"}
                         </div>
@@ -3207,7 +3409,7 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {p.createdAt
                                   ? new Date(p.createdAt).toLocaleDateString(
-                                    "vi-VN"
+                                    "vi-VN",
                                   )
                                   : ""}
                               </p>
@@ -3217,7 +3419,7 @@ export default function AdminDashboard({
                                 className="mt-2 rounded-lg"
                                 onClick={() =>
                                   setSelectedUserDetail(
-                                    p as unknown as UserDetail
+                                    p as unknown as UserDetail,
                                   )
                                 }
                               >
@@ -3233,7 +3435,7 @@ export default function AdminDashboard({
                         <div className="text-center py-8 text-gray-500">
                           {effectiveBranchFilter
                             ? `Chưa có giáo viên tại cơ sở "${getBranchName(
-                              effectiveBranchFilter
+                              effectiveBranchFilter,
                             )}"`
                             : "Chưa có giáo viên"}
                         </div>
@@ -3273,7 +3475,7 @@ export default function AdminDashboard({
                               <p className="text-xs text-gray-500">
                                 {t.createdAt
                                   ? new Date(t.createdAt).toLocaleDateString(
-                                    "vi-VN"
+                                    "vi-VN",
                                   )
                                   : ""}
                               </p>
@@ -3283,7 +3485,7 @@ export default function AdminDashboard({
                                 className="mt-2 rounded-lg"
                                 onClick={() =>
                                   setSelectedUserDetail(
-                                    t as unknown as UserDetail
+                                    t as unknown as UserDetail,
                                   )
                                 }
                               >
@@ -3302,20 +3504,35 @@ export default function AdminDashboard({
           {/* Tab Bảng xếp hạng */}
           <TabsContent value="leaderboard" className="mt-6">
             <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏆</span>
-                <div>
-                  <p className="font-bold text-gray-900 text-lg">
-                    Bảng Xếp Hạng
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Vinh danh những nỗ lực xuất sắc
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🏆</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      Bảng Xếp Hạng
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Vinh danh những nỗ lực xuất sắc
+                    </p>
+                  </div>
                 </div>
+                {/* Branch Filter */}
+                <select
+                  value={leaderboardBranch}
+                  onChange={(e) => setLeaderboardBranch(e.target.value)}
+                  className="rounded-xl border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tất cả cơ sở</option>
+                  {branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Ranking Category Tabs */}
-              <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
                 {Object.entries(leaderboardOptions).map(([key, opt]) => (
                   <button
                     key={key}
@@ -3333,65 +3550,158 @@ export default function AdminDashboard({
                 ))}
               </div>
 
+              {/* Loading State */}
+              {leaderboardLoading && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-4">
+                    Đang tải bảng xếp hạng...
+                  </p>
+                </div>
+              )}
+
               {/* Leaderboard List */}
-              <div className="space-y-3">
-                {leaderboardData[rankingView].map((row) => (
-                  <div
-                    key={`${rankingView}-${row.rank}-${row.name}`}
-                    className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
-                      ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
-                      : row.rank === 2
-                        ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
-                        : row.rank === 3
-                          ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                          : "border-gray-100 bg-white hover:border-blue-200"
-                      }`}
-                  >
-                    <div className="flex items-center gap-4">
+              {!leaderboardLoading && (
+                <div className="space-y-3">
+                  {rankingView === "score" &&
+                    leaderboard?.score?.map((row) => (
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
-                          ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                        key={`score-${row.rank}-${row.studentId}`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
                           : row.rank === 2
-                            ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
                             : row.rank === 3
-                              ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
-                              : "bg-gray-100 text-gray-600"
+                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
                           }`}
                       >
-                        {row.rank === 1 && "🏆"}
-                        {row.rank === 2 && "🥈"}
-                        {row.rank === 3 && "🥉"}
-                        {row.rank > 3 && (
-                          <span className="text-sm font-bold">{row.rank}</span>
-                        )}
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                          >
+                            {row.rank === 1 && "🏆"}
+                            {row.rank === 2 && "🥈"}
+                            {row.rank === 3 && "🥉"}
+                            {row.rank > 3 && (
+                              <span className="text-sm font-bold">
+                                {row.rank}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {row.studentName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {row.className ||
+                                `${row.totalGrades} bài kiểm tra`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-blue-600">
+                            {row.averageScore.toFixed(1)}
+                          </p>
+                          <p className="text-xs text-gray-500">Điểm TB</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{row.name}</p>
-                        <p className="text-xs text-gray-500">{row.className}</p>
+                    ))}
+
+                  {rankingView === "attendance" &&
+                    leaderboard?.attendance?.map((row) => (
+                      <div
+                        key={`attendance-${row.rank}-${row.studentId}`}
+                        className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                          }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                          >
+                            {row.rank === 1 && "🏆"}
+                            {row.rank === 2 && "🥈"}
+                            {row.rank === 3 && "🥉"}
+                            {row.rank > 3 && (
+                              <span className="text-sm font-bold">
+                                {row.rank}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {row.studentName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Đã theo học {row.daysEnrolled} ngày
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-emerald-600">
+                            {row.attendanceRate}%
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {row.presentCount}/{row.totalSessions} buổi
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-blue-600">
-                        {row.metric}
-                      </p>
-                      <p className="text-xs text-gray-500">{row.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    ))}
+
+                  {/* Empty State */}
+                  {!leaderboardLoading &&
+                    ((rankingView === "score" &&
+                      (!leaderboard?.score ||
+                        leaderboard.score.length === 0)) ||
+                      (rankingView === "attendance" &&
+                        (!leaderboard?.attendance ||
+                          leaderboard.attendance.length === 0))) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>Chưa có dữ liệu xếp hạng</p>
+                      </div>
+                    )}
+                </div>
+              )}
 
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
                 <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50">
-                  <p className="text-2xl font-bold text-blue-600">248</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {leaderboard?.summary?.totalStudents || 0}
+                  </p>
                   <p className="text-xs text-gray-500">Tổng học sinh</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50">
-                  <p className="text-2xl font-bold text-emerald-600">8.2</p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {leaderboard?.summary?.averageScore?.toFixed(1) || "0.0"}
+                  </p>
                   <p className="text-xs text-gray-500">Điểm TB</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50">
-                  <p className="text-2xl font-bold text-amber-600">95%</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {leaderboard?.summary?.averageAttendanceRate || 0}%
+                  </p>
                   <p className="text-xs text-gray-500">Tỷ lệ chuyên cần</p>
                 </div>
               </div>
@@ -3480,7 +3790,9 @@ export default function AdminDashboard({
                             💰 Tổng Thu
                           </p>
                           <p className="text-3xl font-bold mt-2">
-                            {formatCurrency(financeDashboard.summary.totalRevenue)}
+                            {formatCurrency(
+                              financeDashboard.summary.totalRevenue,
+                            )}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
                             {financeDashboard.summary.totalRevenue > 0
@@ -3508,13 +3820,17 @@ export default function AdminDashboard({
                                 onClick={() => setShowExpenseModal(true)}
                                 className="px-4 py-1.5 bg-white text-pink-600 hover:bg-pink-50 border border-white/40 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md flex items-center gap-1"
                               >
-                                <span className="text-base leading-none">+</span>
+                                <span className="text-base leading-none">
+                                  +
+                                </span>
                                 <span>Thêm</span>
                               </button>
                             )}
                           </div>
                           <p className="text-3xl font-bold mt-2">
-                            {formatCurrency(financeDashboard.summary.totalExpense)}
+                            {formatCurrency(
+                              financeDashboard.summary.totalExpense,
+                            )}
                           </p>
                           <p className="text-white/70 text-xs mt-1">
                             {financeDashboard.summary.totalExpense > 0
@@ -3528,11 +3844,15 @@ export default function AdminDashboard({
                   </Card>
 
                   {/* Profit */}
-                  <Card className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
-                    <div className={`absolute inset-0 bg-gradient-to-br ${financeDashboard.summary.profit >= 0
-                      ? 'from-blue-500 to-indigo-600'
-                      : 'from-orange-500 to-red-600'
-                      } opacity-90`} />
+                  <Card
+                    className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+                  >
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${financeDashboard.summary.profit >= 0
+                        ? "from-blue-500 to-indigo-600"
+                        : "from-orange-500 to-red-600"
+                        } opacity-90`}
+                    />
                     <div className="relative p-5 text-white">
                       <div className="flex items-start justify-between">
                         <div>
@@ -3547,7 +3867,7 @@ export default function AdminDashboard({
                           </p>
                         </div>
                         <span className="text-4xl opacity-80">
-                          {financeDashboard.summary.profit >= 0 ? '📊' : '📉'}
+                          {financeDashboard.summary.profit >= 0 ? "📊" : "📉"}
                         </span>
                       </div>
                     </div>
@@ -3573,13 +3893,20 @@ export default function AdminDashboard({
                       {financeDashboard.chart.revenueByMonth.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
-                            data={financeDashboard.chart.revenueByMonth.map((item, idx) => ({
-                              month: getMonthName(item.month),
-                              thu: item.amount / 1000000,
-                              chi: (financeDashboard.chart.expenseByMonth[idx]?.amount || 0) / 1000000,
-                            }))}
+                            data={financeDashboard.chart.revenueByMonth.map(
+                              (item, idx) => ({
+                                month: getMonthName(item.month),
+                                thu: item.amount / 1000000,
+                                chi:
+                                  (financeDashboard.chart.expenseByMonth[idx]
+                                    ?.amount || 0) / 1000000,
+                              }),
+                            )}
                           >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#e5e7eb"
+                            />
                             <XAxis
                               dataKey="month"
                               tick={{ fontSize: 11, fill: "#6b7280" }}
@@ -3592,7 +3919,9 @@ export default function AdminDashboard({
                                 borderRadius: "12px",
                                 boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
                               }}
-                              formatter={(value: number) => [`${value.toFixed(1)} Tr`]}
+                              formatter={(value: number) => [
+                                `${value.toFixed(1)} Tr`,
+                              ]}
                             />
                             <Bar
                               dataKey="thu"
@@ -3634,20 +3963,29 @@ export default function AdminDashboard({
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={financeDashboard.revenueBySubject.map((item) => ({
-                                name: item.subject,
-                                value: item.amount,
-                              }))}
+                              data={financeDashboard.revenueBySubject.map(
+                                (item) => ({
+                                  name: item.subject,
+                                  value: item.amount,
+                                }),
+                              )}
                               dataKey="value"
                               nameKey="name"
                               cx="50%"
                               cy="50%"
                               outerRadius={100}
-                              label={({ name, value }: { name: string; value: number }) => {
-                                const total = financeDashboard.revenueBySubject.reduce(
-                                  (sum, s) => sum + s.amount,
-                                  0
-                                );
+                              label={({
+                                name,
+                                value,
+                              }: {
+                                name: string;
+                                value: number;
+                              }) => {
+                                const total =
+                                  financeDashboard.revenueBySubject.reduce(
+                                    (sum, s) => sum + s.amount,
+                                    0,
+                                  );
                                 const percent =
                                   total > 0
                                     ? ((value / total) * 100).toFixed(0)
@@ -3655,15 +3993,27 @@ export default function AdminDashboard({
                                 return `${name} ${percent}%`;
                               }}
                             >
-                              {financeDashboard.revenueBySubject.map((_, index) => (
-                                <Cell
-                                  key={`cell-${index}`}
-                                  fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]}
-                                />
-                              ))}
+                              {financeDashboard.revenueBySubject.map(
+                                (_, index) => (
+                                  <Cell
+                                    key={`cell-${index}`}
+                                    fill={
+                                      [
+                                        "#3b82f6",
+                                        "#10b981",
+                                        "#f59e0b",
+                                        "#ef4444",
+                                        "#8b5cf6",
+                                      ][index % 5]
+                                    }
+                                  />
+                                ),
+                              )}
                             </Pie>
                             <Tooltip
-                              formatter={(value: number) => `${formatCurrency(value)}`}
+                              formatter={(value: number) =>
+                                `${formatCurrency(value)}`
+                              }
                             />
                           </PieChart>
                         </ResponsiveContainer>
@@ -3725,8 +4075,8 @@ export default function AdminDashboard({
                             <td className="py-3 px-4 text-right">
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-semibold ${row.profit >= 0
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-red-100 text-red-700'
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-red-100 text-red-700"
                                   }`}
                               >
                                 {formatCurrency(row.profit)}
@@ -3778,17 +4128,21 @@ export default function AdminDashboard({
                               className="border-b border-gray-100 hover:bg-gray-50"
                             >
                               <td className="py-3 px-4 text-gray-700">
-                                {new Date(expense.expenseDate).toLocaleDateString('vi-VN')}
+                                {new Date(
+                                  expense.expenseDate,
+                                ).toLocaleDateString("vi-VN")}
                               </td>
                               <td className="py-3 px-4 text-gray-900">
                                 {expense.description}
                               </td>
                               <td className="py-3 px-4 text-right text-red-600 font-semibold">
-                                {expense.amount.toLocaleString('vi-VN')} ₫
+                                {expense.amount.toLocaleString("vi-VN")} ₫
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <button
-                                  onClick={() => handleDeleteExpense(expense._id)}
+                                  onClick={() =>
+                                    handleDeleteExpense(expense._id)
+                                  }
                                   className="text-red-500 hover:text-red-700 text-sm"
                                 >
                                   🗑️ Xóa
@@ -3812,7 +4166,6 @@ export default function AdminDashboard({
               onSubmit={handleAddExpense}
             />
           </TabsContent>
-
 
           {/* Tab Quản lý cơ sở */}
           <TabsContent value="branches" className="mt-6">
@@ -3935,7 +4288,7 @@ export default function AdminDashboard({
                   </div>
                 </div>
                 <Button
-                  onClick={() => window.location.href = '/admin/payments'}
+                  onClick={() => (window.location.href = "/admin/payments")}
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                 >
                   Mở trang quản lý →
@@ -3945,7 +4298,7 @@ export default function AdminDashboard({
               {/* Quick Actions */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div
-                  onClick={() => window.location.href = '/admin/payments'}
+                  onClick={() => (window.location.href = "/admin/payments")}
                   className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -3953,7 +4306,9 @@ export default function AdminDashboard({
                       📋
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">Tạo yêu cầu đóng tiền</h3>
+                      <h3 className="font-bold text-gray-900">
+                        Tạo yêu cầu đóng tiền
+                      </h3>
                       <p className="text-sm text-gray-500">
                         Tạo yêu cầu cho toàn bộ học sinh trong lớp
                       </p>
@@ -3962,7 +4317,7 @@ export default function AdminDashboard({
                 </div>
 
                 <div
-                  onClick={() => window.location.href = '/admin/payments'}
+                  onClick={() => (window.location.href = "/admin/payments")}
                   className="p-5 rounded-xl bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-100 cursor-pointer hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center gap-4">
@@ -3970,7 +4325,9 @@ export default function AdminDashboard({
                       💵
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">Xác nhận tiền mặt</h3>
+                      <h3 className="font-bold text-gray-900">
+                        Xác nhận tiền mặt
+                      </h3>
                       <p className="text-sm text-gray-500">
                         Xác nhận thanh toán bằng tiền mặt
                       </p>
@@ -3986,10 +4343,11 @@ export default function AdminDashboard({
                   Quản lý thanh toán học phí
                 </h3>
                 <p className="text-gray-500 mb-4">
-                  Tạo yêu cầu đóng tiền cho từng lớp, theo dõi trạng thái và xác nhận thanh toán
+                  Tạo yêu cầu đóng tiền cho từng lớp, theo dõi trạng thái và xác
+                  nhận thanh toán
                 </p>
                 <Button
-                  onClick={() => window.location.href = '/admin/payments'}
+                  onClick={() => (window.location.href = "/admin/payments")}
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   size="lg"
                 >
@@ -4002,6 +4360,11 @@ export default function AdminDashboard({
           {/* Tab Sự cố */}
           <TabsContent value="incidents" className="mt-6">
             <IncidentsManager />
+          </TabsContent>
+
+          {/* Tab Đánh giá Giáo viên */}
+          <TabsContent value="evaluations" className="mt-6">
+            <AdminEvaluationManager />
           </TabsContent>
 
           {/* Tab Cài đặt */}
@@ -4120,7 +4483,7 @@ export default function AdminDashboard({
           onDelete={async () => {
             if (
               confirm(
-                `Bạn có chắc muốn xóa tài khoản "${selectedUserDetail.name}"?`
+                `Bạn có chắc muốn xóa tài khoản "${selectedUserDetail.name}"?`,
               )
             ) {
               try {

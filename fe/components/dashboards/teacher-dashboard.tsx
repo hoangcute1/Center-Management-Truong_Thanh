@@ -14,7 +14,7 @@ import {
   Line,
 } from "recharts";
 import { ChevronDown, Camera } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
@@ -32,10 +32,39 @@ import {
   Document as TeachingDocument,
   DocumentVisibility,
 } from "@/lib/stores/documents-store";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import TeacherGradingTab from "@/components/teacher-grading-tab";
-import { teacherGradingService, GRADE_CATEGORY_LABELS } from "@/lib/services/teacher-grading.service";
+import TeacherRatingsTab from "@/components/teacher-ratings-tab";
+import {
+  teacherGradingService,
+  GRADE_CATEGORY_LABELS,
+} from "@/lib/services/teacher-grading.service";
+
+// Leaderboard types
+type RankingCategory = "score" | "attendance";
+
+const leaderboardOptions: Record<
+  RankingCategory,
+  { label: string; desc: string }
+> = {
+  score: { label: "Top điểm", desc: "Điểm trung bình cao" },
+  attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
+};
+
+const leaderboardTabIcons: Record<RankingCategory, string> = {
+  score: "🏆",
+  attendance: "👥",
+};
+
+// Helper function to get file type from filename
+const getFileType = (filename?: string): string => {
+  if (!filename) return "FILE";
+  const ext = filename.split(".").pop()?.toUpperCase();
+  return ext || "FILE";
+};
 
 interface TeacherDashboardProps {
   user: {
@@ -143,24 +172,29 @@ function StudentDetailModal({
     const maxTotal = grades.reduce((acc, g) => acc + g.maxScore, 0);
     const average = maxTotal > 0 ? (total / maxTotal) * 10 : 0;
 
-    const midterm = grades.find(g => g.gradingSheetId?.category === 'giua_ky');
-    const final = grades.find(g => g.gradingSheetId?.category === 'cuoi_ky');
+    const midterm = grades.find(
+      (g) => g.gradingSheetId?.category === "giua_ky",
+    );
+    const final = grades.find((g) => g.gradingSheetId?.category === "cuoi_ky");
 
     return {
       average: average.toFixed(1),
-      midterm: midterm ? midterm.score : 'N/A',
-      final: final ? final.score : 'N/A',
+      midterm: midterm ? midterm.score : "N/A",
+      final: final ? final.score : "N/A",
     };
   }, [grades]);
 
   // Chart data (scores over time)
   const chartData = useMemo(() => {
     return grades
-      .sort((a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime())
-      .map(g => ({
-        week: new Date(g.gradedAt).toLocaleDateString('vi-VN'),
+      .sort(
+        (a, b) =>
+          new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+      )
+      .map((g) => ({
+        week: new Date(g.gradedAt).toLocaleDateString("vi-VN"),
         score: (g.score / g.maxScore) * 10 || 0, // Normalize to 10
-        name: g.gradingSheetId?.title || 'Bài kiểm tra'
+        name: g.gradingSheetId?.title || "Bài kiểm tra",
       }));
   }, [grades]);
 
@@ -187,7 +221,9 @@ function StudentDetailModal({
               <p className="text-xs text-gray-500">Tên học sinh</p>
               <p className="font-semibold text-gray-900">{student.name}</p>
               <p className="text-xs text-gray-500 mt-2">Mã HS</p>
-              <p className="font-semibold text-gray-900">{student._id.substring(0, 8)}...</p>
+              <p className="font-semibold text-gray-900">
+                {student._id.substring(0, 8)}...
+              </p>
               <p className="text-xs text-gray-500 mt-2">Email</p>
               <p className="text-sm text-gray-800">{student.email}</p>
             </Card>
@@ -199,8 +235,8 @@ function StudentDetailModal({
               <p className="text-xs text-gray-500 mt-2">Cập nhật gần nhất</p>
               <p className="text-sm text-gray-900">
                 {grades.length > 0
-                  ? new Date(grades[0].gradedAt).toLocaleDateString('vi-VN')
-                  : 'N/A'}
+                  ? new Date(grades[0].gradedAt).toLocaleDateString("vi-VN")
+                  : "N/A"}
               </p>
             </Card>
           </div>
@@ -211,7 +247,9 @@ function StudentDetailModal({
             </p>
             <div className="h-64">
               {loading ? (
-                <div className="flex items-center justify-center h-full">Đang tải...</div>
+                <div className="flex items-center justify-center h-full">
+                  Đang tải...
+                </div>
               ) : chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
@@ -251,40 +289,51 @@ function StudentDetailModal({
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div>
                 <p className="text-gray-600">Điểm giữa kỳ:</p>
-                <p className="font-bold text-gray-900">
-                  {stats.midterm}
-                </p>
+                <p className="font-bold text-gray-900">{stats.midterm}</p>
               </div>
               <div>
                 <p className="text-gray-600">Điểm cuối kỳ:</p>
-                <p className="font-bold text-gray-900">
-                  {stats.final}
-                </p>
+                <p className="font-bold text-gray-900">{stats.final}</p>
               </div>
               <div>
                 <p className="text-gray-600">Điểm trung bình (hệ 10):</p>
-                <p className="font-bold text-green-700">
-                  {stats.average}
-                </p>
+                <p className="font-bold text-green-700">{stats.average}</p>
               </div>
             </div>
 
             {/* List of recent grades */}
             <div className="mt-4 border-t border-amber-200 pt-3">
-              <p className="text-xs font-semibold text-gray-700 mb-2">Danh sách điểm gần đây:</p>
+              <p className="text-xs font-semibold text-gray-700 mb-2">
+                Danh sách điểm gần đây:
+              </p>
               <div className="max-h-40 overflow-y-auto space-y-2">
                 {grades.map((grade) => (
-                  <div key={grade._id} className="flex justify-between items-center bg-white/50 p-2 rounded">
+                  <div
+                    key={grade._id}
+                    className="flex justify-between items-center bg-white/50 p-2 rounded"
+                  >
                     <div>
-                      <p className="font-medium text-xs text-gray-900">{grade.gradingSheetId?.title || 'Bài kiểm tra'}</p>
+                      <p className="font-medium text-xs text-gray-900">
+                        {grade.gradingSheetId?.title || "Bài kiểm tra"}
+                      </p>
                       <p className="text-[10px] text-gray-500">
-                        {GRADE_CATEGORY_LABELS[grade.gradingSheetId?.category as keyof typeof GRADE_CATEGORY_LABELS]} • {new Date(grade.gradedAt).toLocaleDateString()}
+                        {
+                          GRADE_CATEGORY_LABELS[
+                          grade.gradingSheetId
+                            ?.category as keyof typeof GRADE_CATEGORY_LABELS
+                          ]
+                        }{" "}
+                        • {new Date(grade.gradedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-sm">{grade.score}/{grade.maxScore}</span>
+                      <span className="font-bold text-sm">
+                        {grade.score}/{grade.maxScore}
+                      </span>
                       {grade.feedback && (
-                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">{grade.feedback}</p>
+                        <p className="text-[10px] text-gray-600 italic truncate max-w-[100px]">
+                          {grade.feedback}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -1078,8 +1127,8 @@ function SettingsModal({
               <label className="text-gray-700 font-medium">Họ và tên</label>
               <input
                 className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
                   }`}
                 value={isEditing ? formData.name : user.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
@@ -1090,8 +1139,8 @@ function SettingsModal({
               <label className="text-gray-700 font-medium">Số điện thoại</label>
               <input
                 className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  : "border-gray-300"
+                    ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    : "border-gray-300"
                   }`}
                 value={
                   isEditing ? formData.phone : user.phone || "Chưa cập nhật"
@@ -1126,8 +1175,8 @@ function SettingsModal({
             </label>
             <input
               className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
                 }`}
               value={
                 isEditing
@@ -1146,8 +1195,8 @@ function SettingsModal({
             <textarea
               rows={3}
               className={`w-full rounded-lg border px-3 py-2.5 transition-all ${isEditing
-                ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                : "border-gray-300"
+                  ? "border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  : "border-gray-300"
                 }`}
               value={
                 isEditing
@@ -1391,6 +1440,13 @@ export default function TeacherDashboard({
     incrementDownload,
     isLoading: documentsLoading,
   } = useDocumentsStore();
+  const { accessToken } = useAuthStore();
+  const {
+    leaderboard,
+    loading: leaderboardLoading,
+    fetchTeacherLeaderboard,
+  } = useLeaderboardStore();
+  const [rankingView, setRankingView] = useState<RankingCategory>("score");
 
   // Handle click outside to close profile dropdown
   useEffect(() => {
@@ -1417,7 +1473,10 @@ export default function TeacherDashboard({
 
     // Fetch documents
     fetchMyDocuments();
-  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments]);
+
+    // Fetch leaderboard for teacher's students
+    fetchTeacherLeaderboard({ limit: 10 });
+  }, [user.id, fetchClasses, fetchTeacherSchedule, fetchMyDocuments, fetchTeacherLeaderboard]);
 
   // Set first class as selected when classes load
   useEffect(() => {
@@ -1718,7 +1777,7 @@ export default function TeacherDashboard({
   }, [classes]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
       <ToastContainer />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -1899,6 +1958,12 @@ export default function TeacherDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🐛 Sự cố
+            </TabsTrigger>
+            <TabsTrigger
+              value="leaderboard"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-yellow-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              🏆 Xếp hạng
             </TabsTrigger>
           </TabsList>
 
@@ -2248,130 +2313,133 @@ export default function TeacherDashboard({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {teachingDocuments.map((doc) => (
-                      <div
-                        key={doc._id}
-                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`h-12 w-12 rounded-lg flex items-center justify-center ${doc.fileType === "PDF"
-                              ? "bg-red-100"
-                              : doc.fileType === "DOCX"
-                                ? "bg-blue-100"
-                                : doc.fileType === "PPTX"
-                                  ? "bg-orange-100"
-                                  : doc.fileType === "XLSX"
-                                    ? "bg-green-100"
-                                    : "bg-gray-100"
-                              }`}
-                          >
-                            <FileIcon
-                              className={`h-6 w-6 ${doc.fileType === "PDF"
-                                ? "text-red-600"
-                                : doc.fileType === "DOCX"
-                                  ? "text-blue-600"
-                                  : doc.fileType === "PPTX"
-                                    ? "text-orange-600"
-                                    : doc.fileType === "XLSX"
-                                      ? "text-green-600"
-                                      : "text-gray-600"
+                    {teachingDocuments.map((doc) => {
+                      const fileType = getFileType(doc.originalFileName);
+                      return (
+                        <div
+                          key={doc._id}
+                          className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`h-12 w-12 rounded-lg flex items-center justify-center ${fileType === "PDF"
+                                  ? "bg-red-100"
+                                  : fileType === "DOCX"
+                                    ? "bg-blue-100"
+                                    : fileType === "PPTX"
+                                      ? "bg-orange-100"
+                                      : fileType === "XLSX"
+                                        ? "bg-green-100"
+                                        : "bg-gray-100"
                                 }`}
-                            />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {doc.title}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                              <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                {doc.fileType}
-                              </span>
-                              {doc.fileSize && <span>{doc.fileSize}</span>}
-                              <span>•</span>
-                              <span>
-                                {doc.classIds.map((c) => c.name).join(", ") ||
-                                  "Tất cả lớp"}
-                              </span>
-                              <span>•</span>
-                              <span>
-                                {new Date(doc.createdAt).toLocaleDateString(
-                                  "vi-VN",
-                                )}
-                              </span>
-                              {doc.visibility === "community" && (
-                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                  🌐 Cộng đồng
+                            >
+                              <FileIcon
+                                className={`h-6 w-6 ${fileType === "PDF"
+                                    ? "text-red-600"
+                                    : fileType === "DOCX"
+                                      ? "text-blue-600"
+                                      : fileType === "PPTX"
+                                        ? "text-orange-600"
+                                        : fileType === "XLSX"
+                                          ? "text-green-600"
+                                          : "text-gray-600"
+                                  }`}
+                              />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {doc.title}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                  {fileType}
                                 </span>
+                                <span>•</span>
+                                <span>
+                                  {doc.classIds.map((c) => c.name).join(", ") ||
+                                    "Tất cả lớp"}
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  {new Date(doc.createdAt).toLocaleDateString(
+                                    "vi-VN",
+                                  )}
+                                </span>
+                                {doc.visibility === "community" && (
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                    🌐 Cộng đồng
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right hidden sm:block">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {doc.downloadCount} lượt tải
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <a
+                                href={`${API_BASE_URL}/documents/${doc._id}/file?token=${accessToken}`}
+                                target="_self"
+                                rel="noopener noreferrer"
+                                onClick={() => incrementDownload(doc._id)}
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex items-center gap-1"
+                                >
+                                  <DownloadIcon className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Tải</span>
+                                </Button>
+                              </a>
+                              {doc.visibility === "class" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-purple-600 hover:bg-purple-50"
+                                  onClick={() => {
+                                    shareToCommunity(doc._id);
+                                    toast.success("Đã chia sẻ ra cộng đồng!");
+                                  }}
+                                >
+                                  🌐 Chia sẻ
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-blue-600 hover:bg-blue-50"
+                                  onClick={() => {
+                                    restrictToClass(doc._id);
+                                    toast.success("Đã giới hạn chỉ lớp học!");
+                                  }}
+                                >
+                                  🔒 Giới hạn
+                                </Button>
                               )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  if (
+                                    confirm("Bạn có chắc muốn xoá tài liệu này?")
+                                  ) {
+                                    deleteDocument(doc._id);
+                                    toast.success("Đã xoá tài liệu!");
+                                  }
+                                }}
+                              >
+                                Xoá
+                              </Button>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right hidden sm:block">
-                            <p className="text-sm font-semibold text-gray-900">
-                              {doc.downloadCount} lượt tải
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <a
-                              href={`${API_BASE_URL}/documents/${doc._id}/file`}
-                              target="_self"
-                              rel="noopener noreferrer"
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-1"
-                              >
-                                <DownloadIcon className="h-4 w-4" />
-                                <span className="hidden sm:inline">Tải</span>
-                              </Button>
-                            </a>
-                            {doc.visibility === "class" ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-purple-600 hover:bg-purple-50"
-                                onClick={() => {
-                                  shareToCommunity(doc._id);
-                                  toast.success("Đã chia sẻ ra cộng đồng!");
-                                }}
-                              >
-                                🌐 Chia sẻ
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-blue-600 hover:bg-blue-50"
-                                onClick={() => {
-                                  restrictToClass(doc._id);
-                                  toast.success("Đã giới hạn chỉ lớp học!");
-                                }}
-                              >
-                                🔒 Giới hạn
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => {
-                                if (
-                                  confirm("Bạn có chắc muốn xoá tài liệu này?")
-                                ) {
-                                  deleteDocument(doc._id);
-                                  toast.success("Đã xoá tài liệu!");
-                                }
-                              }}
-                            >
-                              Xoá
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -2397,22 +2465,7 @@ export default function TeacherDashboard({
           </TabsContent>
 
           <TabsContent value="evaluation" className="mt-6">
-            <Card className="p-4">
-              <p className="font-semibold text-gray-900 mb-2">
-                Đánh giá từ học sinh
-              </p>
-              <p className="text-sm text-gray-700 mb-4">
-                Xem các đánh giá ẩn danh từ học sinh về chất lượng giảng dạy của
-                bạn. Những phản hồi này giúp bạn cải thiện phương pháp giảng
-                dạy.
-              </p>
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => setShowEvaluation(true)}
-              >
-                Xem đánh giá
-              </Button>
-            </Card>
+            <TeacherRatingsTab />
           </TabsContent>
 
           <TabsContent value="contact" className="mt-6">
@@ -2461,6 +2514,175 @@ export default function TeacherDashboard({
               userRole={user.role}
               isEmbedded={true}
             />
+          </TabsContent>
+
+          <TabsContent value="leaderboard" className="mt-6">
+            <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <p className="font-bold text-gray-900 text-lg">
+                    Bảng Xếp Hạng Học Sinh
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Vinh danh những nỗ lực xuất sắc
+                  </p>
+                </div>
+              </div>
+
+              {/* Ranking Category Tabs */}
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
+                {Object.entries(leaderboardOptions).map(([key, opt]) => (
+                  <button
+                    key={key}
+                    onClick={() => setRankingView(key as RankingCategory)}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${rankingView === key
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-gray-600 hover:bg-white/50"
+                      }`}
+                  >
+                    <span className="text-base leading-none">
+                      {leaderboardTabIcons[key as RankingCategory]}
+                    </span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Loading State */}
+              {leaderboardLoading && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-4">Đang tải bảng xếp hạng...</p>
+                </div>
+              )}
+
+              {/* Leaderboard List */}
+              {!leaderboardLoading && (
+                <div className="space-y-3">
+                  {rankingView === "score" && leaderboard?.score?.map((row) => (
+                    <div
+                      key={`score-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                        }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                            }`}
+                        >
+                          {row.rank === 1 && "🏆"}
+                          {row.rank === 2 && "🥈"}
+                          {row.rank === 3 && "🥉"}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-bold">{row.rank}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{row.studentName}</p>
+                          <p className="text-xs text-gray-500">{row.className || `${row.totalGrades} bài kiểm tra`}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-blue-600">
+                          {row.averageScore.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-gray-500">Điểm TB</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
+                    <div
+                      key={`attendance-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 transition-all duration-300 ${row.rank === 1
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md"
+                          : row.rank === 2
+                            ? "border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50"
+                            : row.rank === 3
+                              ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "border-gray-100 bg-white hover:border-blue-200"
+                        }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${row.rank === 1
+                              ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg"
+                              : row.rank === 2
+                                ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md"
+                                : row.rank === 3
+                                  ? "bg-gradient-to-br from-orange-400 to-amber-500 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-600"
+                            }`}
+                        >
+                          {row.rank === 1 && "🏆"}
+                          {row.rank === 2 && "🥈"}
+                          {row.rank === 3 && "🥉"}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-bold">{row.rank}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{row.studentName}</p>
+                          <p className="text-xs text-gray-500">Đã theo học {row.daysEnrolled} ngày</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-emerald-600">
+                          {row.attendanceRate}%
+                        </p>
+                        <p className="text-xs text-gray-500">{row.presentCount}/{row.totalSessions} buổi</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Empty State */}
+                  {!leaderboardLoading && (
+                    (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
+                    (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
+                  ) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>Chưa có dữ liệu xếp hạng</p>
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {leaderboard?.summary?.totalStudents || 0}
+                  </p>
+                  <p className="text-xs text-gray-500">Tổng học sinh</p>
+                </div>
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50">
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {leaderboard?.summary?.averageScore?.toFixed(1) || "0.0"}
+                  </p>
+                  <p className="text-xs text-gray-500">Điểm TB</p>
+                </div>
+                <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50">
+                  <p className="text-2xl font-bold text-amber-600">
+                    {leaderboard?.summary?.averageAttendanceRate || 0}%
+                  </p>
+                  <p className="text-xs text-gray-500">Tỷ lệ chuyên cần</p>
+                </div>
+              </div>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
@@ -2667,10 +2889,10 @@ function UploadDocumentModal({
           {/* Drag & Drop Zone */}
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${isDragging
-              ? "border-blue-500 bg-blue-50"
-              : selectedFile
-                ? "border-green-500 bg-green-50"
-                : "border-gray-300 hover:border-gray-400"
+                ? "border-blue-500 bg-blue-50"
+                : selectedFile
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-300 hover:border-gray-400"
               }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -2762,8 +2984,8 @@ function UploadDocumentModal({
                     type="button"
                     onClick={() => toggleClass(cls._id)}
                     className={`px-3 py-1 rounded-full text-sm transition-colors ${selectedClassIds.includes(cls._id)
-                      ? "bg-blue-600 text-white"
-                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
                       }`}
                   >
                     {cls.name}

@@ -194,9 +194,9 @@ export default function ScheduleScreen() {
   const [selectedScheduleItem, setSelectedScheduleItem] =
     useState<TimetableItem | null>(null);
 
-  // Teacher view mode: week (giống web) hoặc day (xem theo ngày)
+  // Teacher view mode: day view only
   const [teacherViewMode, setTeacherViewMode] = useState<"week" | "day">(
-    "week",
+    "day",
   );
 
   const isAdmin = user?.role === "admin";
@@ -483,7 +483,7 @@ export default function ScheduleScreen() {
         typeof cls.teacherId === "object" && cls.teacherId?.name
           ? cls.teacherId.name
           : users.find((u) => u._id === cls.teacherId)?.name ||
-            "Chưa phân công";
+          "Chưa phân công";
 
       const branchName =
         typeof cls.branchId === "object" && cls.branchId?.name
@@ -491,7 +491,7 @@ export default function ScheduleScreen() {
           : branches.find((b) => b._id === cls.branchId)?.name || "";
 
       if (cls.schedule && cls.schedule.length > 0) {
-        cls.schedule.forEach((sch) => {
+        cls.schedule.forEach((sch: any) => {
           if (sch.dayOfWeek === dayIndex) {
             timetable.push({
               classId: cls._id,
@@ -557,7 +557,7 @@ export default function ScheduleScreen() {
         typeof cls.teacherId === "object" && cls.teacherId?.name
           ? cls.teacherId.name
           : users.find((u) => u._id === cls.teacherId)?.name ||
-            "Chưa phân công";
+          "Chưa phân công";
 
       const branchName =
         typeof cls.branchId === "object" && cls.branchId?.name
@@ -614,21 +614,21 @@ export default function ScheduleScreen() {
       user?.role === "parent"
         ? classes // Parent: classes already filtered by childId from API
         : classes.filter((cls) => {
-            // Check if user is in studentIds
-            if (cls.studentIds && cls.studentIds.includes(user._id))
-              return true;
-            // Check if user is in students array
-            if (cls.students && cls.students.some((s) => s._id === user._id))
-              return true;
-            return false;
-          });
+          // Check if user is in studentIds
+          if (cls.studentIds && cls.studentIds.includes(user._id))
+            return true;
+          // Check if user is in students array
+          if (cls.students && cls.students.some((s) => s._id === user._id))
+            return true;
+          return false;
+        });
 
     studentClasses.forEach((cls, classIndex) => {
       const teacherName =
         typeof cls.teacherId === "object" && cls.teacherId
           ? (cls.teacherId as any).fullName ||
-            (cls.teacherId as any).name ||
-            "Giáo viên"
+          (cls.teacherId as any).name ||
+          "Giáo viên"
           : "Giáo viên";
 
       if (cls.schedule && cls.schedule.length > 0) {
@@ -715,12 +715,12 @@ export default function ScheduleScreen() {
         user?.role === "parent"
           ? classes
           : classes.filter((cls) => {
-              if (cls.studentIds && cls.studentIds.includes(user._id))
-                return true;
-              if (cls.students && cls.students.some((s) => s._id === user._id))
-                return true;
-              return false;
-            });
+            if (cls.studentIds && cls.studentIds.includes(user._id))
+              return true;
+            if (cls.students && cls.students.some((s) => s._id === user._id))
+              return true;
+            return false;
+          });
 
       return studentClasses.some(
         (cls) =>
@@ -959,8 +959,8 @@ export default function ScheduleScreen() {
       Alert.alert(
         "Lỗi",
         error?.response?.data?.message ||
-          error.message ||
-          "Không thể lưu điểm danh. Vui lòng thử lại.",
+        error.message ||
+        "Không thể lưu điểm danh. Vui lòng thử lại.",
       );
     } finally {
       setIsSavingAttendance(false);
@@ -1333,22 +1333,22 @@ export default function ScheduleScreen() {
               )
             )
           ) : // List View - show all classes
-          adminClassList.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <LinearGradient
-                colors={["#F3F4F6", "#E5E7EB"]}
-                style={styles.emptyIconBg}
-              >
-                <Ionicons name="school-outline" size={48} color="#9CA3AF" />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>Không có lớp học</Text>
-              <Text style={styles.emptyText}>
-                Chưa có lớp học nào trong hệ thống
-              </Text>
-            </View>
-          ) : (
-            adminClassList.map((cls) => renderAdminClassCard(cls))
-          )}
+            adminClassList.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <LinearGradient
+                  colors={["#F3F4F6", "#E5E7EB"]}
+                  style={styles.emptyIconBg}
+                >
+                  <Ionicons name="school-outline" size={48} color="#9CA3AF" />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>Không có lớp học</Text>
+                <Text style={styles.emptyText}>
+                  Chưa có lớp học nào trong hệ thống
+                </Text>
+              </View>
+            ) : (
+              adminClassList.map((cls) => renderAdminClassCard(cls))
+            )}
         </ScrollView>
 
         {/* Branch Picker Modal */}
@@ -1409,7 +1409,7 @@ export default function ScheduleScreen() {
                       style={[
                         styles.pickerItemText,
                         selectedBranch === branch._id &&
-                          styles.pickerItemTextActive,
+                        styles.pickerItemTextActive,
                       ]}
                     >
                       {branch.name}
@@ -1480,7 +1480,7 @@ export default function ScheduleScreen() {
                   <View style={styles.classDetailSection}>
                     <Text style={styles.sectionTitle}>Lịch học cố định</Text>
                     {selectedClassDetail.schedule &&
-                    selectedClassDetail.schedule.length > 0 ? (
+                      selectedClassDetail.schedule.length > 0 ? (
                       selectedClassDetail.schedule.map(
                         (sch: any, idx: number) => (
                           <View key={idx} style={styles.scheduleItem}>
@@ -1519,38 +1519,10 @@ export default function ScheduleScreen() {
   if (isTeacher) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
-        {/* Teacher Header with View Mode Toggle */}
+        {/* Teacher Header */}
         <View style={styles.teacherHeader}>
           <View style={styles.teacherTitleRow}>
             <Text style={styles.teacherTitle}>Lịch dạy của tôi</Text>
-            <View style={styles.viewModeToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.viewModeBtn,
-                  teacherViewMode === "week" && styles.viewModeBtnActive,
-                ]}
-                onPress={() => setTeacherViewMode("week")}
-              >
-                <Ionicons
-                  name="grid"
-                  size={16}
-                  color={teacherViewMode === "week" ? "#fff" : "#6B7280"}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.viewModeBtn,
-                  teacherViewMode === "day" && styles.viewModeBtnActive,
-                ]}
-                onPress={() => setTeacherViewMode("day")}
-              >
-                <Ionicons
-                  name="list"
-                  size={16}
-                  color={teacherViewMode === "day" ? "#fff" : "#6B7280"}
-                />
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Week Navigation */}
@@ -1584,206 +1556,7 @@ export default function ScheduleScreen() {
           </View>
         </View>
 
-        {/* WEEK VIEW - Hiển thị giống web */}
-        {teacherViewMode === "week" ? (
-          <ScrollView
-            style={styles.scheduleList}
-            contentContainerStyle={[
-              styles.scheduleContent,
-              { paddingBottom: 100 },
-            ]}
-            refreshControl={
-              <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
-            }
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Stats Row */}
-            <View style={styles.teacherWeekStats}>
-              <View style={styles.statCardSmall}>
-                <LinearGradient
-                  colors={["#3B82F6", "#2563EB"]}
-                  style={styles.statIconSmall}
-                >
-                  <Ionicons name="calendar" size={14} color="#fff" />
-                </LinearGradient>
-                <Text style={styles.statValueSmall}>
-                  {teacherTimetableByWeek.reduce(
-                    (sum, day) => sum + day.schedules.length,
-                    0,
-                  )}
-                </Text>
-                <Text style={styles.statLabelSmall}>Buổi dạy/tuần</Text>
-              </View>
-              <View style={styles.statCardSmall}>
-                <LinearGradient
-                  colors={["#10B981", "#059669"]}
-                  style={styles.statIconSmall}
-                >
-                  <Ionicons name="people" size={14} color="#fff" />
-                </LinearGradient>
-                <Text style={styles.statValueSmall}>
-                  {classes
-                    .filter((c) => {
-                      const teacherId =
-                        typeof c.teacherId === "string"
-                          ? c.teacherId
-                          : c.teacherId;
-                      return teacherId === user._id;
-                    })
-                    .reduce(
-                      (sum, c) =>
-                        sum + (c.students?.length || c.studentIds?.length || 0),
-                      0,
-                    )}
-                </Text>
-                <Text style={styles.statLabelSmall}>Học sinh</Text>
-              </View>
-              <View style={styles.statCardSmall}>
-                <LinearGradient
-                  colors={["#8B5CF6", "#7C3AED"]}
-                  style={styles.statIconSmall}
-                >
-                  <Ionicons name="school" size={14} color="#fff" />
-                </LinearGradient>
-                <Text style={styles.statValueSmall}>
-                  {
-                    classes.filter((c) => {
-                      const teacherId =
-                        typeof c.teacherId === "string"
-                          ? c.teacherId
-                          : c.teacherId;
-                      return teacherId === user._id;
-                    }).length
-                  }
-                </Text>
-                <Text style={styles.statLabelSmall}>Lớp học</Text>
-              </View>
-            </View>
-
-            {/* Week Grid */}
-            <View style={styles.weekGrid}>
-              {teacherTimetableByWeek.map((dayData, dayIdx) => {
-                const isCurrentDay =
-                  dayData.fullDate.toDateString() === new Date().toDateString();
-                return (
-                  <View
-                    key={dayIdx}
-                    style={[
-                      styles.dayColumn,
-                      isCurrentDay && styles.dayColumnToday,
-                    ]}
-                  >
-                    {/* Day Header */}
-                    <LinearGradient
-                      colors={
-                        isCurrentDay
-                          ? ["#10B981", "#059669"]
-                          : ["#3B82F6", "#2563EB"]
-                      }
-                      style={styles.dayHeader}
-                    >
-                      <Text style={styles.dayHeaderText}>
-                        {dayData.day
-                          .replace("THỨ ", "T")
-                          .replace("CHỦ NHẬT", "CN")}
-                      </Text>
-                      <Text style={styles.dayHeaderDate}>{dayData.date}</Text>
-                    </LinearGradient>
-
-                    {/* Day Content */}
-                    {dayData.schedules.length === 0 ? (
-                      <View style={styles.emptyDayContent}>
-                        <Text style={styles.emptyDayText}>-</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.dayContent}>
-                        {dayData.schedules.map((sch, schIdx) => {
-                          const canAttend = isWithinClassTime(
-                            dayData.fullDate,
-                            sch.startTime,
-                            sch.endTime,
-                          );
-
-                          return (
-                            <TouchableOpacity
-                              key={`${sch.classId}-${schIdx}`}
-                              style={[
-                                styles.weekScheduleCard,
-                                canAttend && styles.weekScheduleCardActive,
-                              ]}
-                              onPress={() =>
-                                handleOpenAttendance(sch, dayData.fullDate)
-                              }
-                              activeOpacity={0.7}
-                            >
-                              <Text
-                                style={styles.weekCardClassName}
-                                numberOfLines={1}
-                              >
-                                {sch.className}
-                              </Text>
-                              <Text
-                                style={styles.weekCardSubject}
-                                numberOfLines={1}
-                              >
-                                {sch.subject}
-                              </Text>
-                              {sch.room && (
-                                <View style={styles.weekCardInfoRow}>
-                                  <Ionicons
-                                    name="location"
-                                    size={10}
-                                    color="#6B7280"
-                                  />
-                                  <Text style={styles.weekCardInfoText}>
-                                    {sch.room}
-                                  </Text>
-                                </View>
-                              )}
-                              <View style={styles.weekCardTimeBox}>
-                                <Ionicons
-                                  name="time"
-                                  size={10}
-                                  color="#374151"
-                                />
-                                <Text style={styles.weekCardTime}>
-                                  {sch.startTime} - {sch.endTime}
-                                </Text>
-                              </View>
-                              <View style={styles.weekCardInfoRow}>
-                                <Ionicons
-                                  name="people"
-                                  size={10}
-                                  color="#6B7280"
-                                />
-                                <Text style={styles.weekCardInfoText}>
-                                  {sch.studentCount} học sinh
-                                </Text>
-                              </View>
-                              {canAttend && (
-                                <View style={styles.weekCardActiveIndicator}>
-                                  <Ionicons
-                                    name="checkmark-circle"
-                                    size={12}
-                                    color="#059669"
-                                  />
-                                  <Text style={styles.weekCardActiveText}>
-                                    Đang trong giờ học
-                                  </Text>
-                                </View>
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        ) : (
-          /* DAY VIEW - Original day-by-day view */
+        {/* DAY VIEW */}
           <>
             {/* Week Calendar Header */}
             <View style={styles.calendarContainer}>
@@ -2011,7 +1784,6 @@ export default function ScheduleScreen() {
               )}
             </ScrollView>
           </>
-        )}
 
         {/* Teacher Attendance Modal */}
         <Modal
@@ -2118,7 +1890,7 @@ export default function ScheduleScreen() {
                         style={[
                           styles.attendanceStatusBtn,
                           record.status === "present" &&
-                            styles.attendanceStatusBtnActive,
+                          styles.attendanceStatusBtnActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "present")
@@ -2137,7 +1909,7 @@ export default function ScheduleScreen() {
                           styles.attendanceStatusBtn,
                           styles.attendanceStatusBtnAbsent,
                           record.status === "absent" &&
-                            styles.attendanceStatusBtnAbsentActive,
+                          styles.attendanceStatusBtnAbsentActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "absent")
@@ -2156,7 +1928,7 @@ export default function ScheduleScreen() {
                           styles.attendanceStatusBtn,
                           styles.attendanceStatusBtnLate,
                           record.status === "late" &&
-                            styles.attendanceStatusBtnLateActive,
+                          styles.attendanceStatusBtnLateActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "late")

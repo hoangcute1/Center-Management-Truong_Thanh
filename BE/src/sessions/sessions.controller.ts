@@ -45,6 +45,12 @@ export class SessionsController {
     return this.sessionsService.getSchedule(query);
   }
 
+  // Lấy lịch của người dùng hiện tại (student hoặc teacher)
+  @Get('my-sessions')
+  getMySessions(@CurrentUser() user: UserDocument) {
+    return this.sessionsService.getMySessions(user);
+  }
+
   // Kiểm tra xung đột lịch
   @Post('check-conflict')
   @Roles(UserRole.Admin, UserRole.Teacher)

@@ -22,7 +22,11 @@ import { AlertTriangle, ChevronRight, ChevronDown, Camera } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import api from "@/lib/api";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import { studentGradingService, StudentGradeRecord } from "@/lib/services/student-grading.service";
+import {
+  studentGradingService,
+  StudentGradeRecord,
+  StudentRankInfo,
+} from "@/lib/services/student-grading.service";
 import { Bounce, ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -38,7 +42,14 @@ const dayNames = [
 ];
 
 interface ParentDashboardProps {
-  user: { id: string; name: string; email: string; role: string; phone?: string; avatarUrl?: string };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    avatarUrl?: string;
+  };
   onLogout: () => void;
 }
 
@@ -107,12 +118,7 @@ const courses = [
   },
 ];
 
-const progressData = [
-  { week: "Tuần 1", score: 7.2 },
-  { week: "Tuần 2", score: 7.4 },
-  { week: "Tuần 3", score: 7.6 },
-  { week: "Tuần 4", score: 7.8 },
-];
+// progressData sẽ được tính từ childGrades thật
 
 const weeklySchedule = [
   {
@@ -224,7 +230,9 @@ function SettingsModal({
   };
   onClose: () => void;
 }) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -392,7 +400,10 @@ function SettingsModal({
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
-            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -402,7 +413,20 @@ function SettingsModal({
                 onClick={() => setShowImagePreview(false)}
                 className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
           </div>
@@ -528,7 +552,7 @@ function SettingsModal({
 function DetailModal({
   onClose,
   childInfo,
-  grades
+  grades,
 }: {
   onClose: () => void;
   childInfo: any;
@@ -537,17 +561,17 @@ function DetailModal({
   // Process grades into courses
   const courses = useMemo(() => {
     const groups: Record<string, StudentGradeRecord[]> = {};
-    grades.forEach(g => {
+    grades.forEach((g) => {
       const key = g.classId?.name || "Lớp học";
       if (!groups[key]) groups[key] = [];
       groups[key].push(g);
     });
 
-    return Object.keys(groups).map(subject => {
+    return Object.keys(groups).map((subject) => {
       const list = groups[subject];
       let totalScore = 0;
       let totalMax = 0;
-      list.forEach(g => {
+      list.forEach((g) => {
         totalScore += g.score;
         totalMax += g.maxScore;
       });
@@ -562,7 +586,7 @@ function DetailModal({
         score: avg.toFixed(1),
         total: list.length, // total assignments
         attended: list.length, // Assume attended if graded
-        teacher: list[0]?.gradedBy?.name || "Giáo viên"
+        teacher: list[0]?.gradedBy?.name || "Giáo viên",
       };
     });
   }, [grades]);
@@ -570,24 +594,30 @@ function DetailModal({
   // Extract recent feedback
   const feedbackList = useMemo(() => {
     return grades
-      .filter(g => g.feedback)
-      .sort((a, b) => new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime())
+      .filter((g) => g.feedback)
+      .sort(
+        (a, b) =>
+          new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime(),
+      )
       .slice(0, 5)
-      .map(g => ({
+      .map((g) => ({
         teacher: g.gradedBy?.name || "Giáo viên",
         subject: g.classId?.name || "Môn học",
         note: g.feedback,
-        date: new Date(g.gradedAt).toLocaleDateString()
+        date: new Date(g.gradedAt).toLocaleDateString(),
       }));
   }, [grades]);
 
   // Chart data
   const chartData = useMemo(() => {
     return grades
-      .sort((a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime())
-      .map(g => ({
-        week: new Date(g.gradedAt).toLocaleDateString('vi-VN'),
-        score: (g.score / g.maxScore) * 10
+      .sort(
+        (a, b) =>
+          new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+      )
+      .map((g) => ({
+        week: new Date(g.gradedAt).toLocaleDateString("vi-VN"),
+        score: (g.score / g.maxScore) * 10,
       }));
   }, [grades]);
 
@@ -597,7 +627,9 @@ function DetailModal({
         <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-5 flex items-start justify-between">
           <div>
             <p className="text-xl font-bold">{childInfo.name}</p>
-            <p className="text-sm opacity-90">{childInfo.studentCode || "Học viên"}</p>
+            <p className="text-sm opacity-90">
+              {childInfo.studentCode || "Học viên"}
+            </p>
           </div>
           <button onClick={onClose} className="text-lg font-semibold">
             ×
@@ -610,9 +642,11 @@ function DetailModal({
               <p className="text-xs text-gray-600">Điểm TB (Hệ 10)</p>
               <p className="text-xl font-bold text-blue-700">
                 {courses.length > 0
-                  ? (courses.reduce((acc, c) => acc + parseFloat(c.score), 0) / courses.length).toFixed(1)
-                  : "N/A"
-                }
+                  ? (
+                    courses.reduce((acc, c) => acc + parseFloat(c.score), 0) /
+                    courses.length
+                  ).toFixed(1)
+                  : "N/A"}
               </p>
             </Card>
             <Card className="p-3 bg-green-50 border-green-100">
@@ -623,7 +657,9 @@ function DetailModal({
             </Card>
             <Card className="p-3 bg-purple-50 border-purple-100">
               <p className="text-xs text-gray-600">Bài kiểm tra</p>
-              <p className="text-xl font-bold text-purple-700">{grades.length}</p>
+              <p className="text-xl font-bold text-purple-700">
+                {grades.length}
+              </p>
             </Card>
             <Card className="p-3 bg-amber-50 border-amber-100">
               <p className="text-xs text-gray-600">Xếp loại</p>
@@ -659,50 +695,63 @@ function DetailModal({
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <p className="text-center text-gray-500">Chưa có dữ liệu biểu đồ</p>}
+              ) : (
+                <p className="text-center text-gray-500">
+                  Chưa có dữ liệu biểu đồ
+                </p>
+              )}
             </div>
           </Card>
 
           <Card className="p-4 space-y-3">
             <p className="font-semibold text-gray-900">Các khóa học</p>
-            {courses.length > 0 ? courses.map((course) => (
-              <div
-                key={course.subject}
-                className="rounded-lg border border-gray-200 p-3 space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-gray-900">
-                    {course.subject}
-                  </p>
-                  <p className="text-blue-700 text-sm font-semibold">
-                    {course.score}
-                  </p>
+            {courses.length > 0 ? (
+              courses.map((course) => (
+                <div
+                  key={course.subject}
+                  className="rounded-lg border border-gray-200 p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-gray-900">
+                      {course.subject}
+                    </p>
+                    <p className="text-blue-700 text-sm font-semibold">
+                      {course.score}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <p>Bài kiểm tra: {course.total}</p>
+                    <p>Giáo viên: {course.teacher}</p>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  <p>Bài kiểm tra: {course.total}</p>
-                  <p>Giáo viên: {course.teacher}</p>
-                </div>
-              </div>
-            )) : <p className="text-gray-500">Chưa có dữ liệu khóa học</p>}
+              ))
+            ) : (
+              <p className="text-gray-500">Chưa có dữ liệu khóa học</p>
+            )}
           </Card>
 
           <Card className="p-4 space-y-3">
-            <p className="font-semibold text-gray-900">Nhận xét từ giáo viên (Mới nhất)</p>
-            {feedbackList.length > 0 ? feedbackList.map((note, idx) => (
-              <Card
-                key={idx}
-                className="p-3 bg-blue-50 border-blue-100"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-gray-900">{note.teacher}</p>
-                  <p className="text-xs text-gray-600">{note.subject}</p>
-                </div>
-                <p className="text-sm text-gray-800 mt-2 leading-relaxed">
-                  {note.note}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{note.date}</p>
-              </Card>
-            )) : <p className="text-gray-500">Chưa có nhận xét nào.</p>}
+            <p className="font-semibold text-gray-900">
+              Nhận xét từ giáo viên (Mới nhất)
+            </p>
+            {feedbackList.length > 0 ? (
+              feedbackList.map((note, idx) => (
+                <Card key={idx} className="p-3 bg-blue-50 border-blue-100">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-gray-900">
+                      {note.teacher}
+                    </p>
+                    <p className="text-xs text-gray-600">{note.subject}</p>
+                  </div>
+                  <p className="text-sm text-gray-800 mt-2 leading-relaxed">
+                    {note.note}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{note.date}</p>
+                </Card>
+              ))
+            ) : (
+              <p className="text-gray-500">Chưa có nhận xét nào.</p>
+            )}
           </Card>
 
           <Button
@@ -733,7 +782,10 @@ export default function ParentDashboard({
   // Handle click outside to close profile dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     }
@@ -755,11 +807,179 @@ export default function ParentDashboard({
 
   // fetch child grades
   const [childGrades, setChildGrades] = useState<StudentGradeRecord[]>([]);
+
+  // State cho xếp hạng theo từng lớp
+  const [classRankings, setClassRankings] = useState<
+    Record<string, StudentRankInfo>
+  >({});
+
   useEffect(() => {
-    if (dashboardData?.child?._id) {
-      studentGradingService.getMyGrades(dashboardData.child._id).then(setChildGrades).catch(console.error);
-    }
+    const fetchGradesAndRankings = async () => {
+      if (dashboardData?.child?._id) {
+        try {
+          const grades = await studentGradingService.getMyGrades(
+            dashboardData.child._id,
+          );
+          setChildGrades(grades);
+
+          // Lấy xếp hạng cho từng lớp
+          const classIds = [
+            ...new Set(grades.map((g) => g.classId?._id).filter(Boolean)),
+          ];
+          const rankings: Record<string, StudentRankInfo> = {};
+
+          for (const classId of classIds) {
+            try {
+              const rankInfo =
+                await studentGradingService.getStudentRankInClass(
+                  dashboardData.child._id,
+                  classId as string,
+                );
+              rankings[classId as string] = rankInfo;
+            } catch (err) {
+              console.error(`Failed to fetch rank for class ${classId}`, err);
+            }
+          }
+          setClassRankings(rankings);
+        } catch (err) {
+          console.error("Failed to fetch child grades", err);
+        }
+      }
+    };
+    fetchGradesAndRankings();
   }, [dashboardData?.child?._id]);
+
+  // Tính progressData từ childGrades - biểu đồ điểm theo các bài kiểm tra
+  const progressData = useMemo(() => {
+    if (!childGrades.length) return [];
+
+    // Sắp xếp theo ngày chấm điểm
+    const sortedGrades = [...childGrades].sort(
+      (a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+    );
+
+    // Tạo data cho biểu đồ: mỗi bài kiểm tra là 1 điểm trên biểu đồ
+    return sortedGrades.map((grade, index) => {
+      const title =
+        grade.gradingSheetId?.title ||
+        grade.assignmentId?.title ||
+        `Bài ${index + 1}`;
+      const className = grade.classId?.name || "";
+      const scorePercent =
+        grade.maxScore > 0 ? (grade.score / grade.maxScore) * 10 : 0;
+
+      return {
+        name: title.length > 15 ? title.substring(0, 15) + "..." : title,
+        fullName: title,
+        score: parseFloat(scorePercent.toFixed(1)),
+        className,
+        category: grade.gradingSheetId?.category || grade.category || "khac",
+        date: new Date(grade.gradedAt).toLocaleDateString("vi-VN"),
+      };
+    });
+  }, [childGrades]);
+
+  // Tính điểm trung bình hiện tại
+  const averageScore = useMemo(() => {
+    if (!childGrades.length) return 0;
+
+    let totalScore = 0;
+    let totalMax = 0;
+    childGrades.forEach((g) => {
+      totalScore += g.score;
+      totalMax += g.maxScore;
+    });
+
+    if (totalMax === 0) return 0;
+    return parseFloat(((totalScore / totalMax) * 10).toFixed(1));
+  }, [childGrades]);
+
+  // Tính điểm tuần trước để so sánh
+  const lastWeekAverage = useMemo(() => {
+    if (!childGrades.length) return 0;
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const lastWeekGrades = childGrades.filter(
+      (g) => new Date(g.gradedAt) < oneWeekAgo,
+    );
+
+    if (!lastWeekGrades.length) return 0;
+
+    let totalScore = 0;
+    let totalMax = 0;
+    lastWeekGrades.forEach((g) => {
+      totalScore += g.score;
+      totalMax += g.maxScore;
+    });
+
+    if (totalMax === 0) return 0;
+    return parseFloat(((totalScore / totalMax) * 10).toFixed(1));
+  }, [childGrades]);
+
+  // Tạo data theo từng môn
+  const progressBySubject = useMemo(() => {
+    if (!childGrades.length) return [];
+
+    // Nhóm theo classId (môn học)
+    const groups: Record<
+      string,
+      { name: string; classId: string; grades: typeof childGrades }
+    > = {};
+
+    childGrades.forEach((g) => {
+      const key = g.classId?._id || "unknown";
+      const name = g.classId?.name || "Lớp học";
+      if (!groups[key]) {
+        groups[key] = { name, classId: key, grades: [] };
+      }
+      groups[key].grades.push(g);
+    });
+
+    // Tạo series data cho mỗi môn
+    return Object.values(groups).map((group) => {
+      const sortedGrades = [...group.grades].sort(
+        (a, b) =>
+          new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+      );
+
+      // Lấy thông tin xếp hạng của lớp này
+      const rankInfo = classRankings[group.classId];
+
+      return {
+        name: group.name,
+        classId: group.classId,
+        rank: rankInfo?.rank || null,
+        totalStudents: rankInfo?.totalStudents || 0,
+        data: sortedGrades.map((g, i) => ({
+          label: g.gradingSheetId?.title || `Bài ${i + 1}`,
+          score:
+            g.maxScore > 0
+              ? parseFloat(((g.score / g.maxScore) * 10).toFixed(1))
+              : 0,
+          date: new Date(g.gradedAt).toLocaleDateString("vi-VN"),
+        })),
+      };
+    });
+  }, [childGrades, classRankings]);
+
+  // Tính tổng xếp hạng (trung bình các lớp)
+  const overallRanking = useMemo(() => {
+    const ranks = Object.values(classRankings).filter((r) => r.rank !== null);
+    if (ranks.length === 0) return null;
+
+    // Tìm ranking tốt nhất (số thứ tự thấp nhất)
+    const bestRank = Math.min(...ranks.map((r) => r.rank!));
+    const totalStudentsOfBestRank =
+      ranks.find((r) => r.rank === bestRank)?.totalStudents || 0;
+
+    return {
+      bestRank,
+      totalStudents: totalStudentsOfBestRank,
+      classCount: ranks.length,
+    };
+  }, [classRankings]);
 
   const allRequests = childrenRequests.flatMap((c) => c.requests);
   const pendingPayments = allRequests.filter(
@@ -788,13 +1008,18 @@ export default function ParentDashboard({
       fetchDashboardData(parentId, childEmail).catch(console.error);
 
       // Fetch full user details for profile
-      api.get(`/users/${parentId}`)
+      api
+        .get(`/users/${parentId}`)
         .then((res: any) => setFullUserDetails(res.data))
-        .catch((err: any) => console.error("Failed to fetch full user details:", err));
+        .catch((err: any) =>
+          console.error("Failed to fetch full user details:", err),
+        );
     }
   }, [authUser, user.id, fetchDashboardData]);
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
 
   // Sync avatarPreview when user prop changes
   useEffect(() => {
@@ -858,7 +1083,7 @@ export default function ParentDashboard({
           dashboardData.recentGrades.length > 0
             ? (
               dashboardData.recentGrades.reduce(
-                (acc, g) => acc + g.percentage,
+                (acc, g) => acc + (g.percentage ?? 0),
                 0,
               ) /
               dashboardData.recentGrades.length /
@@ -1125,7 +1350,11 @@ export default function ParentDashboard({
     }
 
     return result;
-  }, [dashboardData?.classes, dashboardData?.attendanceRecords, dashboardData?.upcomingSessions]);
+  }, [
+    dashboardData?.classes,
+    dashboardData?.attendanceRecords,
+    dashboardData?.upcomingSessions,
+  ]);
 
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
@@ -1175,11 +1404,6 @@ export default function ParentDashboard({
     <Badge variant="warning">Chưa thanh toán</Badge>
   );
 
-  const progressAverage = useMemo(
-    () => progressData[progressData.length - 1].score,
-    [],
-  );
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
@@ -1227,8 +1451,12 @@ export default function ParentDashboard({
                 <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                   {/* Thông tin user tóm tắt */}
                   <div className="px-4 py-3 border-b border-gray-100 mb-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email}
+                    </p>
                   </div>
 
                   <button
@@ -1239,7 +1467,22 @@ export default function ParentDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-user-round-icon lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0" /><circle cx="12" cy="10" r="4" /><circle cx="12" cy="12" r="10" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-circle-user-round-icon lucide-circle-user-round"
+                      >
+                        <path d="M18 20a6 6 0 0 0-12 0" />
+                        <circle cx="12" cy="10" r="4" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
                     </span>
                     Hồ sơ
                   </button>
@@ -1252,7 +1495,22 @@ export default function ParentDashboard({
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
                   >
                     <span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-log-out-icon lucide-log-out"
+                      >
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      </svg>
                     </span>
                     Đăng xuất
                   </button>
@@ -1283,9 +1541,9 @@ export default function ParentDashboard({
                     <span className="font-bold text-red-800">
                       {totalPendingAmount.toLocaleString("vi-VN")} đ
                     </span>
-                  </p >
-                </div >
-              </div >
+                  </p>
+                </div>
+              </div>
               <Button
                 size="sm"
                 variant="destructive"
@@ -1293,10 +1551,9 @@ export default function ParentDashboard({
               >
                 Thanh toán ngay
               </Button>
-            </div >
-          </div >
-        )
-        }
+            </div>
+          </div>
+        )}
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
           <div className="flex items-center justify-between">
@@ -1584,40 +1841,192 @@ export default function ParentDashboard({
           </TabsContent>
 
           <TabsContent value="progress" className="mt-6">
-            <Card className="p-5">
-              <p className="font-semibold text-gray-900 mb-3">
-                Tiến độ học tập con
-              </p>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={progressData}
-                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="week"
-                      tick={{ fontSize: 12, fill: "#4b5563" }}
-                    />
-                    <YAxis
-                      domain={[0, 12]}
-                      tick={{ fontSize: 12, fill: "#4b5563" }}
-                    />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="score"
-                      stroke="#2563eb"
-                      strokeWidth={3}
-                      dot={{ r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Điểm trung bình tuần gần nhất: {progressAverage}
-              </p>
-            </Card>
+            <div className="grid gap-6 lg:grid-cols-3">
+              <Card className="lg:col-span-2 p-6 bg-white border-0 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-2xl">📈</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      Tiến độ học tập con
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Điểm số qua các bài kiểm tra
+                    </p>
+                  </div>
+                </div>
+                {progressData.length === 0 ? (
+                  <div className="h-72 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <span className="text-4xl mb-3 block">📊</span>
+                      <p className="font-medium">Chưa có dữ liệu điểm</p>
+                      <p className="text-sm">
+                        Điểm số sẽ hiển thị sau khi giáo viên chấm bài
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={progressData}
+                        margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10, fill: "#4b5563" }}
+                          angle={-20}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis
+                          domain={[0, 10]}
+                          tick={{ fontSize: 12, fill: "#4b5563" }}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "none",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                          }}
+                          formatter={(value: number) => [
+                            `${value} điểm`,
+                            "Điểm",
+                          ]}
+                          labelFormatter={(label, payload) => {
+                            if (payload && payload[0]) {
+                              const data = payload[0].payload;
+                              return `${data.fullName || label} (${data.className}) - ${data.date}`;
+                            }
+                            return label;
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="score"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          dot={{
+                            r: 6,
+                            fill: "#2563eb",
+                            stroke: "#fff",
+                            strokeWidth: 2,
+                          }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </Card>
+
+              <Card className="p-6 bg-white border-0 shadow-lg">
+                <p className="font-bold text-gray-900 text-lg mb-4">
+                  📊 Thống kê nhanh
+                </p>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+                    <p className="text-xs text-blue-600 font-medium">
+                      Điểm trung bình
+                    </p>
+                    <p className="text-2xl font-bold text-blue-700">
+                      {averageScore > 0 ? averageScore : "—"}
+                    </p>
+                    {averageScore > 0 && lastWeekAverage > 0 && (
+                      <p
+                        className={`text-xs mt-1 ${averageScore >= lastWeekAverage ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {averageScore >= lastWeekAverage ? "↑" : "↓"}{" "}
+                        {Math.abs(averageScore - lastWeekAverage).toFixed(1)} so
+                        với trước
+                      </p>
+                    )}
+                  </div>
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
+                    <p className="text-xs text-emerald-600 font-medium">
+                      Số bài đã chấm
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-700">
+                      {childGrades.length}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {progressBySubject.length} môn học
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100">
+                    <p className="text-xs text-amber-600 font-medium">
+                      Xếp hạng trong lớp
+                    </p>
+                    <p className="text-2xl font-bold text-amber-700">
+                      {overallRanking
+                        ? `#${overallRanking.bestRank}/${overallRanking.totalStudents}`
+                        : "—"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {overallRanking
+                        ? `Dựa trên điểm TB (${overallRanking.classCount} lớp)`
+                        : "Chưa có xếp hạng"}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Chi tiết điểm theo từng môn */}
+            {progressBySubject.length > 0 && (
+              <Card className="mt-6 p-6 bg-white border-0 shadow-lg">
+                <p className="font-bold text-gray-900 text-lg mb-4">
+                  📚 Chi tiết điểm theo môn học
+                </p>
+                <div className="space-y-4">
+                  {progressBySubject.map((subject, idx) => (
+                    <div
+                      key={idx}
+                      className="border border-gray-100 rounded-xl p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {subject.name}
+                          </p>
+                          {subject.rank && (
+                            <p className="text-xs text-amber-600 font-medium">
+                              🏆 Xếp hạng: #{subject.rank}/
+                              {subject.totalStudents}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {subject.data.length} bài kiểm tra
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {subject.data.map((item, i) => (
+                          <div
+                            key={i}
+                            className={`px-3 py-2 rounded-lg text-sm ${item.score >= 8
+                              ? "bg-green-100 text-green-700"
+                              : item.score >= 6.5
+                                ? "bg-blue-100 text-blue-700"
+                                : item.score >= 5
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            title={`${item.label} - ${item.date}`}
+                          >
+                            <span className="font-bold">{item.score}</span>
+                            <span className="text-xs ml-1 opacity-75">
+                              {item.label.length > 10
+                                ? item.label.substring(0, 10) + "..."
+                                : item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="payment" className="mt-6">
@@ -1725,7 +2134,7 @@ export default function ParentDashboard({
             />
           </TabsContent>
         </Tabs>
-      </main >
+      </main>
 
       {chatWith && (
         <ChatWindow
@@ -1735,16 +2144,20 @@ export default function ParentDashboard({
           onClose={() => setChatWith(null)}
         />
       )}
-      {showDetail && <DetailModal onClose={() => setShowDetail(false)} childInfo={childData} grades={childGrades} />}
-      {
-        showSettings && (
-          <SettingsModal
-            user={fullUserDetails || user}
-            onClose={() => setShowSettings(false)}
-          />
-        )
-      }
+      {showDetail && (
+        <DetailModal
+          onClose={() => setShowDetail(false)}
+          childInfo={childData}
+          grades={childGrades}
+        />
+      )}
+      {showSettings && (
+        <SettingsModal
+          user={fullUserDetails || user}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
       <ToastContainer />
-    </div >
+    </div>
   );
 }

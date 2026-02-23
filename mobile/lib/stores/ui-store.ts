@@ -8,6 +8,7 @@ type ThemeOption = "light" | "dark" | "system";
 interface UiState {
   theme: ThemeOption;
   setTheme: (theme: ThemeOption) => void;
+  getIsDark: () => boolean;
   isDark: boolean;
 }
 
@@ -16,6 +17,13 @@ export const useUiStore = create<UiState>()(
     (set, get) => ({
       theme: "system",
       setTheme: (theme) => set({ theme }),
+      getIsDark: () => {
+        const currentTheme = get().theme;
+        const scheme =
+          currentTheme === "system" ? Appearance.getColorScheme() : currentTheme;
+        return scheme === "dark";
+      },
+      // isDark as a computed value that updates when accessed
       get isDark() {
         const currentTheme = get().theme;
         const scheme =
@@ -26,6 +34,7 @@ export const useUiStore = create<UiState>()(
     {
       name: "ui-store",
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ theme: state.theme }),
     },
   ),
 );

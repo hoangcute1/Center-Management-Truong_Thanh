@@ -6,15 +6,31 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Grade, GradeDocument, GradeType } from './schemas/grade.schema';
-import { GradingSheet, GradingSheetDocument } from './schemas/grading-sheet.schema';
+import {
+  GradingSheet,
+  GradingSheetDocument,
+} from './schemas/grading-sheet.schema';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
 import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
 import { CreateGradingSheetDto } from './dto/create-grading-sheet.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
-import { UserDocument } from '../users/schemas/user.schema';
-import { Submission, SubmissionDocument } from '../submissions/schemas/submission.schema';
-import { Assignment, AssignmentDocument } from '../assignments/schemas/assignment.schema';
+import {
+  LeaderboardQueryDto,
+  ScoreLeaderboardItem,
+  AttendanceLeaderboardItem,
+  LeaderboardResponse,
+} from './dto/leaderboard.dto';
+import { UserDocument, User } from '../users/schemas/user.schema';
+import {
+  Submission,
+  SubmissionDocument,
+} from '../submissions/schemas/submission.schema';
+import {
+  Assignment,
+  AssignmentDocument,
+} from '../assignments/schemas/assignment.schema';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
+import { Attendance, AttendanceDocument } from '../attendance/schemas/attendance.schema';
 
 @Injectable()
 export class GradesService {
@@ -29,7 +45,11 @@ export class GradesService {
     private readonly assignmentModel: Model<AssignmentDocument>,
     @InjectModel(ClassEntity.name)
     private readonly classModel: Model<ClassDocument>,
-  ) { }
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    @InjectModel(Attendance.name)
+    private readonly attendanceModel: Model<AttendanceDocument>,
+  ) {}
 
   // ==================== GRADING SHEET METHODS ====================
 
@@ -110,7 +130,7 @@ export class GradesService {
     // Map điểm vào từng học sinh
     const students = (classDoc.studentIds || []).map((student: any) => {
       const grade = grades.find(
-        (g) => g.studentId.toString() === student._id.toString()
+        (g) => g.studentId.toString() === student._id.toString(),
       );
       return {
         _id: student._id,
@@ -141,16 +161,20 @@ export class GradesService {
   async bulkGradeStudents(
     teacher: UserDocument,
     gradingSheetId: string,
-    dto: BulkGradeDto
+    dto: BulkGradeDto,
   ) {
-    const gradingSheet = await this.gradingSheetModel.findById(gradingSheetId).exec();
+    const gradingSheet = await this.gradingSheetModel
+      .findById(gradingSheetId)
+      .exec();
     if (!gradingSheet) {
       throw new NotFoundException('Grading sheet not found');
     }
 
     // Validate teacher có quyền chấm không
     if (gradingSheet.createdBy.toString() !== teacher._id.toString()) {
-      throw new BadRequestException('You do not have permission to grade this sheet');
+      throw new BadRequestException(
+        'You do not have permission to grade this sheet',
+      );
     }
 
     const results: any[] = [];
@@ -159,7 +183,7 @@ export class GradesService {
       // Validate score
       if (gradeDto.score > gradingSheet.maxScore) {
         throw new BadRequestException(
-          `Score for student ${gradeDto.studentId} exceeds maxScore (${gradingSheet.maxScore})`
+          `Score for student ${gradeDto.studentId} exceeds maxScore (${gradingSheet.maxScore})`,
         );
       }
 
@@ -373,5 +397,429 @@ export class GradesService {
       maxPossiblePoints,
     };
   }
-}
 
+  /**
+   * Xếp hạng học sinh trong lớp dựa trên điểm trung bình
+   */
+  async getClassRanking(classId: string) {
+    // Lấy danh sách học sinh của lớp
+    const classDoc = await this.classModel
+      .findById(classId)
+      .populate('studentIds', 'name email studentCode avatar')
+      .exec();
+
+    if (!classDoc) {
+      throw new NotFoundException('Class not found');
+    }
+
+    const students = classDoc.studentIds as any[];
+    if (!students || students.length === 0) {
+      return [];
+    }
+
+    // Tính điểm trung bình cho mỗi học sinh
+    const studentRankings = await Promise.all(
+      students.map(async (student) => {
+        const grades = await this.gradeModel
+          .find({
+            studentId: student._id,
+            classId: new Types.ObjectId(classId),
+          })
+          .exec();
+
+        let averageScore = 0;
+        let totalGrades = 0;
+        if (grades.length > 0) {
+          const totalPoints = grades.reduce((sum, g) => sum + g.score, 0);
+          const maxPossiblePoints = grades.reduce(
+            (sum, g) => sum + g.maxScore,
+            0,
+          );
+          averageScore =
+            maxPossiblePoints > 0
+              ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
+              : 0;
+          totalGrades = grades.length;
+        }
+
+        return {
+          studentId: student._id,
+          studentName: student.name,
+          studentCode: student.studentCode,
+          avatar: student.avatar,
+          averageScore,
+          totalGrades,
+        };
+      }),
+    );
+
+    // Sắp xếp theo điểm trung bình giảm dần
+    studentRankings.sort((a, b) => b.averageScore - a.averageScore);
+
+    // Thêm thứ hạng
+    return studentRankings.map((student, index) => ({
+      ...student,
+      rank: index + 1,
+    }));
+  }
+
+  /**
+   * Lấy thứ hạng của một học sinh trong lớp
+   */
+  async getStudentRankInClass(studentId: string, classId: string) {
+    const rankings = await this.getClassRanking(classId);
+    const studentRank = rankings.find(
+      (r) => r.studentId.toString() === studentId,
+    );
+
+    if (!studentRank) {
+      return {
+        rank: null,
+        totalStudents: rankings.length,
+        averageScore: 0,
+        totalGrades: 0,
+      };
+    }
+
+    return {
+      rank: studentRank.rank,
+      totalStudents: rankings.length,
+      averageScore: studentRank.averageScore,
+      totalGrades: studentRank.totalGrades,
+    };
+  }
+
+  // ==================== LEADERBOARD METHODS ====================
+
+  /**
+   * Lấy bảng xếp hạng tổng hợp (Top điểm + Chuyên cần)
+   * - Top điểm: Tính trung bình điểm từ các bài kiểm tra giáo viên tạo và chấm
+   * - Chuyên cần: Tính tỉ lệ có mặt từ lúc tạo tài khoản đến hiện tại
+   */
+  async getLeaderboard(query: LeaderboardQueryDto): Promise<LeaderboardResponse> {
+    const limit = query.limit || 10;
+    
+    // Lấy danh sách học sinh (có thể filter theo branch/class)
+    const studentFilter: any = { role: 'student', status: 'active' };
+    
+    if (query.branchId) {
+      studentFilter.branchId = query.branchId;
+    }
+    
+    let studentIds: Types.ObjectId[] | null = null;
+    
+    if (query.classId) {
+      // Nếu filter theo class, lấy học sinh của class đó
+      const classDoc = await this.classModel.findById(query.classId).exec();
+      if (classDoc && classDoc.studentIds) {
+        studentIds = classDoc.studentIds.map(id => new Types.ObjectId(id.toString()));
+      }
+    }
+    
+    // Query students
+    const students = studentIds 
+      ? await this.userModel.find({ 
+          _id: { $in: studentIds },
+          status: 'active'
+        }).exec()
+      : await this.userModel.find(studentFilter).exec();
+    
+    if (students.length === 0) {
+      return {
+        score: [],
+        attendance: [],
+        summary: {
+          totalStudents: 0,
+          averageScore: 0,
+          averageAttendanceRate: 0,
+        },
+      };
+    }
+
+    // ===== TOP ĐIỂM =====
+    const scoreRankings: ScoreLeaderboardItem[] = [];
+    let totalAvgScore = 0;
+    let studentsWithGrades = 0;
+
+    for (const student of students) {
+      const grades = await this.gradeModel.find({ 
+        studentId: student._id 
+      }).populate('classId', 'name').exec();
+      
+      if (grades.length > 0) {
+        const totalPoints = grades.reduce((sum, g) => sum + g.score, 0);
+        const maxPossiblePoints = grades.reduce((sum, g) => sum + g.maxScore, 0);
+        const averageScore = maxPossiblePoints > 0 
+          ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
+          : 0;
+        
+        // Lấy tên lớp đầu tiên (hoặc có thể lấy nhiều lớp)
+        const classNames = [...new Set(grades.map(g => (g.classId as any)?.name).filter(Boolean))];
+        
+        scoreRankings.push({
+          rank: 0, // sẽ được assign sau khi sort
+          studentId: student._id.toString(),
+          studentName: student.name,
+          studentCode: student.studentCode,
+          avatarUrl: student.avatarUrl,
+          averageScore,
+          totalGrades: grades.length,
+          className: classNames.join(', ') || undefined,
+        });
+        
+        totalAvgScore += averageScore;
+        studentsWithGrades++;
+      }
+    }
+    
+    // Sort và assign rank cho score
+    scoreRankings.sort((a, b) => b.averageScore - a.averageScore);
+    scoreRankings.forEach((item, index) => {
+      item.rank = index + 1;
+    });
+
+    // ===== CHUYÊN CẦN =====
+    const attendanceRankings: AttendanceLeaderboardItem[] = [];
+    let totalAttendanceRate = 0;
+    let studentsWithAttendance = 0;
+
+    for (const student of students) {
+      const attendanceRecords = await this.attendanceModel.find({
+        studentId: student._id,
+      }).exec();
+      
+      const presentCount = attendanceRecords.filter(r => r.status === 'present').length;
+      const totalSessions = attendanceRecords.length;
+      const attendanceRate = totalSessions > 0 
+        ? Math.round((presentCount / totalSessions) * 100)
+        : 0;
+      
+      // Tính số ngày từ lúc tạo tài khoản đến hiện tại
+      const createdAt = (student as any).createdAt || new Date();
+      const now = new Date();
+      const daysEnrolled = Math.floor((now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      
+      attendanceRankings.push({
+        rank: 0,
+        studentId: student._id.toString(),
+        studentName: student.name,
+        studentCode: student.studentCode,
+        avatarUrl: student.avatarUrl,
+        attendanceRate,
+        presentCount,
+        totalSessions,
+        daysEnrolled: Math.max(daysEnrolled, 0),
+      });
+      
+      if (totalSessions > 0) {
+        totalAttendanceRate += attendanceRate;
+        studentsWithAttendance++;
+      }
+    }
+    
+    // Sort và assign rank cho attendance (theo rate, rồi theo số ngày enrolled)
+    attendanceRankings.sort((a, b) => {
+      if (b.attendanceRate !== a.attendanceRate) {
+        return b.attendanceRate - a.attendanceRate;
+      }
+      return b.daysEnrolled - a.daysEnrolled;
+    });
+    attendanceRankings.forEach((item, index) => {
+      item.rank = index + 1;
+    });
+
+    return {
+      score: scoreRankings.slice(0, limit),
+      attendance: attendanceRankings.slice(0, limit),
+      summary: {
+        totalStudents: students.length,
+        averageScore: studentsWithGrades > 0 
+          ? parseFloat((totalAvgScore / studentsWithGrades).toFixed(2))
+          : 0,
+        averageAttendanceRate: studentsWithAttendance > 0 
+          ? Math.round(totalAttendanceRate / studentsWithAttendance)
+          : 0,
+      },
+    };
+  }
+
+  /**
+   * Lấy bảng xếp hạng cho lớp của giáo viên
+   */
+  async getTeacherLeaderboard(teacherId: string, query: LeaderboardQueryDto): Promise<LeaderboardResponse> {
+    // Lấy danh sách lớp mà giáo viên đang dạy
+    const classes = await this.classModel.find({
+      teacherId: new Types.ObjectId(teacherId),
+    }).exec();
+    
+    if (classes.length === 0) {
+      return {
+        score: [],
+        attendance: [],
+        summary: {
+          totalStudents: 0,
+          averageScore: 0,
+          averageAttendanceRate: 0,
+        },
+      };
+    }
+    
+    // Lấy tất cả học sinh từ các lớp
+    const allStudentIds: Types.ObjectId[] = [];
+    for (const cls of classes) {
+      if (cls.studentIds) {
+        allStudentIds.push(...cls.studentIds.map(id => new Types.ObjectId(id.toString())));
+      }
+    }
+    
+    // Remove duplicates
+    const uniqueStudentIds = [...new Set(allStudentIds.map(id => id.toString()))].map(id => new Types.ObjectId(id));
+    
+    // Nếu có filter theo classId, chỉ lấy học sinh của class đó
+    let finalStudentIds = uniqueStudentIds;
+    if (query.classId) {
+      const targetClass = classes.find(c => c._id.toString() === query.classId);
+      if (targetClass && targetClass.studentIds) {
+        finalStudentIds = targetClass.studentIds.map(id => new Types.ObjectId(id.toString()));
+      }
+    }
+    
+    const students = await this.userModel.find({
+      _id: { $in: finalStudentIds },
+      status: 'active',
+    }).exec();
+    
+    const limit = query.limit || 10;
+    
+    // ===== TOP ĐIỂM (chỉ tính điểm từ các lớp của giáo viên) =====
+    const classIds = query.classId 
+      ? [new Types.ObjectId(query.classId)]
+      : classes.map(c => c._id);
+    
+    const scoreRankings: ScoreLeaderboardItem[] = [];
+    let totalAvgScore = 0;
+    let studentsWithGrades = 0;
+
+    for (const student of students) {
+      const grades = await this.gradeModel.find({ 
+        studentId: student._id,
+        classId: { $in: classIds },
+      }).populate('classId', 'name').exec();
+      
+      if (grades.length > 0) {
+        const totalPoints = grades.reduce((sum, g) => sum + g.score, 0);
+        const maxPossiblePoints = grades.reduce((sum, g) => sum + g.maxScore, 0);
+        const averageScore = maxPossiblePoints > 0 
+          ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
+          : 0;
+        
+        const classNames = [...new Set(grades.map(g => (g.classId as any)?.name).filter(Boolean))];
+        
+        scoreRankings.push({
+          rank: 0,
+          studentId: student._id.toString(),
+          studentName: student.name,
+          studentCode: student.studentCode,
+          avatarUrl: student.avatarUrl,
+          averageScore,
+          totalGrades: grades.length,
+          className: classNames.join(', ') || undefined,
+        });
+        
+        totalAvgScore += averageScore;
+        studentsWithGrades++;
+      }
+    }
+    
+    scoreRankings.sort((a, b) => b.averageScore - a.averageScore);
+    scoreRankings.forEach((item, index) => {
+      item.rank = index + 1;
+    });
+
+    // ===== CHUYÊN CẦN =====
+    const attendanceRankings: AttendanceLeaderboardItem[] = [];
+    let totalAttendanceRate = 0;
+    let studentsWithAttendance = 0;
+
+    for (const student of students) {
+      const attendanceRecords = await this.attendanceModel.find({
+        studentId: student._id,
+      }).exec();
+      
+      const presentCount = attendanceRecords.filter(r => r.status === 'present').length;
+      const totalSessions = attendanceRecords.length;
+      const attendanceRate = totalSessions > 0 
+        ? Math.round((presentCount / totalSessions) * 100)
+        : 0;
+      
+      const createdAt = (student as any).createdAt || new Date();
+      const now = new Date();
+      const daysEnrolled = Math.floor((now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      
+      attendanceRankings.push({
+        rank: 0,
+        studentId: student._id.toString(),
+        studentName: student.name,
+        studentCode: student.studentCode,
+        avatarUrl: student.avatarUrl,
+        attendanceRate,
+        presentCount,
+        totalSessions,
+        daysEnrolled: Math.max(daysEnrolled, 0),
+      });
+      
+      if (totalSessions > 0) {
+        totalAttendanceRate += attendanceRate;
+        studentsWithAttendance++;
+      }
+    }
+    
+    attendanceRankings.sort((a, b) => {
+      if (b.attendanceRate !== a.attendanceRate) {
+        return b.attendanceRate - a.attendanceRate;
+      }
+      return b.daysEnrolled - a.daysEnrolled;
+    });
+    attendanceRankings.forEach((item, index) => {
+      item.rank = index + 1;
+    });
+
+    return {
+      score: scoreRankings.slice(0, limit),
+      attendance: attendanceRankings.slice(0, limit),
+      summary: {
+        totalStudents: students.length,
+        averageScore: studentsWithGrades > 0 
+          ? parseFloat((totalAvgScore / studentsWithGrades).toFixed(2))
+          : 0,
+        averageAttendanceRate: studentsWithAttendance > 0 
+          ? Math.round(totalAttendanceRate / studentsWithAttendance)
+          : 0,
+      },
+    };
+  }
+
+  /**
+   * Lấy thứ hạng của học sinh hiện tại trong cơ sở của họ
+   */
+  async getStudentOverallRank(studentId: string, branchId?: string): Promise<{
+    scoreRank: number | null;
+    attendanceRank: number | null;
+    totalStudents: number;
+  }> {
+    const query: LeaderboardQueryDto = { limit: 9999 };
+    if (branchId) {
+      query.branchId = branchId;
+    }
+    const leaderboard = await this.getLeaderboard(query);
+    
+    const scoreItem = leaderboard.score.find(item => item.studentId === studentId);
+    const attendanceItem = leaderboard.attendance.find(item => item.studentId === studentId);
+    
+    return {
+      scoreRank: scoreItem?.rank || null,
+      attendanceRank: attendanceItem?.rank || null,
+      totalStudents: leaderboard.summary.totalStudents,
+    };
+  }
+}

@@ -35,7 +35,7 @@ export default function TabsLayout() {
       case "parent":
         return "#F59E0B";
       case "admin":
-        return "#8B5CF6";
+        return "#10B981";
       default:
         return "#3B82F6";
     }
@@ -43,8 +43,8 @@ export default function TabsLayout() {
 
   // Check if tab should be visible based on role
   const shouldShowPayments = role === "parent"; // Hidden for student
-  const shouldShowIncidents = role === "teacher"; // Only for teacher, removed for parent
-  const shouldShowContact = role === "student"; // New for student
+  const shouldShowChat = role === "teacher" || role === "student" || role === "parent"; // Chat for teacher, student, parent
+  const shouldShowContact = false; // Replaced by chat in incidents tab
   const shouldShowSchedule =
     role === "student" ||
     role === "teacher" ||
@@ -103,9 +103,6 @@ export default function TabsLayout() {
           fontSize: 18,
         },
         headerTitleAlign: "center",
-        sceneContainerStyle: {
-          backgroundColor: isDark ? "#0B1220" : "#FFFFFF",
-        },
       }}
     >
       {/* Home - visible for all */}
@@ -168,13 +165,16 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Materials - visible for teacher and student */}
+      {/* Materials - visible for student only */}
       <Tabs.Screen
         name="materials"
         options={{
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
-          href: (role === "teacher" || role === "student") ? "/(tabs)/materials" : null,
+          href:
+            role === "student"
+              ? "/(tabs)/materials"
+              : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -206,6 +206,25 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* Evaluations - hidden from tab bar, accessible via quick action */}
+      <Tabs.Screen
+        name="evaluations"
+        options={{
+          title: "Đánh giá",
+          headerTitle: role === "teacher" ? "Đánh giá của tôi" : "Đánh giá GV",
+          href: null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "star" : "star-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
       {/* Payments - visible for parent only (removed for student) */}
       <Tabs.Screen
         name="payments"
@@ -225,25 +244,17 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Incidents/Contact - visible for parent, teacher (removed for student) */}
+      {/* Chat - visible for teacher, student, parent */}
       <Tabs.Screen
         name="incidents"
         options={{
-          title: role === "teacher" ? "Liên hệ" : "Sự cố",
-          headerTitle: role === "teacher" ? "Liên hệ hỗ trợ" : "Báo cáo sự cố",
-          href: shouldShowIncidents ? "/(tabs)/incidents" : null,
+          title: "Chat",
+          headerTitle: "Tin nhắn",
+          href: shouldShowChat ? "/(tabs)/incidents" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
-                name={
-                  role === "teacher"
-                    ? focused
-                      ? "chatbubbles"
-                      : "chatbubbles-outline"
-                    : focused
-                      ? "warning"
-                      : "warning-outline"
-                }
+                name={focused ? "chatbubbles" : "chatbubbles-outline"}
                 size={24}
                 color={color}
               />

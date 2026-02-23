@@ -267,21 +267,6 @@ export default function AdminPaymentsScreen() {
       {/* Summary Cards */}
       <View style={styles.summaryContainer}>
         <View style={styles.summaryRow}>
-          <View style={[styles.summaryCard, styles.summaryCardLarge]}>
-            <LinearGradient
-              colors={["#22C55E", "#16A34A"]}
-              style={styles.summaryGradient}
-            >
-              <Ionicons name="wallet" size={28} color="#FFFFFF" />
-              <Text style={styles.summaryValue}>
-                {formatCompactCurrency(summary.totalRevenue)}
-              </Text>
-              <Text style={styles.summaryLabel}>Tổng doanh thu</Text>
-            </LinearGradient>
-          </View>
-        </View>
-
-        <View style={styles.summaryRow}>
           <View style={styles.summaryCardSmall}>
             <Text style={[styles.summaryValueSmall, { color: "#F59E0B" }]}>
               {summary.totalPending}
@@ -540,8 +525,8 @@ const styles = StyleSheet.create({
   },
   // Header
   header: {
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -555,7 +540,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -572,12 +557,12 @@ const styles = StyleSheet.create({
   // Summary
   summaryContainer: {
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 12,
   },
   summaryRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 10,
   },
   summaryCard: {
     flex: 1,
@@ -607,7 +592,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 14,
+    padding: 10,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -616,13 +601,13 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   summaryValueSmall: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
   },
   summaryLabelSmall: {
     fontSize: 11,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
   },
   // Tabs

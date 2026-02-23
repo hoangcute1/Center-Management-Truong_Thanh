@@ -53,6 +53,11 @@ export class AttendanceController {
     return [];
   }
 
+  @Get('session/:sessionId')
+  getBySession(@Param('sessionId') sessionId: string) {
+    return this.attendanceService.listBySession(sessionId);
+  }
+
   @Get('by-class-date')
   @Roles(UserRole.Admin, UserRole.Teacher)
   getByClassAndDate(

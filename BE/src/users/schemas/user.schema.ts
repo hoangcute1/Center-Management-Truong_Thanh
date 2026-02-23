@@ -81,6 +81,10 @@ export class User {
   @Prop()
   childEmail?: string;
 
+  // Danh sách ID các học sinh con (dành cho phụ huynh)
+  @Prop({ type: [String], default: [] })
+  childrenIds?: string[];
+
   // Ngày hết hạn tài khoản (5 năm sau ngày tạo)
   @Prop()
   expiresAt?: Date;

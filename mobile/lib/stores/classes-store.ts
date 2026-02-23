@@ -31,6 +31,7 @@ export interface Class {
   teacher?: {
     _id: string;
     fullName: string;
+    name?: string;
     email: string;
   };
   branch?: {

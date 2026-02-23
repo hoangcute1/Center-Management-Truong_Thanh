@@ -7,6 +7,8 @@ import { GradingSheet, GradingSheetSchema } from './schemas/grading-sheet.schema
 import { Submission, SubmissionSchema } from '../submissions/schemas/submission.schema';
 import { Assignment, AssignmentSchema } from '../assignments/schemas/assignment.schema';
 import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { Attendance, AttendanceSchema } from '../attendance/schemas/attendance.schema';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
       { name: Submission.name, schema: SubmissionSchema },
       { name: Assignment.name, schema: AssignmentSchema },
       { name: ClassEntity.name, schema: ClassSchema },
+      { name: User.name, schema: UserSchema },
+      { name: Attendance.name, schema: AttendanceSchema },
     ]),
   ],
   controllers: [GradesController],
@@ -23,4 +27,3 @@ import { ClassEntity, ClassSchema } from '../classes/schemas/class.schema';
   exports: [GradesService],
 })
 export class GradesModule { }
-

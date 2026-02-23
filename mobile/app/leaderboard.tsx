@@ -4,171 +4,239 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useState, useEffect, useCallback } from "react";
+import { useAuthStore, useLeaderboardStore } from "@/lib/stores";
 
 const leaderboardTypes = [
-  { id: "score", label: "Học tập" },
-  { id: "attendance", label: "Chuyên cần" },
-  { id: "activity", label: "Chăm chỉ" },
+  { id: "score", label: "Top điểm", icon: "📊" },
+  { id: "attendance", label: "Chuyên cần", icon: "📅" },
 ];
 
-// Mock data extension
-const mockData = {
-  score: [
-    {
-      rank: 1,
-      name: "Nguyen Van A",
-      score: 9.8,
-      avatar: "A",
-      detail: "9.8 điểm",
-    },
-    {
-      rank: 2,
-      name: "Tran Thi B",
-      score: 9.6,
-      avatar: "B",
-      detail: "9.6 điểm",
-    },
-    { rank: 3, name: "Le Van C", score: 9.5, avatar: "C", detail: "9.5 điểm" },
-    {
-      rank: 4,
-      name: "Pham Van D",
-      score: 9.2,
-      avatar: "D",
-      detail: "9.2 điểm",
-    },
-    {
-      rank: 5,
-      name: "Hoang Thi E",
-      score: 9.0,
-      avatar: "E",
-      detail: "9.0 điểm",
-    },
-    { rank: 6, name: "Vu Van F", score: 8.9, avatar: "F", detail: "8.9 điểm" },
-    {
-      rank: 7,
-      name: "Dang Tuan G",
-      score: 8.8,
-      avatar: "G",
-      detail: "8.8 điểm",
-    },
-  ],
-  attendance: [
-    {
-      rank: 1,
-      name: "Hoang Thi E",
-      score: 100,
-      avatar: "E",
-      detail: "100% có mặt",
-    },
-    {
-      rank: 2,
-      name: "Nguyen Van A",
-      score: 98,
-      avatar: "A",
-      detail: "98% có mặt",
-    },
-    {
-      rank: 3,
-      name: "Tran Thi B",
-      score: 95,
-      avatar: "B",
-      detail: "95% có mặt",
-    },
-    { rank: 4, name: "Le Van C", score: 92, avatar: "C", detail: "92% có mặt" },
-    {
-      rank: 5,
-      name: "Pham Van D",
-      score: 90,
-      avatar: "D",
-      detail: "90% có mặt",
-    },
-    { rank: 6, name: "Vu Van F", score: 88, avatar: "F", detail: "88% có mặt" },
-    {
-      rank: 7,
-      name: "Dang Tuan G",
-      score: 85,
-      avatar: "G",
-      detail: "85% có mặt",
-    },
-  ],
-  activity: [
-    {
-      rank: 1,
-      name: "Le Van C",
-      score: 45,
-      avatar: "C",
-      detail: "45 hoạt động",
-    },
-    {
-      rank: 2,
-      name: "Pham Van D",
-      score: 42,
-      avatar: "D",
-      detail: "42 hoạt động",
-    },
-    {
-      rank: 3,
-      name: "Hoang Thi E",
-      score: 40,
-      avatar: "E",
-      detail: "40 hoạt động",
-    },
-    {
-      rank: 4,
-      name: "Nguyen Van A",
-      score: 38,
-      avatar: "A",
-      detail: "38 hoạt động",
-    },
-    {
-      rank: 5,
-      name: "Tran Thi B",
-      score: 35,
-      avatar: "B",
-      detail: "35 hoạt động",
-    },
-    {
-      rank: 6,
-      name: "Vu Van F",
-      score: 30,
-      avatar: "F",
-      detail: "30 hoạt động",
-    },
-    {
-      rank: 7,
-      name: "Dang Tuan G",
-      score: 28,
-      avatar: "G",
-      detail: "28 hoạt động",
-    },
-  ],
-};
-
-import { useState } from "react";
-// Import auth store to identify current user
-import { useAuthStore } from "@/lib/stores";
+type LeaderboardType = "score" | "attendance";
 
 export default function LeaderboardScreen() {
-  const [activeTab, setActiveTab] = useState<
-    "score" | "attendance" | "activity"
-  >("score");
+  const [activeTab, setActiveTab] = useState<LeaderboardType>("score");
+  const [refreshing, setRefreshing] = useState(false);
+
   const { user } = useAuthStore();
+  const { leaderboard, myRank, loading, fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank } =
+    useLeaderboardStore();
 
-  const currentData = mockData[activeTab];
+  // Fetch leaderboard data on mount
+  useEffect(() => {
+    if (user?.role === "teacher") {
+      fetchTeacherLeaderboard({ limit: 20 });
+    } else {
+      // Student/parent: filter by their branch
+      const params: { branchId?: string; limit: number } = { limit: 20 };
+      if (user?.branchId) {
+        params.branchId = user.branchId;
+      }
+      fetchLeaderboard(params);
+    }
+    if (user?.role === "student") {
+      fetchMyRank();
+    }
+  }, []);
 
-  // Find current user rank (mocking by name match or random if not found)
-  const myRank = currentData.find((item) => item.name === user?.name) || {
-    rank: 12,
-    name: user?.name || "Tôi",
-    score: 0,
-    avatar: "Me",
-    detail: "---",
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (user?.role === "teacher") {
+      await fetchTeacherLeaderboard({ limit: 20 });
+    } else {
+      const params: { branchId?: string; limit: number } = { limit: 20 };
+      if (user?.branchId) {
+        params.branchId = user.branchId;
+      }
+      await fetchLeaderboard(params);
+    }
+    if (user?.role === "student") {
+      await fetchMyRank();
+    }
+    setRefreshing(false);
+  }, [fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank, user?.role, user?.branchId]);
+
+  // Get current leaderboard data based on active tab
+  const currentScoreData = leaderboard?.score || [];
+  const currentAttendanceData = leaderboard?.attendance || [];
+
+  // Find current user's rank
+  const getMyRankForTab = () => {
+    if (!myRank) return null;
+    if (activeTab === "score") {
+      return myRank.scoreRank;
+    }
+    return myRank.attendanceRank;
+  };
+
+  const myCurrentRank = getMyRankForTab();
+
+  // Render loading state
+  if (loading && !leaderboard) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Bảng xếp hạng</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Đang tải bảng xếp hạng...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Render score item for podium
+  const renderScorePodiumItem = (
+    item: (typeof currentScoreData)[0],
+    position: 1 | 2 | 3
+  ) => {
+    const isFirst = position === 1;
+    const avatarSize = isFirst ? 80 : 64;
+    const borderColor =
+      position === 1 ? "#F59E0B" : position === 2 ? "#E5E7EB" : "#FEE2E2";
+    const badgeColor =
+      position === 1 ? "#F59E0B" : position === 2 ? "#E5E7EB" : "#FCA5A5";
+
+    return (
+      <View
+        style={[
+          styles.podiumItem,
+          !isFirst && { marginTop: 40 },
+          isFirst && { zIndex: 10 },
+        ]}
+      >
+        <View style={styles.podiumAvatarContainer}>
+          <View
+            style={[
+              styles.podiumAvatar,
+              { borderColor, width: avatarSize, height: avatarSize },
+            ]}
+          >
+            <Text style={[styles.avatarText, isFirst && { fontSize: 24 }]}>
+              {item.studentName?.charAt(0) || "?"}
+            </Text>
+          </View>
+          <View style={[styles.rankBadge, { backgroundColor: badgeColor }]}>
+            {isFirst ? (
+              <Ionicons name="trophy" size={14} color="#FFFFFF" />
+            ) : (
+              <Text
+                style={[
+                  styles.rankText,
+                  position === 3 && { color: "#7F1D1D" },
+                ]}
+              >
+                {position}
+              </Text>
+            )}
+          </View>
+        </View>
+        <Text
+          style={[
+            styles.podiumName,
+            isFirst && { fontWeight: "bold", fontSize: 16 },
+          ]}
+          numberOfLines={1}
+        >
+          {item.studentName}
+        </Text>
+        <Text
+          style={[
+            styles.podiumScore,
+            isFirst && { fontSize: 18, color: "#D97706" },
+          ]}
+        >
+          {item.averageScore?.toFixed(1)} điểm
+        </Text>
+        <Text style={styles.podiumDetail}>{item.totalGrades} bài KT</Text>
+      </View>
+    );
+  };
+
+  // Render attendance item for podium
+  const renderAttendancePodiumItem = (
+    item: (typeof currentAttendanceData)[0],
+    position: 1 | 2 | 3
+  ) => {
+    const isFirst = position === 1;
+    const avatarSize = isFirst ? 80 : 64;
+    const borderColor =
+      position === 1 ? "#10B981" : position === 2 ? "#E5E7EB" : "#FEE2E2";
+    const badgeColor =
+      position === 1 ? "#10B981" : position === 2 ? "#E5E7EB" : "#FCA5A5";
+
+    return (
+      <View
+        style={[
+          styles.podiumItem,
+          !isFirst && { marginTop: 40 },
+          isFirst && { zIndex: 10 },
+        ]}
+      >
+        <View style={styles.podiumAvatarContainer}>
+          <View
+            style={[
+              styles.podiumAvatar,
+              { borderColor, width: avatarSize, height: avatarSize },
+            ]}
+          >
+            <Text style={[styles.avatarText, isFirst && { fontSize: 24 }]}>
+              {item.studentName?.charAt(0) || "?"}
+            </Text>
+          </View>
+          <View style={[styles.rankBadge, { backgroundColor: badgeColor }]}>
+            {isFirst ? (
+              <Ionicons name="trophy" size={14} color="#FFFFFF" />
+            ) : (
+              <Text
+                style={[
+                  styles.rankText,
+                  position === 3 && { color: "#7F1D1D" },
+                ]}
+              >
+                {position}
+              </Text>
+            )}
+          </View>
+        </View>
+        <Text
+          style={[
+            styles.podiumName,
+            isFirst && { fontWeight: "bold", fontSize: 16 },
+          ]}
+          numberOfLines={1}
+        >
+          {item.studentName}
+        </Text>
+        <Text
+          style={[
+            styles.podiumScore,
+            { color: "#10B981" },
+            isFirst && { fontSize: 18 },
+          ]}
+        >
+          {item.attendanceRate?.toFixed(1)}%
+        </Text>
+        <Text style={styles.podiumDetail}>
+          {item.presentCount}/{item.totalSessions} buổi
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -180,7 +248,7 @@ export default function LeaderboardScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bảng xếp hạng</Text>
+        <Text style={styles.headerTitle}>🏆 Bảng xếp hạng</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -193,7 +261,7 @@ export default function LeaderboardScreen() {
               styles.tabButton,
               activeTab === tab.id && styles.tabButtonActive,
             ]}
-            onPress={() => setActiveTab(tab.id as any)}
+            onPress={() => setActiveTab(tab.id as LeaderboardType)}
           >
             <Text
               style={[
@@ -201,7 +269,7 @@ export default function LeaderboardScreen() {
                 activeTab === tab.id && styles.tabTextActive,
               ]}
             >
-              {tab.label}
+              {tab.icon} {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -211,103 +279,170 @@ export default function LeaderboardScreen() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#3B82F6"]}
+          />
+        }
       >
-        {/* Top 3 Podium */}
-        <View style={styles.podiumContainer}>
-          {/* Rank 2 */}
-          <View style={[styles.podiumItem, { marginTop: 40 }]}>
-            <View style={styles.podiumAvatarContainer}>
-              <View style={[styles.podiumAvatar, { borderColor: "#E5E7EB" }]}>
-                <Text style={styles.avatarText}>{currentData[1].avatar}</Text>
-              </View>
-              <View style={[styles.rankBadge, { backgroundColor: "#E5E7EB" }]}>
-                <Text style={styles.rankText}>2</Text>
-              </View>
+        {/* Summary Stats Banner */}
+        {leaderboard?.summary && (
+          <View style={styles.summaryBanner}>
+            <View style={styles.summaryItem}>
+              <Ionicons name="people" size={20} color="#3B82F6" />
+              <Text style={styles.summaryValue}>
+                {leaderboard.summary.totalStudents}
+              </Text>
+              <Text style={styles.summaryLabel}>Học sinh</Text>
             </View>
-            <Text style={styles.podiumName} numberOfLines={1}>
-              {currentData[1].name}
-            </Text>
-            <Text style={styles.podiumScore}>{currentData[1].detail}</Text>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="school" size={20} color="#F59E0B" />
+              <Text style={styles.summaryValue}>
+                {leaderboard.summary.averageScore?.toFixed(1) || "0"}
+              </Text>
+              <Text style={styles.summaryLabel}>TB điểm</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="calendar" size={20} color="#10B981" />
+              <Text style={styles.summaryValue}>
+                {leaderboard.summary.averageAttendanceRate?.toFixed(0) || "0"}%
+              </Text>
+              <Text style={styles.summaryLabel}>Chuyên cần</Text>
+            </View>
           </View>
+        )}
 
-          {/* Rank 1 */}
-          <View style={[styles.podiumItem, { zIndex: 10 }]}>
-            <View style={styles.podiumAvatarContainer}>
-              <View
-                style={[
-                  styles.podiumAvatar,
-                  { borderColor: "#F59E0B", width: 80, height: 80 },
-                ]}
-              >
-                <Text style={[styles.avatarText, { fontSize: 24 }]}>
-                  {currentData[0].avatar}
+        {activeTab === "score" ? (
+          // SCORE LEADERBOARD
+          <>
+            {currentScoreData.length >= 3 ? (
+              <View style={styles.podiumContainer}>
+                {/* Rank 2 */}
+                {renderScorePodiumItem(currentScoreData[1], 2)}
+                {/* Rank 1 */}
+                {renderScorePodiumItem(currentScoreData[0], 1)}
+                {/* Rank 3 */}
+                {renderScorePodiumItem(currentScoreData[2], 3)}
+              </View>
+            ) : currentScoreData.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="trophy-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyText}>Chưa có dữ liệu xếp hạng</Text>
+              </View>
+            ) : null}
+
+            {/* List remaining */}
+            <View style={styles.listContainer}>
+              {currentScoreData.slice(3).map((item) => (
+                <View
+                  key={item.studentId}
+                  style={[
+                    styles.listItem,
+                    user?._id === item.studentId && styles.listItemHighlight,
+                  ]}
+                >
+                  <Text style={styles.listRank}>{item.rank}</Text>
+                  <View style={styles.listAvatar}>
+                    <Text style={styles.listAvatarText}>
+                      {item.studentName?.charAt(0) || "?"}
+                    </Text>
+                  </View>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName}>{item.studentName}</Text>
+                    <Text style={styles.listSubtext}>
+                      {item.totalGrades} bài kiểm tra
+                    </Text>
+                  </View>
+                  <View style={styles.listScoreContainer}>
+                    <Text style={styles.listScore}>
+                      {item.averageScore?.toFixed(1)}
+                    </Text>
+                    <Text style={styles.listScoreLabel}>điểm</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : (
+          // ATTENDANCE LEADERBOARD
+          <>
+            {currentAttendanceData.length >= 3 ? (
+              <View style={styles.podiumContainer}>
+                {/* Rank 2 */}
+                {renderAttendancePodiumItem(currentAttendanceData[1], 2)}
+                {/* Rank 1 */}
+                {renderAttendancePodiumItem(currentAttendanceData[0], 1)}
+                {/* Rank 3 */}
+                {renderAttendancePodiumItem(currentAttendanceData[2], 3)}
+              </View>
+            ) : currentAttendanceData.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyText}>
+                  Chưa có dữ liệu chuyên cần
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.rankBadge,
-                  { backgroundColor: "#F59E0B", bottom: -12 },
-                ]}
-              >
-                <Ionicons name="trophy" size={14} color="#FFFFFF" />
-              </View>
-            </View>
-            <Text
-              style={[styles.podiumName, { fontWeight: "bold", fontSize: 16 }]}
-              numberOfLines={1}
-            >
-              {currentData[0].name}
-            </Text>
-            <Text
-              style={[styles.podiumScore, { fontSize: 18, color: "#D97706" }]}
-            >
-              {currentData[0].detail}
-            </Text>
-          </View>
+            ) : null}
 
-          {/* Rank 3 */}
-          <View style={[styles.podiumItem, { marginTop: 40 }]}>
-            <View style={styles.podiumAvatarContainer}>
-              <View style={[styles.podiumAvatar, { borderColor: "#FEE2E2" }]}>
-                <Text style={styles.avatarText}>{currentData[2].avatar}</Text>
-              </View>
-              <View style={[styles.rankBadge, { backgroundColor: "#FCA5A5" }]}>
-                <Text style={[styles.rankText, { color: "#7F1D1D" }]}>3</Text>
-              </View>
+            {/* List remaining */}
+            <View style={styles.listContainer}>
+              {currentAttendanceData.slice(3).map((item) => (
+                <View
+                  key={item.studentId}
+                  style={[
+                    styles.listItem,
+                    user?._id === item.studentId && styles.listItemHighlight,
+                  ]}
+                >
+                  <Text style={styles.listRank}>{item.rank}</Text>
+                  <View style={[styles.listAvatar, { backgroundColor: "#D1FAE5" }]}>
+                    <Text style={[styles.listAvatarText, { color: "#10B981" }]}>
+                      {item.studentName?.charAt(0) || "?"}
+                    </Text>
+                  </View>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName}>{item.studentName}</Text>
+                    <Text style={styles.listSubtext}>
+                      {item.presentCount}/{item.totalSessions} buổi
+                    </Text>
+                  </View>
+                  <View style={styles.listScoreContainer}>
+                    <Text style={[styles.listScore, { color: "#10B981" }]}>
+                      {item.attendanceRate?.toFixed(1)}%
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </View>
-            <Text style={styles.podiumName} numberOfLines={1}>
-              {currentData[2].name}
-            </Text>
-            <Text style={styles.podiumScore}>{currentData[2].detail}</Text>
-          </View>
-        </View>
-
-        <View style={styles.listContainer}>
-          {currentData.slice(3).map((item, index) => (
-            <View key={index} style={styles.listItem}>
-              <Text style={styles.listRank}>{item.rank}</Text>
-              <View style={styles.listAvatar}>
-                <Text style={styles.listAvatarText}>{item.avatar}</Text>
-              </View>
-              <Text style={styles.listName}>{item.name}</Text>
-              <Text style={styles.listScore}>{item.detail}</Text>
-            </View>
-          ))}
-        </View>
+          </>
+        )}
       </ScrollView>
 
-      {/* My Rank Footer */}
-      <View style={styles.myRankFooter}>
-        <View style={styles.myRankContainer}>
-          <Text style={styles.myRankLabel}>Hạng của bạn:</Text>
-          <View style={styles.myRankInfo}>
-            <View style={styles.myRankBadge}>
-              <Text style={styles.myRankText}>{myRank.rank}</Text>
+      {/* My Rank Footer - Only show for students */}
+      {user?.role === "student" && myCurrentRank && (
+        <View style={styles.myRankFooter}>
+          <View style={styles.myRankContainer}>
+            <Text style={styles.myRankLabel}>Hạng của bạn:</Text>
+            <View style={styles.myRankInfo}>
+              <View
+                style={[
+                  styles.myRankBadge,
+                  activeTab === "attendance" && { backgroundColor: "#10B981" },
+                ]}
+              >
+                <Text style={styles.myRankText}>#{myCurrentRank}</Text>
+              </View>
+              <Text style={styles.myRankTotal}>
+                / {myRank?.totalStudents || 0} học sinh
+              </Text>
             </View>
-            <Text style={styles.myRankScore}>{myRank.detail}</Text>
           </View>
         </View>
-      </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -335,17 +470,27 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#1F2937",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#6B7280",
+  },
   tabContainer: {
     flexDirection: "row",
     padding: 4,
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginVertical: 8,
     borderRadius: 12,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: "center",
     borderRadius: 10,
   },
@@ -363,6 +508,53 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  summaryBanner: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginTop: 4,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 4,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#9CA3AF",
   },
   podiumContainer: {
     flexDirection: "row",
@@ -431,6 +623,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#3B82F6",
   },
+  podiumDetail: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
   listContainer: {
     padding: 16,
   },
@@ -447,6 +644,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  listItemHighlight: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 2,
+    borderColor: "#3B82F6",
+  },
   listRank: {
     fontSize: 16,
     fontWeight: "bold",
@@ -456,29 +658,43 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   listAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
   listAvatarText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#3B82F6",
   },
-  listName: {
+  listInfo: {
     flex: 1,
+  },
+  listName: {
     fontSize: 15,
     fontWeight: "600",
     color: "#1F2937",
   },
+  listSubtext: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  listScoreContainer: {
+    alignItems: "flex-end",
+  },
   listScore: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#1F2937",
+    color: "#3B82F6",
+  },
+  listScoreLabel: {
+    fontSize: 12,
+    color: "#9CA3AF",
   },
   myRankFooter: {
     position: "absolute",
@@ -487,7 +703,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#FFFFFF",
     padding: 16,
-    paddingBottom: 24, // Safe area
+    paddingBottom: 28,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     shadowColor: "#000",
@@ -512,19 +728,18 @@ const styles = StyleSheet.create({
   },
   myRankBadge: {
     backgroundColor: "#3B82F6",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 12,
-    marginRight: 12,
+    marginRight: 8,
   },
   myRankText: {
     color: "#FFFFFF",
     fontWeight: "bold",
-    fontSize: 14,
-  },
-  myRankScore: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#1F2937",
+  },
+  myRankTotal: {
+    fontSize: 14,
+    color: "#6B7280",
   },
 });

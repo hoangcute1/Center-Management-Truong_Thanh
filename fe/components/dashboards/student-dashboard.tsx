@@ -20,15 +20,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChatWindow from "@/components/chat-window";
 import NotificationCenter from "@/components/notification-center";
 import IncidentReportModal from "@/components/pages/incident-report-modal";
+import StudentEvaluationTab from "@/components/student-evaluation-tab";
 import { useStudentDashboardStore } from "@/lib/stores/student-dashboard-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAttendanceStore } from "@/lib/stores/attendance-store";
 import { usePaymentRequestsStore } from "@/lib/stores/payment-requests-store";
 import { useDocumentsStore, Document } from "@/lib/stores/documents-store";
+import { useLeaderboardStore } from "@/lib/stores/leaderboard-store";
 import api, { API_BASE_URL } from "@/lib/api";
 import { AlertTriangle } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import { studentGradingService, StudentGradeRecord } from "@/lib/services/student-grading.service";
+import {
+  studentGradingService,
+  StudentGradeRecord,
+  StudentRankInfo,
+} from "@/lib/services/student-grading.service";
 import { GRADE_CATEGORY_LABELS } from "@/lib/services/teacher-grading.service";
 
 // Helper functions for week navigation
@@ -178,7 +184,7 @@ type DaySchedule = {
   attendanceStatus?: "present" | "absent" | "late" | "excused" | null;
 };
 
-type RankingCategory = "score" | "diligence" | "attendance";
+type RankingCategory = "score" | "attendance";
 
 const overviewCards = [
   {
@@ -274,146 +280,16 @@ const leaderboardOptions: Record<
 > = {
   score: { label: "Top điểm", desc: "Điểm trung bình cao" },
   attendance: { label: "Chuyên cần", desc: "Đi học đầy đủ" },
-  diligence: { label: "Chăm chỉ", desc: "Hoàn thành bài tập" },
 };
 
-const leaderboardData: Record<
-  RankingCategory,
-  {
-    rank: number;
-    name: string;
-    className: string;
-    metric: string;
-    detail: string;
-  }[]
-> = {
-  score: [
-    {
-      rank: 1,
-      name: "Nguyễn Văn A",
-      className: "Lớp Toán 12A1",
-      metric: "9.8",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 2,
-      name: "Trần Thị B",
-      className: "Lớp Anh Văn 12B2",
-      metric: "9.6",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 3,
-      name: "Lê Văn C",
-      className: "Lớp Vật Lý 11C1",
-      metric: "9.5",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 4,
-      name: "Phạm Minh D",
-      className: "Lớp Hóa Học 10A2",
-      metric: "9.2",
-      detail: "Top Điểm",
-    },
-    {
-      rank: 5,
-      name: "Hoàng An E",
-      className: "Lớp Toán 11B1",
-      metric: "9.0",
-      detail: "Top Điểm",
-    },
-  ],
-  attendance: [
-    {
-      rank: 1,
-      name: "Trần Minh T",
-      className: "Đã theo học 240 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 2,
-      name: "Lê Hải Y",
-      className: "Đã theo học 210 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-    },
-    {
-      rank: 3,
-      name: "Nguyễn Công P",
-      className: "Đã theo học 180 ngày",
-      metric: "98%",
-      detail: "Nghỉ 1 buổi có phép",
-    },
-    {
-      rank: 4,
-      name: "Đặng Thu H",
-      className: "Đã theo học 150 ngày",
-      metric: "97%",
-      detail: "Nghỉ 1 buổi",
-    },
-    {
-      rank: 5,
-      name: "Vũ Gia K",
-      className: "Đã theo học 130 ngày",
-      metric: "96%",
-      detail: "Nghỉ 1 buổi",
-    },
-  ],
-  diligence: [
-    {
-      rank: 1,
-      name: "Bùi Xuân H",
-      className: "Hoàn thành 150 bài tập",
-      metric: "Level 15",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 2,
-      name: "Ngô Quốc B",
-      className: "Hoàn thành 142 bài tập",
-      metric: "Level 14",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 3,
-      name: "Lý Gia L",
-      className: "Hoàn thành 128 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 4,
-      name: "Mai Thanh V",
-      className: "Hoàn thành 125 bài tập",
-      metric: "Level 12",
-      detail: "Chăm Chỉ",
-    },
-    {
-      rank: 5,
-      name: "Đỗ Mạnh Q",
-      className: "Hoàn thành 118 bài tập",
-      metric: "Level 11",
-      detail: "Chăm Chỉ",
-    },
-  ],
+const tabIcons: Record<RankingCategory, string> = {
+  score: "🏆",
+  attendance: "👥",
 };
 
 // Không còn mock data scheduleWeek - sử dụng dữ liệu thật từ API
 
-const progressData = [
-  { week: "Tuần 1", score: 65 },
-  { week: "Tuần 2", score: 72 },
-  { week: "Tuần 3", score: 78 },
-  { week: "Tuần 4", score: 82 },
-];
-
-const grades = [
-  { subject: "Toán", score: 82, status: "Tốt", detail: "Bài tập nâng cao" },
-  { subject: "Anh văn", score: 78, status: "Tốt", detail: "Ôn ngữ pháp" },
-  { subject: "Lý", score: 75, status: "Khá", detail: "Ôn phần điện" },
-];
+// progressData sẽ được tính từ studentGrades thật
 
 const contacts = [
   {
@@ -592,7 +468,10 @@ function GradeDetailModal({
           </button>
         </div>
 
-        <p className="text-sm text-gray-700 mb-4">Điểm trung bình hệ số 10: <span className="font-bold text-blue-600">{average}</span></p>
+        <p className="text-sm text-gray-700 mb-4">
+          Điểm trung bình hệ số 10:{" "}
+          <span className="font-bold text-blue-600">{average}</span>
+        </p>
 
         <div className="space-y-3 mb-4 max-h-[60vh] overflow-y-auto">
           {grades.length > 0 ? (
@@ -602,12 +481,24 @@ function GradeDetailModal({
                 className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3"
               >
                 <div>
-                  <p className="font-medium text-gray-900">{g.gradingSheetId?.title || 'Bài kiểm tra'}</p>
-                  <p className="text-xs text-gray-600">
-                    Ngày: {new Date(g.gradedAt).toLocaleDateString('vi-VN')} •
-                    Loại: {GRADE_CATEGORY_LABELS[g.gradingSheetId?.category as keyof typeof GRADE_CATEGORY_LABELS] || g.gradingSheetId?.category || 'Khác'}
+                  <p className="font-medium text-gray-900">
+                    {g.gradingSheetId?.title || "Bài kiểm tra"}
                   </p>
-                  {g.feedback && <p className="text-xs text-blue-600 italic mt-1">" {g.feedback} "</p>}
+                  <p className="text-xs text-gray-600">
+                    Ngày: {new Date(g.gradedAt).toLocaleDateString("vi-VN")} •
+                    Loại:{" "}
+                    {GRADE_CATEGORY_LABELS[
+                      g.gradingSheetId
+                        ?.category as keyof typeof GRADE_CATEGORY_LABELS
+                    ] ||
+                      g.gradingSheetId?.category ||
+                      "Khác"}
+                  </p>
+                  {g.feedback && (
+                    <p className="text-xs text-blue-600 italic mt-1">
+                      " {g.feedback} "
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-semibold text-blue-700">
@@ -617,7 +508,9 @@ function GradeDetailModal({
               </div>
             ))
           ) : (
-            <p className="text-gray-500 text-center py-4">Chưa có dữ liệu điểm chi tiết.</p>
+            <p className="text-gray-500 text-center py-4">
+              Chưa có dữ liệu điểm chi tiết.
+            </p>
           )}
         </div>
 
@@ -631,8 +524,6 @@ function GradeDetailModal({
     </div>
   );
 }
-
-
 
 function SettingsModal({
   user,
@@ -654,7 +545,9 @@ function SettingsModal({
   onClose: () => void;
 }) {
   // State để hiển thị preview ảnh
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -665,7 +558,9 @@ function SettingsModal({
   const [formData, setFormData] = useState({
     name: user.name,
     phone: user.phone || "",
-    dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
+    dateOfBirth: user.dateOfBirth
+      ? new Date(user.dateOfBirth).toISOString().split("T")[0]
+      : "",
     gender: user.gender || "",
   });
 
@@ -687,7 +582,7 @@ function SettingsModal({
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -809,7 +704,10 @@ function SettingsModal({
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowImagePreview(false)}
           >
-            <div className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative w-[30vw] max-w-4xl aspect-square md:aspect-auto md:h-auto flex items-center justify-center animate-in zoom-in-50 duration-300 ease-out"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={avatarPreview}
                 alt="Profile Large"
@@ -819,7 +717,20 @@ function SettingsModal({
                 onClick={() => setShowImagePreview(false)}
                 className="absolute -top-4 -right-4 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
           </div>
@@ -887,7 +798,9 @@ function SettingsModal({
                       ? new Date(user.dateOfBirth).toLocaleDateString("vi-VN")
                       : "Chưa cập nhật"
                 }
-                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("dateOfBirth", e.target.value)
+                }
                 readOnly={!isEditing}
               />
             </div>
@@ -927,7 +840,9 @@ function SettingsModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Họ và tên phụ huynh</label>
+              <label className="text-gray-700 font-medium">
+                Họ và tên phụ huynh
+              </label>
               <input
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                 defaultValue={user.parentName || "Chưa có"}
@@ -935,7 +850,9 @@ function SettingsModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-gray-700 font-medium">Số điện thoại phụ huynh</label>
+              <label className="text-gray-700 font-medium">
+                Số điện thoại phụ huynh
+              </label>
               <input
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                 defaultValue={user.parentPhone || "Chưa cập nhật"}
@@ -951,7 +868,22 @@ function SettingsModal({
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
               >
                 <span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-round-pen-icon lucide-user-round-pen"><path d="M2 21a8 8 0 0 1 10.821-7.487" /><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><circle cx="10" cy="8" r="5" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-round-pen-icon lucide-user-round-pen"
+                  >
+                    <path d="M2 21a8 8 0 0 1 10.821-7.487" />
+                    <path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
+                    <circle cx="10" cy="8" r="5" />
+                  </svg>
                 </span>
                 Chỉnh Sửa
               </Button>
@@ -963,7 +895,9 @@ function SettingsModal({
                     setFormData({
                       name: user.name,
                       phone: user.phone || "",
-                      dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
+                      dateOfBirth: user.dateOfBirth
+                        ? new Date(user.dateOfBirth).toISOString().split("T")[0]
+                        : "",
                       gender: user.gender || "",
                     });
                   }}
@@ -993,7 +927,9 @@ export default function StudentDashboard({
   user,
   onLogout,
 }: StudentDashboardProps) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatarUrl || null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user.avatarUrl || null,
+  );
 
   // Sync avatarPreview when user prop or fullUserDetails changes
   useEffect(() => {
@@ -1014,9 +950,6 @@ export default function StudentDashboard({
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [studentDocuments, setStudentDocuments] = useState<Document[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
-
-
-
 
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
@@ -1072,11 +1005,26 @@ export default function StudentDashboard({
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
 
+  // Leaderboard store
+  const {
+    leaderboard,
+    myRank,
+    loading: leaderboardLoading,
+    fetchLeaderboard,
+    fetchMyRank,
+  } = useLeaderboardStore();
+
   // State to hold full user details including sensitive/personal info not in initial props
   const [fullUserDetails, setFullUserDetails] = useState<any>(null);
 
   // REAL GRADING DATA INTEGRATION (Moved here to access authUser)
   const [studentGrades, setStudentGrades] = useState<StudentGradeRecord[]>([]);
+
+  // State cho xếp hạng theo từng lớp
+  const [classRankings, setClassRankings] = useState<
+    Record<string, StudentRankInfo>
+  >({});
+
   useEffect(() => {
     const fetchGrades = async () => {
       try {
@@ -1084,6 +1032,26 @@ export default function StudentDashboard({
         if (userId) {
           const data = await studentGradingService.getMyGrades(userId);
           setStudentGrades(data);
+
+          // Lấy xếp hạng cho từng lớp học sinh đang học
+          const classIds = [
+            ...new Set(data.map((g) => g.classId?._id).filter(Boolean)),
+          ];
+          const rankings: Record<string, StudentRankInfo> = {};
+
+          for (const classId of classIds) {
+            try {
+              const rankInfo =
+                await studentGradingService.getStudentRankInClass(
+                  userId,
+                  classId as string,
+                );
+              rankings[classId as string] = rankInfo;
+            } catch (err) {
+              console.error(`Failed to fetch rank for class ${classId}`, err);
+            }
+          }
+          setClassRankings(rankings);
         }
       } catch (err) {
         console.error("Failed to fetch student grades", err);
@@ -1098,17 +1066,17 @@ export default function StudentDashboard({
 
     // Group by Class Name
     const groups: Record<string, StudentGradeRecord[]> = {};
-    studentGrades.forEach(g => {
+    studentGrades.forEach((g) => {
       const key = g.classId?.name || "Lớp học";
       if (!groups[key]) groups[key] = [];
       groups[key].push(g);
     });
 
-    return Object.keys(groups).map(subject => {
+    return Object.keys(groups).map((subject) => {
       const list = groups[subject];
       let totalScore = 0;
       let totalMax = 0;
-      list.forEach(g => {
+      list.forEach((g) => {
         totalScore += g.score;
         totalMax += g.maxScore;
       });
@@ -1119,16 +1087,155 @@ export default function StudentDashboard({
       }
 
       const scoreVal = parseFloat(avg.toFixed(1));
-      const status = scoreVal >= 8 ? "Tốt" : scoreVal >= 6.5 ? "Khá" : scoreVal >= 5 ? "Trung bình" : "Yếu";
+      const status =
+        scoreVal >= 8
+          ? "Tốt"
+          : scoreVal >= 6.5
+            ? "Khá"
+            : scoreVal >= 5
+              ? "Trung bình"
+              : "Yếu";
 
       return {
         subject,
         score: scoreVal,
         status,
-        detail: `${list.length} đầu điểm`
+        detail: `${list.length} đầu điểm`,
       };
     });
   }, [studentGrades]);
+
+  // Tính progressData từ studentGrades - biểu đồ điểm theo các bài kiểm tra, nhóm theo môn
+  const progressData = useMemo(() => {
+    if (!studentGrades.length) return [];
+
+    // Sắp xếp theo ngày chấm điểm
+    const sortedGrades = [...studentGrades].sort(
+      (a, b) => new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+    );
+
+    // Tạo data cho biểu đồ: mỗi bài kiểm tra là 1 điểm trên biểu đồ
+    return sortedGrades.map((grade, index) => {
+      const title =
+        grade.gradingSheetId?.title ||
+        grade.assignmentId?.title ||
+        `Bài ${index + 1}`;
+      const className = grade.classId?.name || "";
+      const scorePercent =
+        grade.maxScore > 0 ? (grade.score / grade.maxScore) * 10 : 0;
+
+      return {
+        name: title.length > 15 ? title.substring(0, 15) + "..." : title,
+        fullName: title,
+        score: parseFloat(scorePercent.toFixed(1)),
+        className,
+        category: grade.gradingSheetId?.category || grade.category || "khac",
+        date: new Date(grade.gradedAt).toLocaleDateString("vi-VN"),
+      };
+    });
+  }, [studentGrades]);
+
+  // Tính điểm trung bình hiện tại (tuần này / tổng)
+  const averageScore = useMemo(() => {
+    if (!studentGrades.length) return 0;
+
+    let totalScore = 0;
+    let totalMax = 0;
+    studentGrades.forEach((g) => {
+      totalScore += g.score;
+      totalMax += g.maxScore;
+    });
+
+    if (totalMax === 0) return 0;
+    return parseFloat(((totalScore / totalMax) * 10).toFixed(1));
+  }, [studentGrades]);
+
+  // Tính điểm tuần trước để so sánh
+  const lastWeekAverage = useMemo(() => {
+    if (!studentGrades.length) return 0;
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const lastWeekGrades = studentGrades.filter(
+      (g) => new Date(g.gradedAt) < oneWeekAgo,
+    );
+
+    if (!lastWeekGrades.length) return 0;
+
+    let totalScore = 0;
+    let totalMax = 0;
+    lastWeekGrades.forEach((g) => {
+      totalScore += g.score;
+      totalMax += g.maxScore;
+    });
+
+    if (totalMax === 0) return 0;
+    return parseFloat(((totalScore / totalMax) * 10).toFixed(1));
+  }, [studentGrades]);
+
+  // Tạo data cho biểu đồ theo từng môn
+  const progressBySubject = useMemo(() => {
+    if (!studentGrades.length) return [];
+
+    // Nhóm theo classId (môn học)
+    const groups: Record<
+      string,
+      { name: string; classId: string; grades: typeof studentGrades }
+    > = {};
+
+    studentGrades.forEach((g) => {
+      const key = g.classId?._id || "unknown";
+      const name = g.classId?.name || "Lớp học";
+      if (!groups[key]) {
+        groups[key] = { name, classId: key, grades: [] };
+      }
+      groups[key].grades.push(g);
+    });
+
+    // Tạo series data cho mỗi môn
+    return Object.values(groups).map((group) => {
+      const sortedGrades = [...group.grades].sort(
+        (a, b) =>
+          new Date(a.gradedAt).getTime() - new Date(b.gradedAt).getTime(),
+      );
+
+      // Lấy thông tin xếp hạng của lớp này
+      const rankInfo = classRankings[group.classId];
+
+      return {
+        name: group.name,
+        classId: group.classId,
+        rank: rankInfo?.rank || null,
+        totalStudents: rankInfo?.totalStudents || 0,
+        data: sortedGrades.map((g, i) => ({
+          label: g.gradingSheetId?.title || `Bài ${i + 1}`,
+          score:
+            g.maxScore > 0
+              ? parseFloat(((g.score / g.maxScore) * 10).toFixed(1))
+              : 0,
+          date: new Date(g.gradedAt).toLocaleDateString("vi-VN"),
+        })),
+      };
+    });
+  }, [studentGrades, classRankings]);
+
+  // Tính tổng xếp hạng (trung bình các lớp)
+  const overallRanking = useMemo(() => {
+    const ranks = Object.values(classRankings).filter((r) => r.rank !== null);
+    if (ranks.length === 0) return null;
+
+    // Tìm ranking tốt nhất (số thứ tự thấp nhất)
+    const bestRank = Math.min(...ranks.map((r) => r.rank!));
+    const totalStudentsOfBestRank =
+      ranks.find((r) => r.rank === bestRank)?.totalStudents || 0;
+
+    return {
+      bestRank,
+      totalStudents: totalStudentsOfBestRank,
+      classCount: ranks.length,
+    };
+  }, [classRankings]);
 
   // Shadow actual data over mock 'grades'
   const grades = processedSubjects.length > 0 ? processedSubjects : [];
@@ -1140,7 +1247,7 @@ export default function StudentDashboard({
         if (userId) {
           const response = await api.get(`/users/${userId}`);
           setFullUserDetails(response.data);
-          console.log("Data của user:", response.data)
+          console.log("Data của user:", response.data);
         }
       } catch (error) {
         console.error("Failed to fetch full user details:", error);
@@ -1164,10 +1271,10 @@ export default function StudentDashboard({
     const fetchDocuments = async () => {
       try {
         setDocumentsLoading(true);
-        const response = await api.get('/documents/for-student');
+        const response = await api.get("/documents/for-student");
         setStudentDocuments(response.data);
       } catch (error) {
-        console.error('Failed to fetch documents:', error);
+        console.error("Failed to fetch documents:", error);
       } finally {
         setDocumentsLoading(false);
       }
@@ -1182,7 +1289,7 @@ export default function StudentDashboard({
     try {
       await api.patch(`/documents/${documentId}/download`);
     } catch (error) {
-      console.error('Failed to increment download count:', error);
+      console.error("Failed to increment download count:", error);
     }
   };
 
@@ -1452,9 +1559,17 @@ export default function StudentDashboard({
       fetchDashboardData(studentId).catch(console.error);
       // Fetch attendance records for this student
       fetchAttendance({ studentId }).catch(console.error);
+      // Fetch leaderboard (scoped to student's branch)
+      const leaderboardParams: { branchId?: string; limit: number } = { limit: 10 };
+      if (authUser?.branchId) {
+        leaderboardParams.branchId = authUser.branchId;
+      }
+      fetchLeaderboard(leaderboardParams).catch(console.error);
+      // Fetch my rank
+      fetchMyRank().catch(console.error);
     }
     console.log("studentId: ", studentId);
-  }, [authUser, user.id, fetchDashboardData, fetchAttendance]);
+  }, [authUser, user.id, fetchDashboardData, fetchAttendance, fetchLeaderboard, fetchMyRank]);
 
   // Compute dynamic overview cards based on real data
   const dynamicOverviewCards = dashboardData
@@ -1501,12 +1616,6 @@ export default function StudentDashboard({
     ]
     : overviewCards;
 
-  const tabIcons: Record<RankingCategory, string> = {
-    score: "🏆",
-    attendance: "👥",
-    diligence: "⚡",
-  };
-
   const statusStyle = (status: DaySchedule["status"]) => {
     if (status === "confirmed")
       return {
@@ -1520,12 +1629,12 @@ export default function StudentDashboard({
       };
     return {
       label: "Chưa xác nhận",
-      className: "bg-gray-200 text-gray-700 hover:bg-gray-200",
+      className: "bg-[#89CFF0]/30 text-blue-700 hover:bg-[#89CFF0]/40",
     };
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-[#89CFF0]/20 to-white">
       <ToastContainer />
       {/* Header với thiết kế hiện đại */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
@@ -1742,6 +1851,12 @@ export default function StudentDashboard({
               className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
             >
               🐛 Sự cố
+            </TabsTrigger>
+            <TabsTrigger
+              value="evaluation"
+              className="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              ⭐ Đánh giá GV
             </TabsTrigger>
           </TabsList>
 
@@ -2130,68 +2245,94 @@ export default function StudentDashboard({
                       Tiến độ học tập
                     </p>
                     <p className="text-xs text-gray-500">
-                      Theo dõi sự tiến bộ của bạn qua từng tuần
+                      Điểm số qua các bài kiểm tra
                     </p>
                   </div>
                 </div>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={progressData}
-                      margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorScore"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="week"
-                        tick={{ fontSize: 12, fill: "#4b5563" }}
-                      />
-                      <YAxis
-                        domain={[50, 90]}
-                        tick={{ fontSize: 12, fill: "#4b5563" }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "12px",
-                          border: "none",
-                          boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="score"
-                        stroke="#3b82f6"
-                        strokeWidth={3}
-                        fill="url(#colorScore)"
-                        dot={{
-                          r: 6,
-                          fill: "#3b82f6",
-                          stroke: "#fff",
-                          strokeWidth: 2,
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                {progressData.length === 0 ? (
+                  <div className="h-72 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <span className="text-4xl mb-3 block">📊</span>
+                      <p className="font-medium">Chưa có dữ liệu điểm</p>
+                      <p className="text-sm">
+                        Điểm số sẽ hiển thị sau khi giáo viên chấm bài
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={progressData}
+                        margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                      >
+                        <defs>
+                          <linearGradient
+                            id="colorScore"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor="#3b82f6"
+                              stopOpacity={0.3}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor="#3b82f6"
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10, fill: "#4b5563" }}
+                          angle={-20}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis
+                          domain={[0, 10]}
+                          tick={{ fontSize: 12, fill: "#4b5563" }}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "none",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                          }}
+                          formatter={(value: number) => [
+                            `${value} điểm`,
+                            "Điểm",
+                          ]}
+                          labelFormatter={(label, payload) => {
+                            if (payload && payload[0]) {
+                              const data = payload[0].payload;
+                              return `${data.fullName || label} (${data.className}) - ${data.date}`;
+                            }
+                            return label;
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="score"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                          fill="url(#colorScore)"
+                          dot={{
+                            r: 6,
+                            fill: "#3b82f6",
+                            stroke: "#fff",
+                            strokeWidth: 2,
+                          }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </Card>
 
               <Card className="p-6 bg-white border-0 shadow-lg">
@@ -2201,34 +2342,107 @@ export default function StudentDashboard({
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
                     <p className="text-xs text-blue-600 font-medium">
-                      Điểm tuần này
+                      Điểm trung bình
                     </p>
-                    <p className="text-2xl font-bold text-blue-700">82</p>
-                    <p className="text-xs text-green-600 mt-1">
-                      ↑ +4 so với tuần trước
+                    <p className="text-2xl font-bold text-blue-700">
+                      {averageScore > 0 ? averageScore : "—"}
                     </p>
+                    {averageScore > 0 && lastWeekAverage > 0 && (
+                      <p
+                        className={`text-xs mt-1 ${averageScore >= lastWeekAverage ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {averageScore >= lastWeekAverage ? "↑" : "↓"}{" "}
+                        {Math.abs(averageScore - lastWeekAverage).toFixed(1)} so
+                        với trước
+                      </p>
+                    )}
                   </div>
                   <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
                     <p className="text-xs text-emerald-600 font-medium">
-                      Tỉ lệ hoàn thành
+                      Số bài đã chấm
                     </p>
-                    <p className="text-2xl font-bold text-emerald-700">93%</p>
+                    <p className="text-2xl font-bold text-emerald-700">
+                      {studentGrades.length}
+                    </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      28/30 bài đã nộp
+                      {processedSubjects.length} môn học
                     </p>
                   </div>
                   <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100">
                     <p className="text-xs text-amber-600 font-medium">
-                      Xếp hạng lớp
+                      Xếp hạng trong lớp
                     </p>
-                    <p className="text-2xl font-bold text-amber-700">#5</p>
+                    <p className="text-2xl font-bold text-amber-700">
+                      {overallRanking
+                        ? `#${overallRanking.bestRank}/${overallRanking.totalStudents}`
+                        : "—"}
+                    </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Trong 30 học sinh
+                      {overallRanking
+                        ? `Dựa trên điểm TB (${overallRanking.classCount} lớp)`
+                        : "Chưa có xếp hạng"}
                     </p>
                   </div>
                 </div>
               </Card>
             </div>
+
+            {/* Chi tiết điểm theo từng môn */}
+            {progressBySubject.length > 0 && (
+              <Card className="mt-6 p-6 bg-white border-0 shadow-lg">
+                <p className="font-bold text-gray-900 text-lg mb-4">
+                  📚 Chi tiết điểm theo môn học
+                </p>
+                <div className="space-y-4">
+                  {progressBySubject.map((subject, idx) => (
+                    <div
+                      key={idx}
+                      className="border border-gray-100 rounded-xl p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {subject.name}
+                          </p>
+                          {subject.rank && (
+                            <p className="text-xs text-amber-600 font-medium">
+                              🏆 Xếp hạng: #{subject.rank}/
+                              {subject.totalStudents}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {subject.data.length} bài kiểm tra
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {subject.data.map((item, i) => (
+                          <div
+                            key={i}
+                            className={`px-3 py-2 rounded-lg text-sm ${item.score >= 8
+                              ? "bg-green-100 text-green-700"
+                              : item.score >= 6.5
+                                ? "bg-blue-100 text-blue-700"
+                                : item.score >= 5
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            title={`${item.label} - ${item.date}`}
+                          >
+                            <span className="font-bold">{item.score}</span>
+                            <span className="text-xs ml-1 opacity-75">
+                              {item.label.length > 10
+                                ? item.label.substring(0, 10) + "..."
+                                : item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="grades" className="mt-6">
@@ -2314,7 +2528,7 @@ export default function StudentDashboard({
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
                 {Object.entries(leaderboardOptions).map(([key, opt]) => (
                   <button
                     key={key}
@@ -2332,52 +2546,137 @@ export default function StudentDashboard({
                 ))}
               </div>
 
-              <div className="space-y-3">
-                {leaderboardData[rankingView].map((row) => (
-                  <div
-                    key={`${rankingView}-${row.rank}-${row.name}`}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
-                        {row.rank === 1 && (
-                          <span className="text-amber-500">🏆</span>
-                        )}
-                        {row.rank === 2 && (
-                          <span className="text-gray-400">🥈</span>
-                        )}
-                        {row.rank === 3 && (
-                          <span className="text-orange-400">🥉</span>
-                        )}
-                        {row.rank > 3 && (
-                          <span className="text-sm font-semibold text-gray-700">
-                            {row.rank}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 leading-tight">
-                          {row.name}
-                        </p>
-                        <p className="text-xs text-gray-500 leading-tight">
-                          {row.className}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-blue-700">
-                        {row.metric}
-                      </p>
-                      <p className="text-xs text-gray-500">{row.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* Loading State */}
+              {leaderboardLoading && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-4">Đang tải bảng xếp hạng...</p>
+                </div>
+              )}
 
+              {/* Leaderboard List */}
+              {!leaderboardLoading && (
+                <div className="space-y-3">
+                  {rankingView === "score" && leaderboard?.score?.map((row) => (
+                    <div
+                      key={`score-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${row.studentId === (authUser?._id || user.id)
+                        ? "border-blue-300 bg-blue-50"
+                        : "border-gray-200 bg-white"
+                        }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
+                          {row.rank === 1 && (
+                            <span className="text-amber-500">🏆</span>
+                          )}
+                          {row.rank === 2 && (
+                            <span className="text-gray-400">🥈</span>
+                          )}
+                          {row.rank === 3 && (
+                            <span className="text-orange-400">🥉</span>
+                          )}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-semibold text-gray-700">
+                              {row.rank}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 leading-tight">
+                            {row.studentName}
+                            {row.studentId === (authUser?._id || user.id) && (
+                              <span className="ml-2 text-xs text-blue-600">(Bạn)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 leading-tight">
+                            {row.className || `${row.totalGrades} bài kiểm tra`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-blue-700">
+                          {row.averageScore.toFixed(1)}
+                        </p>
+                        <p className="text-xs text-gray-500">Điểm TB</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {rankingView === "attendance" && leaderboard?.attendance?.map((row) => (
+                    <div
+                      key={`attendance-${row.rank}-${row.studentId}`}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm ${row.studentId === (authUser?._id || user.id)
+                        ? "border-emerald-300 bg-emerald-50"
+                        : "border-gray-200 bg-white"
+                        }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-lg">
+                          {row.rank === 1 && (
+                            <span className="text-amber-500">🏆</span>
+                          )}
+                          {row.rank === 2 && (
+                            <span className="text-gray-400">🥈</span>
+                          )}
+                          {row.rank === 3 && (
+                            <span className="text-orange-400">🥉</span>
+                          )}
+                          {row.rank > 3 && (
+                            <span className="text-sm font-semibold text-gray-700">
+                              {row.rank}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 leading-tight">
+                            {row.studentName}
+                            {row.studentId === (authUser?._id || user.id) && (
+                              <span className="ml-2 text-xs text-emerald-600">(Bạn)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 leading-tight">
+                            Đã theo học {row.daysEnrolled} ngày
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-emerald-700">
+                          {row.attendanceRate}%
+                        </p>
+                        <p className="text-xs text-gray-500">{row.presentCount}/{row.totalSessions} buổi</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Empty State */}
+                  {!leaderboardLoading && (
+                    (rankingView === "score" && (!leaderboard?.score || leaderboard.score.length === 0)) ||
+                    (rankingView === "attendance" && (!leaderboard?.attendance || leaderboard.attendance.length === 0))
+                  ) && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-4xl mb-2">📊</p>
+                        <p>Chưa có dữ liệu xếp hạng</p>
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* My Rank */}
               <div className="rounded-xl bg-blue-50 text-blue-700 text-sm text-center px-4 py-3">
                 Vị trí hiện tại của bạn:{" "}
-                <span className="font-semibold">Hạng 12</span> trong{" "}
-                {leaderboardOptions[rankingView].label}
+                <span className="font-semibold">
+                  {rankingView === "score"
+                    ? (myRank?.scoreRank ? `Hạng ${myRank.scoreRank}` : "Chưa có xếp hạng")
+                    : (myRank?.attendanceRank ? `Hạng ${myRank.attendanceRank}` : "Chưa có xếp hạng")
+                  }
+                </span>
+                {" "}trong {leaderboardOptions[rankingView].label}
+                {myRank?.totalStudents && (
+                  <span className="text-gray-500 ml-1">
+                    ({myRank.totalStudents} học sinh)
+                  </span>
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -2561,20 +2860,24 @@ export default function StudentDashboard({
 
               {/* Filter buttons */}
               <div className="flex gap-2 mb-6 flex-wrap">
-                <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white"
-                >
+                <button className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white">
                   Tất cả ({studentDocuments.length})
                 </button>
-                <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  🔒 Lớp học ({studentDocuments.filter((d) => d.visibility === "class").length})
+                <button className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
+                  🔒 Lớp học (
+                  {
+                    studentDocuments.filter((d) => d.visibility === "class")
+                      .length
+                  }
+                  )
                 </button>
-                <button
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  🌐 Cộng đồng ({studentDocuments.filter((d) => d.visibility === "community").length})
+                <button className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
+                  🌐 Cộng đồng (
+                  {
+                    studentDocuments.filter((d) => d.visibility === "community")
+                      .length
+                  }
+                  )
                 </button>
               </div>
 
@@ -2588,24 +2891,85 @@ export default function StudentDashboard({
                 <div className="text-center py-12 text-gray-500">
                   <span className="text-6xl mb-4 block">📭</span>
                   <p className="text-lg font-medium">Chưa có tài liệu nào</p>
-                  <p className="text-sm">Giáo viên của bạn chưa chia sẻ tài liệu</p>
+                  <p className="text-sm">
+                    Giáo viên của bạn chưa chia sẻ tài liệu
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {studentDocuments.map((doc) => {
-                    const fileName = doc.originalFileName || doc.fileUrl.split("/").pop() || "";
+                    const fileName =
+                      doc.originalFileName ||
+                      doc.fileUrl.split("/").pop() ||
+                      "";
                     const ext = fileName.split(".").pop()?.toLowerCase() || "";
                     const getIcon = () => {
                       switch (ext) {
-                        case "pdf": return { icon: "📕", bg: "bg-red-100", color: "text-red-600" };
-                        case "doc": case "docx": return { icon: "📘", bg: "bg-blue-100", color: "text-blue-600" };
-                        case "ppt": case "pptx": return { icon: "📙", bg: "bg-orange-100", color: "text-orange-600" };
-                        case "xls": case "xlsx": return { icon: "📗", bg: "bg-green-100", color: "text-green-600" };
-                        case "jpg": case "jpeg": case "png": case "gif": case "webp": return { icon: "🖼️", bg: "bg-purple-100", color: "text-purple-600" };
-                        case "mp4": case "webm": case "avi": return { icon: "🎬", bg: "bg-pink-100", color: "text-pink-600" };
-                        case "mp3": case "wav": return { icon: "🎵", bg: "bg-yellow-100", color: "text-yellow-600" };
-                        case "zip": case "rar": return { icon: "📦", bg: "bg-gray-200", color: "text-gray-600" };
-                        default: return { icon: "📄", bg: "bg-gray-100", color: "text-gray-600" };
+                        case "pdf":
+                          return {
+                            icon: "📕",
+                            bg: "bg-red-100",
+                            color: "text-red-600",
+                          };
+                        case "doc":
+                        case "docx":
+                          return {
+                            icon: "📘",
+                            bg: "bg-blue-100",
+                            color: "text-blue-600",
+                          };
+                        case "ppt":
+                        case "pptx":
+                          return {
+                            icon: "📙",
+                            bg: "bg-orange-100",
+                            color: "text-orange-600",
+                          };
+                        case "xls":
+                        case "xlsx":
+                          return {
+                            icon: "📗",
+                            bg: "bg-green-100",
+                            color: "text-green-600",
+                          };
+                        case "jpg":
+                        case "jpeg":
+                        case "png":
+                        case "gif":
+                        case "webp":
+                          return {
+                            icon: "🖼️",
+                            bg: "bg-purple-100",
+                            color: "text-purple-600",
+                          };
+                        case "mp4":
+                        case "webm":
+                        case "avi":
+                          return {
+                            icon: "🎬",
+                            bg: "bg-pink-100",
+                            color: "text-pink-600",
+                          };
+                        case "mp3":
+                        case "wav":
+                          return {
+                            icon: "🎵",
+                            bg: "bg-yellow-100",
+                            color: "text-yellow-600",
+                          };
+                        case "zip":
+                        case "rar":
+                          return {
+                            icon: "📦",
+                            bg: "bg-gray-200",
+                            color: "text-gray-600",
+                          };
+                        default:
+                          return {
+                            icon: "📄",
+                            bg: "bg-gray-100",
+                            color: "text-gray-600",
+                          };
                       }
                     };
                     const { icon, bg, color } = getIcon();
@@ -2615,21 +2979,33 @@ export default function StudentDashboard({
                         className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 hover:shadow-md hover:border-blue-200 transition-all"
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${bg}`}>
+                          <div
+                            className={`h-12 w-12 rounded-xl flex items-center justify-center ${bg}`}
+                          >
                             <span className="text-2xl">{icon}</span>
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900">{doc.title}</p>
+                            <p className="font-semibold text-gray-900">
+                              {doc.title}
+                            </p>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
                               {ext && (
-                                <span className={`px-2 py-0.5 ${bg} ${color} rounded uppercase font-medium`}>
+                                <span
+                                  className={`px-2 py-0.5 ${bg} ${color} rounded uppercase font-medium`}
+                                >
                                   {ext}
                                 </span>
                               )}
                               <span>•</span>
-                              <span>👨‍🏫 {doc.ownerTeacherId?.name || "Giáo viên"}</span>
+                              <span>
+                                👨‍🏫 {doc.ownerTeacherId?.name || "Giáo viên"}
+                              </span>
                               <span>•</span>
-                              <span>{new Date(doc.createdAt).toLocaleDateString("vi-VN")}</span>
+                              <span>
+                                {new Date(doc.createdAt).toLocaleDateString(
+                                  "vi-VN",
+                                )}
+                              </span>
                               <span>•</span>
                               <span>⬇️ {doc.downloadCount} lượt tải</span>
                               {doc.visibility === "community" && (
@@ -2639,7 +3015,9 @@ export default function StudentDashboard({
                               )}
                             </div>
                             {doc.description && (
-                              <p className="text-xs text-gray-500 mt-1">{doc.description}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {doc.description}
+                              </p>
                             )}
                             {doc.classIds && doc.classIds.length > 0 && (
                               <p className="text-xs text-blue-600 mt-1">
@@ -2680,6 +3058,10 @@ export default function StudentDashboard({
               isEmbedded={true}
             />
           </TabsContent>
+
+          <TabsContent value="evaluation" className="mt-6">
+            <StudentEvaluationTab userId={user.id} />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -2698,7 +3080,9 @@ export default function StudentDashboard({
       {selectedGrade && (
         <GradeDetailModal
           subject={selectedGrade.subject}
-          grades={studentGrades.filter(g => (g.classId?.name || "Lớp học") === selectedGrade.subject)}
+          grades={studentGrades.filter(
+            (g) => (g.classId?.name || "Lớp học") === selectedGrade.subject,
+          )}
           onClose={() => setSelectedGrade(null)}
         />
       )}

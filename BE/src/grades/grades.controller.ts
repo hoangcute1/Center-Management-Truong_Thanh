@@ -7,12 +7,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { GradesService } from './grades.service';
 import { GradeAssignmentDto } from './dto/grade-assignment.dto';
 import { CreateManualGradeDto } from './dto/create-manual-grade.dto';
 import { CreateGradingSheetDto } from './dto/create-grading-sheet.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
+import { LeaderboardQueryDto } from './dto/leaderboard.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -25,7 +26,7 @@ import type { UserDocument } from '../users/schemas/user.schema';
 @Controller('grades')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class GradesController {
-  constructor(private readonly gradesService: GradesService) { }
+  constructor(private readonly gradesService: GradesService) {}
 
   // ==================== GRADING SHEET ENDPOINTS ====================
 
@@ -113,5 +114,55 @@ export class GradesController {
   getStudentStats(@Param('studentId') studentId: string) {
     return this.gradesService.getStudentStats(studentId);
   }
-}
 
+  @Get('class/:classId/ranking')
+  @ApiOperation({ summary: 'Xếp hạng học sinh trong lớp theo điểm TB' })
+  getClassRanking(@Param('classId') classId: string) {
+    return this.gradesService.getClassRanking(classId);
+  }
+
+  @Get('student/:studentId/class/:classId/rank')
+  @ApiOperation({ summary: 'Lấy thứ hạng của học sinh trong lớp' })
+  getStudentRankInClass(
+    @Param('studentId') studentId: string,
+    @Param('classId') classId: string,
+  ) {
+    return this.gradesService.getStudentRankInClass(studentId, classId);
+  }
+
+  // ==================== LEADERBOARD ENDPOINTS ====================
+
+  @Get('leaderboard')
+  @ApiOperation({ summary: 'Lấy bảng xếp hạng tổng hợp (Top điểm + Chuyên cần)' })
+  @ApiQuery({ name: 'branchId', required: false, description: 'Filter by branch ID' })
+  @ApiQuery({ name: 'classId', required: false, description: 'Filter by class ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limit number of results', example: 10 })
+  getLeaderboard(@Query() query: LeaderboardQueryDto) {
+    return this.gradesService.getLeaderboard(query);
+  }
+
+  @Get('leaderboard/teacher')
+  @Roles(UserRole.Teacher)
+  @ApiOperation({ summary: 'Lấy bảng xếp hạng tất cả học sinh trong cơ sở của giáo viên' })
+  @ApiQuery({ name: 'classId', required: false, description: 'Filter by specific class ID' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limit number of results', example: 10 })
+  getTeacherLeaderboard(
+    @CurrentUser() teacher: UserDocument,
+    @Query() query: LeaderboardQueryDto,
+  ) {
+    // Giáo viên xem bảng xếp hạng toàn bộ học sinh cùng cơ sở
+    const branchId = (teacher as any).branchId;
+    if (branchId && !query.branchId) {
+      query.branchId = branchId;
+    }
+    return this.gradesService.getLeaderboard(query);
+  }
+
+  @Get('leaderboard/my-rank')
+  @Roles(UserRole.Student)
+  @ApiOperation({ summary: 'Lấy thứ hạng của học sinh hiện tại trong cơ sở' })
+  getMyOverallRank(@CurrentUser() student: UserDocument) {
+    const branchId = (student as any).branchId;
+    return this.gradesService.getStudentOverallRank(student._id.toString(), branchId);
+  }
+}

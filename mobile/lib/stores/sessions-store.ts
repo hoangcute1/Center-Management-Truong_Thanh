@@ -12,6 +12,7 @@ export interface Session {
   teacherId?: {
     _id: string;
     fullName: string;
+    name?: string;
   };
   date: string;
   startTime: string;

@@ -18,7 +18,7 @@ export default function AdminLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: "#8B5CF6",
+          backgroundColor: "#10B981",
         },
         headerTintColor: "#FFFFFF",
         headerTitleStyle: {
@@ -80,9 +80,6 @@ export default function AdminLayout() {
           headerShown: true,
           title: "Quản lý tài chính",
           headerLeft: () => <BackButton />,
-          headerStyle: {
-            backgroundColor: "#10B981",
-          },
         }}
       />
       <Stack.Screen
@@ -91,9 +88,14 @@ export default function AdminLayout() {
           headerShown: true,
           title: "Bảng xếp hạng",
           headerLeft: () => <BackButton />,
-          headerStyle: {
-            backgroundColor: "#F59E0B",
-          },
+        }}
+      />
+      <Stack.Screen
+        name="evaluations"
+        options={{
+          headerShown: true,
+          title: "Quản lý đánh giá",
+          headerLeft: () => <BackButton />,
         }}
       />
     </Stack>

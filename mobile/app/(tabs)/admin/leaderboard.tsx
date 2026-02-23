@@ -7,15 +7,18 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
-  Image,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useLeaderboardStore } from "@/lib/stores";
+import { useBranchesStore } from "@/lib/stores";
 
 const { width } = Dimensions.get("window");
 
-type RankingCategory = "score" | "attendance" | "diligence";
+type RankingCategory = "score" | "attendance";
 
 const leaderboardOptions: Record<
   RankingCategory,
@@ -33,151 +36,6 @@ const leaderboardOptions: Record<
     icon: "checkbox",
     color: "#10B981",
   },
-  diligence: {
-    label: "Chăm chỉ",
-    desc: "Hoàn thành bài tập",
-    icon: "book",
-    color: "#3B82F6",
-  },
-};
-
-const leaderboardData: Record<
-  RankingCategory,
-  {
-    rank: number;
-    name: string;
-    className: string;
-    metric: string;
-    detail: string;
-    avatar: string;
-  }[]
-> = {
-  score: [
-    {
-      rank: 1,
-      name: "Nguyễn Văn A",
-      className: "Lớp Toán 12A1",
-      metric: "9.8",
-      detail: "Top Điểm",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 2,
-      name: "Trần Thị B",
-      className: "Lớp Anh Văn 12B2",
-      metric: "9.6",
-      detail: "Top Điểm",
-      avatar: "👩‍🎓",
-    },
-    {
-      rank: 3,
-      name: "Lê Văn C",
-      className: "Lớp Vật Lý 11C1",
-      metric: "9.5",
-      detail: "Top Điểm",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 4,
-      name: "Phạm Minh D",
-      className: "Lớp Hóa Học 10A2",
-      metric: "9.2",
-      detail: "Top Điểm",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 5,
-      name: "Hoàng An E",
-      className: "Lớp Toán 11B1",
-      metric: "9.0",
-      detail: "Top Điểm",
-      avatar: "👩‍🎓",
-    },
-  ],
-  attendance: [
-    {
-      rank: 1,
-      name: "Trần Minh T",
-      className: "Đã theo học 240 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 2,
-      name: "Lê Hải Y",
-      className: "Đã theo học 210 ngày",
-      metric: "100%",
-      detail: "Chuyên cần",
-      avatar: "👩‍🎓",
-    },
-    {
-      rank: 3,
-      name: "Nguyễn Công P",
-      className: "Đã theo học 180 ngày",
-      metric: "98%",
-      detail: "Nghỉ 1 buổi có phép",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 4,
-      name: "Đặng Thu H",
-      className: "Đã theo học 150 ngày",
-      metric: "97%",
-      detail: "Nghỉ 1 buổi",
-      avatar: "👩‍🎓",
-    },
-    {
-      rank: 5,
-      name: "Võ Minh K",
-      className: "Đã theo học 120 ngày",
-      metric: "96%",
-      detail: "Nghỉ 2 buổi có phép",
-      avatar: "👨‍🎓",
-    },
-  ],
-  diligence: [
-    {
-      rank: 1,
-      name: "Phạm Thị L",
-      className: "Hoàn thành 100% bài tập",
-      metric: "100%",
-      detail: "Xuất sắc",
-      avatar: "👩‍🎓",
-    },
-    {
-      rank: 2,
-      name: "Trần Văn M",
-      className: "Hoàn thành 98% bài tập",
-      metric: "98%",
-      detail: "Giỏi",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 3,
-      name: "Lê Thị N",
-      className: "Hoàn thành 95% bài tập",
-      metric: "95%",
-      detail: "Giỏi",
-      avatar: "👩‍🎓",
-    },
-    {
-      rank: 4,
-      name: "Nguyễn Văn O",
-      className: "Hoàn thành 93% bài tập",
-      metric: "93%",
-      detail: "Khá",
-      avatar: "👨‍🎓",
-    },
-    {
-      rank: 5,
-      name: "Hoàng Minh P",
-      className: "Hoàn thành 90% bài tập",
-      metric: "90%",
-      detail: "Khá",
-      avatar: "👨‍🎓",
-    },
-  ],
 };
 
 const rankColors = {
@@ -187,15 +45,41 @@ const rankColors = {
 };
 
 export default function LeaderboardScreen() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] =
     useState<RankingCategory>("score");
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
 
-  const onRefresh = async () => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
-  };
+  const { leaderboard, loading, fetchLeaderboard } = useLeaderboardStore();
+  const { branches, fetchBranches } = useBranchesStore();
+
+  useEffect(() => {
+    fetchBranches();
+    fetchLeaderboard({ limit: 20 });
+  }, []);
+
+  useEffect(() => {
+    const params: { branchId?: string; limit: number } = { limit: 20 };
+    if (selectedBranch) {
+      params.branchId = selectedBranch;
+    }
+    fetchLeaderboard(params);
+  }, [selectedBranch]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    const params: { branchId?: string; limit: number } = { limit: 20 };
+    if (selectedBranch) {
+      params.branchId = selectedBranch;
+    }
+    await fetchLeaderboard(params);
+    setRefreshing(false);
+  }, [fetchLeaderboard, selectedBranch]);
+
+  const selectedBranchName = selectedBranch
+    ? branches.find((b) => b._id === selectedBranch)?.name || "Cơ sở"
+    : "Tất cả cơ sở";
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return "🥇";
@@ -214,13 +98,73 @@ export default function LeaderboardScreen() {
     return {};
   };
 
+  const currentScoreData = leaderboard?.score || [];
+  const currentAttendanceData = leaderboard?.attendance || [];
+  const summary = leaderboard?.summary;
+
+  // Get data for selected category
+  const getCurrentData = () => {
+    if (selectedCategory === "score") {
+      return currentScoreData.map((item) => ({
+        rank: item.rank,
+        name: item.studentName,
+        className: item.className || `${item.totalGrades} bài kiểm tra`,
+        metric: item.averageScore.toFixed(1),
+        detail: "Top Điểm",
+        avatar: item.studentName?.charAt(0) || "?",
+      }));
+    }
+    return currentAttendanceData.map((item) => ({
+      rank: item.rank,
+      name: item.studentName,
+      className: `${item.presentCount}/${item.totalSessions} buổi`,
+      metric: `${item.attendanceRate}%`,
+      detail: `Theo học ${item.daysEnrolled} ngày`,
+      avatar: item.studentName?.charAt(0) || "?",
+    }));
+  };
+
+  const displayData = getCurrentData();
+
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      {/* Branch Picker Modal - outside ScrollView for proper rendering */}
+      <Modal visible={showBranchPicker} transparent animationType="fade" onRequestClose={() => setShowBranchPicker(false)}>
+        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowBranchPicker(false)}>
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              <TouchableOpacity
+                style={[styles.pickerOption, !selectedBranch && styles.pickerOptionActive]}
+                onPress={() => { setSelectedBranch(""); setShowBranchPicker(false); }}
+              >
+                <Text style={[styles.pickerOptionText, !selectedBranch && styles.pickerOptionTextActive]}>
+                  🏢 Tất cả cơ sở
+                </Text>
+                {!selectedBranch && <Ionicons name="checkmark-circle" size={20} color="#F59E0B" />}
+              </TouchableOpacity>
+              {branches.map((branch) => (
+                <TouchableOpacity
+                  key={branch._id}
+                  style={[styles.pickerOption, selectedBranch === branch._id && styles.pickerOptionActive]}
+                  onPress={() => { setSelectedBranch(branch._id); setShowBranchPicker(false); }}
+                >
+                  <Text style={[styles.pickerOptionText, selectedBranch === branch._id && styles.pickerOptionTextActive]}>
+                    📍 {branch.name}
+                  </Text>
+                  {selectedBranch === branch._id && <Ionicons name="checkmark-circle" size={20} color="#F59E0B" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -236,6 +180,18 @@ export default function LeaderboardScreen() {
             </View>
           </View>
         </LinearGradient>
+
+        {/* Branch Picker */}
+        <View style={styles.branchPickerSection}>
+          <TouchableOpacity
+            style={styles.branchPickerTrigger}
+            onPress={() => setShowBranchPicker(true)}
+          >
+            <Ionicons name="business" size={18} color="#F59E0B" />
+            <Text style={styles.branchPickerText} numberOfLines={1}>{selectedBranchName}</Text>
+            <Ionicons name="chevron-down" size={18} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
 
         {/* Category Selector */}
         <View style={styles.section}>
@@ -293,170 +249,253 @@ export default function LeaderboardScreen() {
           </ScrollView>
         </View>
 
-        {/* Top 3 Podium */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏆 Top 3 xuất sắc</Text>
-          <View style={styles.podiumContainer}>
-            {/* 2nd Place */}
-            <View style={styles.podiumItem}>
-              <View style={styles.podiumAvatarContainer}>
-                <Text style={styles.podiumAvatar}>
-                  {leaderboardData[selectedCategory][1]?.avatar || "👨‍🎓"}
-                </Text>
-                <View
-                  style={[
-                    styles.podiumRankBadge,
-                    { backgroundColor: "#C0C0C0" },
-                  ]}
-                >
-                  <Text style={styles.podiumRankText}>2</Text>
-                </View>
-              </View>
-              <Text style={styles.podiumName} numberOfLines={1}>
-                {leaderboardData[selectedCategory][1]?.name || "-"}
-              </Text>
-              <Text style={styles.podiumMetric}>
-                {leaderboardData[selectedCategory][1]?.metric || "-"}
-              </Text>
-              <View style={[styles.podiumBase, styles.podiumBase2]} />
-            </View>
-
-            {/* 1st Place */}
-            <View style={[styles.podiumItem, styles.podiumItemFirst]}>
-              <View style={styles.crownIcon}>
-                <Text style={{ fontSize: 24 }}>👑</Text>
-              </View>
-              <View style={styles.podiumAvatarContainer}>
-                <Text style={styles.podiumAvatarFirst}>
-                  {leaderboardData[selectedCategory][0]?.avatar || "👨‍🎓"}
-                </Text>
-                <View
-                  style={[
-                    styles.podiumRankBadge,
-                    { backgroundColor: "#FFD700" },
-                  ]}
-                >
-                  <Text style={styles.podiumRankText}>1</Text>
-                </View>
-              </View>
-              <Text style={styles.podiumNameFirst} numberOfLines={1}>
-                {leaderboardData[selectedCategory][0]?.name || "-"}
-              </Text>
-              <Text style={styles.podiumMetricFirst}>
-                {leaderboardData[selectedCategory][0]?.metric || "-"}
-              </Text>
-              <View style={[styles.podiumBase, styles.podiumBase1]} />
-            </View>
-
-            {/* 3rd Place */}
-            <View style={styles.podiumItem}>
-              <View style={styles.podiumAvatarContainer}>
-                <Text style={styles.podiumAvatar}>
-                  {leaderboardData[selectedCategory][2]?.avatar || "👨‍🎓"}
-                </Text>
-                <View
-                  style={[
-                    styles.podiumRankBadge,
-                    { backgroundColor: "#CD7F32" },
-                  ]}
-                >
-                  <Text style={styles.podiumRankText}>3</Text>
-                </View>
-              </View>
-              <Text style={styles.podiumName} numberOfLines={1}>
-                {leaderboardData[selectedCategory][2]?.name || "-"}
-              </Text>
-              <Text style={styles.podiumMetric}>
-                {leaderboardData[selectedCategory][2]?.metric || "-"}
-              </Text>
-              <View style={[styles.podiumBase, styles.podiumBase3]} />
-            </View>
+        {/* Loading */}
+        {loading && !leaderboard && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#F59E0B" />
+            <Text style={styles.loadingText}>Đang tải bảng xếp hạng...</Text>
           </View>
-        </View>
+        )}
 
-        {/* Full Ranking List */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Bảng xếp hạng đầy đủ</Text>
-          <View style={styles.rankingList}>
-            {leaderboardData[selectedCategory].map((item, index) => (
-              <View
-                key={index}
-                style={[styles.rankingItem, getRankStyle(item.rank)]}
-              >
-                <View style={styles.rankBadge}>
-                  <Text style={styles.rankBadgeText}>
-                    {getRankBadge(item.rank)}
-                  </Text>
-                </View>
-                <View style={styles.rankAvatarContainer}>
-                  <Text style={styles.rankAvatar}>{item.avatar}</Text>
-                </View>
-                <View style={styles.rankInfo}>
-                  <Text style={styles.rankName}>{item.name}</Text>
-                  <Text style={styles.rankClass}>{item.className}</Text>
-                </View>
-                <View style={styles.rankMetricContainer}>
-                  <Text
+        {/* Top 3 Podium */}
+        {displayData.length >= 3 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🏆 Top 3 xuất sắc</Text>
+            <View style={styles.podiumContainer}>
+              {/* 2nd Place */}
+              <View style={styles.podiumItem}>
+                <View style={styles.podiumAvatarContainer}>
+                  <View
                     style={[
-                      styles.rankMetric,
-                      { color: leaderboardOptions[selectedCategory].color },
+                      styles.podiumAvatarCircle,
+                      { borderColor: "#C0C0C0" },
                     ]}
                   >
-                    {item.metric}
-                  </Text>
-                  <Text style={styles.rankDetail}>{item.detail}</Text>
+                    <Text style={styles.podiumAvatarText}>
+                      {displayData[1]?.avatar || "?"}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.podiumRankBadge,
+                      { backgroundColor: "#C0C0C0" },
+                    ]}
+                  >
+                    <Text style={styles.podiumRankText}>2</Text>
+                  </View>
                 </View>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {displayData[1]?.name || "-"}
+                </Text>
+                <Text style={styles.podiumMetric}>
+                  {displayData[1]?.metric || "-"}
+                </Text>
+                <View style={[styles.podiumBase, styles.podiumBase2]} />
               </View>
-            ))}
+
+              {/* 1st Place */}
+              <View style={[styles.podiumItem, styles.podiumItemFirst]}>
+                <View style={styles.crownIcon}>
+                  <Text style={{ fontSize: 24 }}>👑</Text>
+                </View>
+                <View style={styles.podiumAvatarContainer}>
+                  <View
+                    style={[
+                      styles.podiumAvatarCircle,
+                      styles.podiumAvatarCircleFirst,
+                      { borderColor: "#FFD700" },
+                    ]}
+                  >
+                    <Text style={styles.podiumAvatarTextFirst}>
+                      {displayData[0]?.avatar || "?"}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.podiumRankBadge,
+                      { backgroundColor: "#FFD700" },
+                    ]}
+                  >
+                    <Text style={styles.podiumRankText}>1</Text>
+                  </View>
+                </View>
+                <Text style={styles.podiumNameFirst} numberOfLines={1}>
+                  {displayData[0]?.name || "-"}
+                </Text>
+                <Text style={styles.podiumMetricFirst}>
+                  {displayData[0]?.metric || "-"}
+                </Text>
+                <View style={[styles.podiumBase, styles.podiumBase1]} />
+              </View>
+
+              {/* 3rd Place */}
+              <View style={styles.podiumItem}>
+                <View style={styles.podiumAvatarContainer}>
+                  <View
+                    style={[
+                      styles.podiumAvatarCircle,
+                      { borderColor: "#CD7F32" },
+                    ]}
+                  >
+                    <Text style={styles.podiumAvatarText}>
+                      {displayData[2]?.avatar || "?"}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.podiumRankBadge,
+                      { backgroundColor: "#CD7F32" },
+                    ]}
+                  >
+                    <Text style={styles.podiumRankText}>3</Text>
+                  </View>
+                </View>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {displayData[2]?.name || "-"}
+                </Text>
+                <Text style={styles.podiumMetric}>
+                  {displayData[2]?.metric || "-"}
+                </Text>
+                <View style={[styles.podiumBase, styles.podiumBase3]} />
+              </View>
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Empty state */}
+        {!loading && displayData.length === 0 && (
+          <View style={styles.section}>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="trophy-outline" size={64} color="#D1D5DB" />
+              <Text style={styles.emptyText}>Chưa có dữ liệu xếp hạng</Text>
+              <Text style={styles.emptySubtext}>
+                Dữ liệu sẽ xuất hiện khi có điểm số và điểm danh
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Full Ranking List */}
+        {displayData.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📋 Bảng xếp hạng đầy đủ</Text>
+            <View style={styles.rankingList}>
+              {displayData.map((item, index) => (
+                <View
+                  key={index}
+                  style={[styles.rankingItem, getRankStyle(item.rank)]}
+                >
+                  <View style={styles.rankBadge}>
+                    <Text style={styles.rankBadgeText}>
+                      {getRankBadge(item.rank)}
+                    </Text>
+                  </View>
+                  <View style={styles.rankAvatarContainer}>
+                    <View
+                      style={[
+                        styles.rankAvatarCircle,
+                        {
+                          backgroundColor:
+                            selectedCategory === "score"
+                              ? "#FEF3C7"
+                              : "#D1FAE5",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.rankAvatarText,
+                          {
+                            color:
+                              selectedCategory === "score"
+                                ? "#D97706"
+                                : "#10B981",
+                          },
+                        ]}
+                      >
+                        {item.avatar}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.rankInfo}>
+                    <Text style={styles.rankName}>{item.name}</Text>
+                    <Text style={styles.rankClass}>{item.className}</Text>
+                  </View>
+                  <View style={styles.rankMetricContainer}>
+                    <Text
+                      style={[
+                        styles.rankMetric,
+                        {
+                          color: leaderboardOptions[selectedCategory].color,
+                        },
+                      ]}
+                    >
+                      {item.metric}
+                    </Text>
+                    <Text style={styles.rankDetail}>{item.detail}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Stats Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Thống kê</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#F59E0B", "#D97706"]}
-                style={styles.statCardGradient}
-              >
-                <Ionicons name="people" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>248</Text>
-                <Text style={styles.statLabel}>Học sinh</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#10B981", "#059669"]}
-                style={styles.statCardGradient}
-              >
-                <Ionicons name="star" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>8.5</Text>
-                <Text style={styles.statLabel}>Điểm TB</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#3B82F6", "#2563EB"]}
-                style={styles.statCardGradient}
-              >
-                <Ionicons name="checkbox" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>95%</Text>
-                <Text style={styles.statLabel}>Chuyên cần</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#8B5CF6", "#7C3AED"]}
-                style={styles.statCardGradient}
-              >
-                <Ionicons name="book" size={24} color="#FFFFFF" />
-                <Text style={styles.statValue}>92%</Text>
-                <Text style={styles.statLabel}>Bài tập</Text>
-              </LinearGradient>
+        {summary && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📊 Thống kê</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <LinearGradient
+                  colors={["#F59E0B", "#D97706"]}
+                  style={styles.statCardGradient}
+                >
+                  <Ionicons name="people" size={24} color="#FFFFFF" />
+                  <Text style={styles.statValue}>
+                    {summary.totalStudents}
+                  </Text>
+                  <Text style={styles.statLabel}>Học sinh</Text>
+                </LinearGradient>
+              </View>
+              <View style={styles.statCard}>
+                <LinearGradient
+                  colors={["#10B981", "#059669"]}
+                  style={styles.statCardGradient}
+                >
+                  <Ionicons name="star" size={24} color="#FFFFFF" />
+                  <Text style={styles.statValue}>
+                    {summary.averageScore > 0 ? summary.averageScore.toFixed(1) : "—"}
+                  </Text>
+                  <Text style={styles.statLabel}>Điểm TB</Text>
+                </LinearGradient>
+              </View>
+              <View style={styles.statCard}>
+                <LinearGradient
+                  colors={["#3B82F6", "#2563EB"]}
+                  style={styles.statCardGradient}
+                >
+                  <Ionicons name="checkbox" size={24} color="#FFFFFF" />
+                  <Text style={styles.statValue}>
+                    {summary.averageAttendanceRate > 0 ? `${summary.averageAttendanceRate}%` : "—"}
+                  </Text>
+                  <Text style={styles.statLabel}>Chuyên cần</Text>
+                </LinearGradient>
+              </View>
+              <View style={styles.statCard}>
+                <LinearGradient
+                  colors={["#8B5CF6", "#7C3AED"]}
+                  style={styles.statCardGradient}
+                >
+                  <Ionicons name="podium" size={24} color="#FFFFFF" />
+                  <Text style={styles.statValue}>
+                    {currentScoreData.length}
+                  </Text>
+                  <Text style={styles.statLabel}>Có xếp hạng</Text>
+                </LinearGradient>
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -472,6 +511,34 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 32,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#9CA3AF",
+    fontWeight: "600",
+  },
+  emptySubtext: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#D1D5DB",
   },
   // Header
   header: {
@@ -519,7 +586,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
-    width: 120,
+    width: 140,
     alignItems: "center",
     marginRight: 12,
     shadowColor: "#000",
@@ -578,12 +645,31 @@ const styles = StyleSheet.create({
   },
   podiumAvatarContainer: {
     position: "relative",
+    alignItems: "center",
   },
-  podiumAvatar: {
-    fontSize: 36,
+  podiumAvatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
   },
-  podiumAvatarFirst: {
-    fontSize: 44,
+  podiumAvatarCircleFirst: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  podiumAvatarText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#4B5563",
+  },
+  podiumAvatarTextFirst: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#4B5563",
   },
   podiumRankBadge: {
     position: "absolute",
@@ -606,6 +692,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     marginTop: 8,
     maxWidth: 80,
+    textAlign: "center",
   },
   podiumNameFirst: {
     fontSize: 14,
@@ -613,6 +700,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     marginTop: 8,
     maxWidth: 100,
+    textAlign: "center",
   },
   podiumMetric: {
     fontSize: 16,
@@ -671,8 +759,16 @@ const styles = StyleSheet.create({
   rankAvatarContainer: {
     marginRight: 12,
   },
-  rankAvatar: {
-    fontSize: 28,
+  rankAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rankAvatarText: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
   rankInfo: {
     flex: 1,
@@ -732,5 +828,80 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(255,255,255,0.9)",
     marginTop: 4,
+  },
+  // Branch Picker
+  branchPickerSection: {
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  branchPickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: "#FCD34D",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  branchPickerText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+    flex: 1,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  pickerContainer: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  pickerOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  pickerOptionActive: {
+    backgroundColor: "#FFFBEB",
+  },
+  pickerOptionText: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  pickerOptionTextActive: {
+    color: "#D97706",
+    fontWeight: "700",
   },
 });

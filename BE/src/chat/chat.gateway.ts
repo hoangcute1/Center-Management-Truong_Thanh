@@ -8,7 +8,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Injectable, UseGuards } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -40,8 +40,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.replace('Bearer ', '');
-      
+      const token =
+        client.handshake.auth.token ||
+        client.handshake.headers.authorization?.replace('Bearer ', '');
+
       if (!token) {
         console.log('No token provided, disconnecting client');
         client.disconnect();
@@ -51,7 +53,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log('Attempting to verify token...');
       const payload = this.jwtService.verify(token);
       const user = await this.usersService.findById(payload.sub);
-      
+
       if (!user) {
         console.log('User not found, disconnecting client');
         client.disconnect();
@@ -63,12 +65,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.connectedUsers.set((user as any)._id.toString(), client.id);
 
       console.log(`User ${user.name} connected with socket ${client.id}`);
-      
+
       // Join user to their personal room
       client.join(`user_${(user as any)._id}`);
-      
+
       // Notify user is online
-      client.broadcast.emit('userOnline', { userId: (user as any)._id, name: user.name });
+      client.broadcast.emit('userOnline', {
+        userId: (user as any)._id,
+        name: user.name,
+      });
     } catch (error) {
       console.error('Connection error:', error.message);
       client.disconnect();
@@ -79,7 +84,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (client.userId) {
       this.connectedUsers.delete(client.userId);
       console.log(`User ${client.userId} disconnected`);
-      
+
       // Notify user is offline
       client.broadcast.emit('userOffline', { userId: client.userId });
     }
@@ -97,11 +102,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Save message to database
       const message = await this.chatService.send(client.user, data);
-      
+
       // Populate sender and receiver info
       const populatedMessage = await message.populate([
         { path: 'senderId', select: 'name role' },
-        { path: 'receiverId', select: 'name role' }
+        { path: 'receiverId', select: 'name role' },
       ]);
 
       // Send to receiver if online
@@ -135,10 +140,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     if (!client.userId) return;
-    
+
     const roomName = this.getConversationRoom(client.userId, data.otherUserId);
     client.join(roomName);
-    
+
     return { success: true, room: roomName };
   }
 
@@ -148,10 +153,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     if (!client.userId) return;
-    
+
     const roomName = this.getConversationRoom(client.userId, data.otherUserId);
     client.leave(roomName);
-    
+
     return { success: true };
   }
 
@@ -161,7 +166,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     if (!client.userId) return;
-    
+
     this.server.to(`user_${data.receiverId}`).emit('userTyping', {
       userId: client.userId,
       userName: client.user?.name,

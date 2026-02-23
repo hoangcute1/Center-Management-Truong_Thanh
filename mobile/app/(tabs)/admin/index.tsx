@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,6 +22,7 @@ import {
   useIncidentsStore,
   useBranchesStore,
   getUserDisplayName,
+  useFinanceStore,
 } from "@/lib/stores";
 import { router } from "expo-router";
 import api from "@/lib/api";
@@ -142,32 +144,15 @@ const adminMenuItems = [
   },
 ];
 
-// Quick stats for finance
-const financeStats = [
-  {
-    label: "Tổng doanh thu",
-    value: "720 Tr",
-    color: "#10B981",
-    icon: "trending-up",
-  },
-  {
-    label: "Chi phí",
-    value: "185 Tr",
-    color: "#EF4444",
-    icon: "trending-down",
-  },
-  { label: "Lợi nhuận", value: "535 Tr", color: "#3B82F6", icon: "diamond" },
-];
-
-// Mock revenue data by month
-const revenueByMonth = [
-  { month: "T1", value: 45 },
-  { month: "T2", value: 52 },
-  { month: "T3", value: 48 },
-  { month: "T4", value: 61 },
-  { month: "T5", value: 55 },
-  { month: "T6", value: 67 },
-];
+// Format currency helper
+const formatFinanceCurrency = (amount: number): string => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)} Tr`;
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}K`;
+  }
+  return amount.toLocaleString("vi-VN");
+};
 
 // Subject colors for pie chart
 const subjectColors = [
@@ -193,6 +178,24 @@ export default function AdminDashboardScreen() {
     isLoading: incidentsLoading,
   } = useIncidentsStore();
   const { branches, fetchBranches } = useBranchesStore();
+  const {
+    dashboard: financeDashboard,
+    isLoading: financeStoreLoading,
+    fetchDashboard: fetchFinanceDashboard,
+    createExpense,
+    fetchExpenses: fetchFinanceExpenses,
+  } = useFinanceStore();
+
+  // Finance section state
+  const [selectedFinanceBranch, setSelectedFinanceBranch] = useState<string>("ALL");
+  const [selectedFinanceYear, setSelectedFinanceYear] = useState<number>(new Date().getFullYear());
+  const [showFinanceBranchPicker, setShowFinanceBranchPicker] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDesc, setExpenseDesc] = useState("");
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
+  const [expenseSubmitting, setExpenseSubmitting] = useState(false);
+  const [expenseError, setExpenseError] = useState("");
 
   const [stats, setStats] = useState({
     students: 0,
@@ -205,6 +208,11 @@ export default function AdminDashboardScreen() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Fetch finance data when branch/year changes
+  useEffect(() => {
+    fetchFinanceDashboard(selectedFinanceBranch, selectedFinanceYear);
+  }, [selectedFinanceBranch, selectedFinanceYear]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -224,21 +232,23 @@ export default function AdminDashboardScreen() {
 
   const fetchUserStats = async () => {
     try {
-      // Fetch user counts by role
+      // Fetch user counts by role - BE returns full array, so we count length
       const [studentsRes, teachersRes, parentsRes] = await Promise.all([
-        api.get("/users?role=student&limit=1"),
-        api.get("/users?role=teacher&limit=1"),
-        api.get("/users?role=parent&limit=1"),
+        api.get("/users?role=student"),
+        api.get("/users?role=teacher"),
+        api.get("/users?role=parent"),
       ]);
 
+      // API returns array directly
+      const studentsCount = Array.isArray(studentsRes.data) ? studentsRes.data.length : 0;
+      const teachersCount = Array.isArray(teachersRes.data) ? teachersRes.data.length : 0;
+      const parentsCount = Array.isArray(parentsRes.data) ? parentsRes.data.length : 0;
+
       setStats({
-        students: studentsRes.data.total || studentsRes.data.length || 0,
-        teachers: teachersRes.data.total || teachersRes.data.length || 0,
-        parents: parentsRes.data.total || parentsRes.data.length || 0,
-        totalUsers:
-          (studentsRes.data.total || 0) +
-          (teachersRes.data.total || 0) +
-          (parentsRes.data.total || 0),
+        students: studentsCount,
+        teachers: teachersCount,
+        parents: parentsCount,
+        totalUsers: studentsCount + teachersCount + parentsCount,
       });
     } catch (error) {
       console.error("Error fetching user stats:", error);
@@ -247,7 +257,45 @@ export default function AdminDashboardScreen() {
 
   const onRefresh = async () => {
     await loadData();
+    fetchFinanceDashboard(selectedFinanceBranch, selectedFinanceYear);
   };
+
+  // Expense handlers
+  const handleAddExpense = async () => {
+    setExpenseError("");
+    const numAmount = Number(expenseAmount.replace(/[.,]/g, ""));
+    if (!numAmount || numAmount <= 0) {
+      setExpenseError("Số tiền phải lớn hơn 0");
+      return;
+    }
+    if (!expenseDesc.trim()) {
+      setExpenseError("Vui lòng nhập nội dung chi phí");
+      return;
+    }
+    setExpenseSubmitting(true);
+    try {
+      await createExpense({
+        branchId: selectedFinanceBranch,
+        amount: numAmount,
+        description: expenseDesc.trim(),
+        expenseDate: expenseDate,
+      });
+      await fetchFinanceDashboard(selectedFinanceBranch, selectedFinanceYear);
+      setExpenseAmount("");
+      setExpenseDesc("");
+      setExpenseDate(new Date().toISOString().split("T")[0]);
+      setShowExpenseModal(false);
+      Alert.alert("Thành công", "Đã thêm chi phí thành công");
+    } catch (err: any) {
+      setExpenseError(err.message || "Có lỗi xảy ra");
+    } finally {
+      setExpenseSubmitting(false);
+    }
+  };
+
+  const selectedFinanceBranchName = selectedFinanceBranch === "ALL"
+    ? "Tất cả cơ sở"
+    : branches.find((b) => b._id === selectedFinanceBranch)?.name || "Chọn cơ sở";
 
   // Calculate dynamic stats
   const pendingIncidents = incidents.filter(
@@ -282,7 +330,7 @@ export default function AdminDashboardScreen() {
       trend: "Chờ xử lý",
       icon: "warning" as const,
       colors:
-        pendingIncidents > 0 ? ["#EF4444", "#DC2626"] : ["#8B5CF6", "#7C3AED"],
+        pendingIncidents > 0 ? ["#EF4444", "#DC2626"] : ["#10B981", "#059669"],
     },
   ];
 
@@ -309,8 +357,16 @@ export default function AdminDashboardScreen() {
     return studentsBySubject.reduce((sum, item) => sum + item.count, 0);
   }, [studentsBySubject]);
 
-  // Find max revenue value for scaling
-  const maxRevenue = Math.max(...revenueByMonth.map((item) => item.value));
+  // Finance chart data from store
+  const financeRevenueByMonth = financeDashboard?.chart?.revenueByMonth || [];
+  const financeExpenseByMonth = financeDashboard?.chart?.expenseByMonth || [];
+  const financeChartData = Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1;
+    const rev = financeRevenueByMonth.find((r) => r.month === month)?.amount || 0;
+    const exp = financeExpenseByMonth.find((e) => e.month === month)?.amount || 0;
+    return { month, revenue: rev, expense: exp };
+  }).filter((d) => d.revenue > 0 || d.expense > 0);
+  const maxFinanceChartValue = Math.max(...financeChartData.map((d) => Math.max(d.revenue, d.expense)), 1);
 
   return (
     <View style={styles.container}>
@@ -324,7 +380,7 @@ export default function AdminDashboardScreen() {
           <RefreshControl
             refreshing={isLoading || classesLoading || incidentsLoading}
             onRefresh={onRefresh}
-            tintColor="#8B5CF6"
+            tintColor="#10B981"
           />
         }
         showsVerticalScrollIndicator={false}
@@ -337,13 +393,13 @@ export default function AdminDashboardScreen() {
             left: 0,
             right: 0,
             height: 1000,
-            backgroundColor: "#8B5CF6", // Matches header top color
+            backgroundColor: "#10B981", // Matches header top color
           }}
         />
 
         {/* Welcome Header */}
         <LinearGradient
-          colors={["#8B5CF6", "#7C3AED"]}
+          colors={["#10B981", "#059669"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.welcomeGradient, { paddingTop: insets.top + 20 }]}
@@ -386,31 +442,52 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
 
-        {/* Revenue Chart */}
+        {/* Revenue/Expense Chart - Real Data */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📈 Doanh thu theo tháng</Text>
+          <Text style={styles.sectionTitle}>📈 Thu/Chi theo tháng</Text>
           <View style={styles.chartCard}>
-            <View style={styles.barChartContainer}>
-              {revenueByMonth.map((item, index) => (
-                <View key={index} style={styles.barWrapper}>
-                  <Text style={styles.barValue}>{item.value}Tr</Text>
-                  <View style={styles.barBackground}>
-                    <LinearGradient
-                      colors={["#3B82F6", "#2563EB"]}
-                      style={[
-                        styles.bar,
-                        { height: `${(item.value / maxRevenue) * 100}%` },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.barLabel}>{item.month}</Text>
+            {financeChartData.length > 0 ? (
+              <>
+                <View style={styles.barChartContainer}>
+                  {financeChartData.map((item, index) => (
+                    <View key={index} style={styles.barWrapper}>
+                      <View style={{ flexDirection: "row", gap: 2, height: 120, alignItems: "flex-end" }}>
+                        <View style={[styles.barBackground, { width: 14 }]}>
+                          <LinearGradient
+                            colors={["#10B981", "#059669"]}
+                            style={[
+                              styles.bar,
+                              { height: `${(item.revenue / maxFinanceChartValue) * 100}%` },
+                            ]}
+                          />
+                        </View>
+                        <View style={[styles.barBackground, { width: 14 }]}>
+                          <LinearGradient
+                            colors={["#EF4444", "#DC2626"]}
+                            style={[
+                              styles.bar,
+                              { height: `${(item.expense / maxFinanceChartValue) * 100}%` },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                      <Text style={styles.barLabel}>T{item.month}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-            <View style={styles.chartLegend}>
-              <View style={styles.legendDot} />
-              <Text style={styles.legendText}>Doanh thu (triệu VND)</Text>
-            </View>
+                <View style={styles.chartLegend}>
+                  <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
+                  <Text style={[styles.legendText, { marginRight: 16 }]}>Doanh thu</Text>
+                  <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
+                  <Text style={styles.legendText}>Chi phí</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.emptyChartContainer}>
+                <Ionicons name="bar-chart-outline" size={40} color="#9CA3AF" />
+                <Text style={styles.emptyChartText}>Chưa có dữ liệu</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -495,34 +572,203 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
 
-        {/* Finance Summary */}
+        {/* Finance Summary - Real Data with Branch Filter & Expense Button */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💰 Tài chính</Text>
-          <View style={styles.financeCard}>
-            {financeStats.map((stat, index) => (
-              <View key={index} style={styles.financeItem}>
-                <View
-                  style={[
-                    styles.financeIconBg,
-                    { backgroundColor: `${stat.color}20` },
-                  ]}
-                >
-                  <Ionicons
-                    name={stat.icon as any}
-                    size={20}
-                    color={stat.color}
-                  />
-                </View>
-                <View style={styles.financeInfo}>
-                  <Text style={styles.financeLabel}>{stat.label}</Text>
-                  <Text style={[styles.financeValue, { color: stat.color }]}>
-                    {stat.value}
-                  </Text>
-                </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>💰 Tài chính</Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/admin/finance")}
+              style={styles.seeAllButton}
+            >
+              <Text style={styles.seeAllText}>Xem chi tiết</Text>
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Branch Picker */}
+          <TouchableOpacity
+            style={styles.financeBranchPicker}
+            onPress={() => setShowFinanceBranchPicker(true)}
+          >
+            <Ionicons name="business" size={16} color="#10B981" />
+            <Text style={styles.financeBranchText} numberOfLines={1}>{selectedFinanceBranchName}</Text>
+            <Ionicons name="chevron-down" size={16} color="#6B7280" />
+          </TouchableOpacity>
+
+          {/* Branch Picker Modal */}
+          <Modal visible={showFinanceBranchPicker} transparent animationType="fade" onRequestClose={() => setShowFinanceBranchPicker(false)}>
+            <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowFinanceBranchPicker(false)}>
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  <TouchableOpacity
+                    style={[styles.pickerOption, selectedFinanceBranch === "ALL" && styles.pickerOptionActive]}
+                    onPress={() => { setSelectedFinanceBranch("ALL"); setShowFinanceBranchPicker(false); }}
+                  >
+                    <Text style={[styles.pickerOptionText, selectedFinanceBranch === "ALL" && styles.pickerOptionTextActive]}>
+                      🏢 Tất cả cơ sở
+                    </Text>
+                    {selectedFinanceBranch === "ALL" && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                  </TouchableOpacity>
+                  {branches.map((branch) => (
+                    <TouchableOpacity
+                      key={branch._id}
+                      style={[styles.pickerOption, selectedFinanceBranch === branch._id && styles.pickerOptionActive]}
+                      onPress={() => { setSelectedFinanceBranch(branch._id); setShowFinanceBranchPicker(false); }}
+                    >
+                      <Text style={[styles.pickerOptionText, selectedFinanceBranch === branch._id && styles.pickerOptionTextActive]}>
+                        📍 {branch.name}
+                      </Text>
+                      {selectedFinanceBranch === branch._id && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
-            ))}
+            </TouchableOpacity>
+          </Modal>
+
+          {/* Finance Stats Cards */}
+          <View style={styles.financeCard}>
+            {financeStoreLoading ? (
+              <View style={{ padding: 20, alignItems: "center" }}>
+                <ActivityIndicator size="small" color="#10B981" />
+                <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 8 }}>Đang tải...</Text>
+              </View>
+            ) : financeDashboard ? (
+              <>
+                {/* Total Revenue */}
+                <View style={styles.financeItem}>
+                  <View style={[styles.financeIconBg, { backgroundColor: "#10B98120" }]}>
+                    <Ionicons name="trending-up" size={20} color="#10B981" />
+                  </View>
+                  <View style={styles.financeInfo}>
+                    <Text style={styles.financeLabel}>Tổng doanh thu</Text>
+                    <Text style={[styles.financeValue, { color: "#10B981" }]}>
+                      {formatFinanceCurrency(financeDashboard.summary.totalRevenue)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Total Expense + Add Button */}
+                <View style={styles.financeItem}>
+                  <View style={[styles.financeIconBg, { backgroundColor: "#EF444420" }]}>
+                    <Ionicons name="trending-down" size={20} color="#EF4444" />
+                  </View>
+                  <View style={styles.financeInfo}>
+                    <Text style={styles.financeLabel}>Chi phí</Text>
+                    <Text style={[styles.financeValue, { color: "#EF4444" }]}>
+                      {formatFinanceCurrency(financeDashboard.summary.totalExpense)}
+                    </Text>
+                  </View>
+                  {selectedFinanceBranch !== "ALL" && (
+                    <TouchableOpacity
+                      style={styles.addExpenseBtn}
+                      onPress={() => setShowExpenseModal(true)}
+                    >
+                      <Ionicons name="add-circle" size={16} color="#DC2626" />
+                      <Text style={styles.addExpenseBtnText}>Thêm chi</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Profit */}
+                <View style={[styles.financeItem, { borderBottomWidth: 0 }]}>
+                  <View style={[styles.financeIconBg, { backgroundColor: financeDashboard.summary.profit >= 0 ? "#3B82F620" : "#F9731620" }]}>
+                    <Ionicons name="diamond" size={20} color={financeDashboard.summary.profit >= 0 ? "#3B82F6" : "#F97316"} />
+                  </View>
+                  <View style={styles.financeInfo}>
+                    <Text style={styles.financeLabel}>Lợi nhuận</Text>
+                    <Text style={[styles.financeValue, { color: financeDashboard.summary.profit >= 0 ? "#3B82F6" : "#F97316" }]}>
+                      {formatFinanceCurrency(financeDashboard.summary.profit)}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={{ padding: 20, alignItems: "center" }}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>💰</Text>
+                <Text style={{ fontSize: 13, color: "#6B7280" }}>Chưa có dữ liệu tài chính</Text>
+              </View>
+            )}
           </View>
         </View>
+
+        {/* Expense Modal */}
+        <Modal visible={showExpenseModal} transparent animationType="fade" onRequestClose={() => setShowExpenseModal(false)}>
+          <View style={styles.expenseOverlay}>
+            <View style={styles.expenseContainer}>
+              <View style={styles.expenseHeader}>
+                <Text style={styles.expenseHeaderTitle}>💸 Thêm chi phí</Text>
+                <TouchableOpacity onPress={() => { setShowExpenseModal(false); setExpenseError(""); }}>
+                  <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.expenseField}>
+                <Text style={styles.expenseLabel}>Số tiền (VNĐ) *</Text>
+                <TextInput
+                  style={styles.expenseInput}
+                  value={expenseAmount}
+                  onChangeText={setExpenseAmount}
+                  placeholder="Nhập số tiền..."
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={styles.expenseField}>
+                <Text style={styles.expenseLabel}>Nội dung *</Text>
+                <TextInput
+                  style={[styles.expenseInput, { height: 80, textAlignVertical: "top" }]}
+                  value={expenseDesc}
+                  onChangeText={setExpenseDesc}
+                  placeholder="Nhập nội dung chi phí..."
+                  multiline
+                  numberOfLines={3}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={styles.expenseField}>
+                <Text style={styles.expenseLabel}>Ngày chi</Text>
+                <TextInput
+                  style={styles.expenseInput}
+                  value={expenseDate}
+                  onChangeText={setExpenseDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              {expenseError ? (
+                <View style={styles.expenseErrorBox}>
+                  <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                  <Text style={styles.expenseErrorText}>{expenseError}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.expenseActions}>
+                <TouchableOpacity
+                  style={styles.expenseCancelBtn}
+                  onPress={() => { setShowExpenseModal(false); setExpenseError(""); }}
+                >
+                  <Text style={styles.expenseCancelBtnText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.expenseSubmitBtn, expenseSubmitting && { opacity: 0.6 }]}
+                  onPress={handleAddExpense}
+                  disabled={expenseSubmitting}
+                >
+                  {expenseSubmitting ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.expenseSubmitBtnText}>Thêm chi phí</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Recent Classes */}
         <View style={styles.section}>
@@ -533,7 +779,7 @@ export default function AdminDashboardScreen() {
               style={styles.seeAllButton}
             >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
-              <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
             </TouchableOpacity>
           </View>
 
@@ -599,7 +845,7 @@ export default function AdminDashboardScreen() {
                 style={styles.seeAllButton}
               >
                 <Text style={styles.seeAllText}>Xem tất cả</Text>
-                <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+                <Ionicons name="chevron-forward" size={16} color="#10B981" />
               </TouchableOpacity>
             </View>
 
@@ -634,7 +880,7 @@ export default function AdminDashboardScreen() {
               style={styles.seeAllButton}
             >
               <Text style={styles.seeAllText}>Quản lý</Text>
-              <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
             </TouchableOpacity>
           </View>
 
@@ -644,7 +890,7 @@ export default function AdminDashboardScreen() {
               <Text style={styles.branchesLabel}>Cơ sở đang hoạt động</Text>
             </View>
             <LinearGradient
-              colors={["#8B5CF6", "#7C3AED"]}
+              colors={["#10B981", "#059669"]}
               style={styles.branchesIconBg}
             >
               <Ionicons name="business" size={28} color="#FFFFFF" />
@@ -728,7 +974,7 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 14,
-    color: "#8B5CF6",
+    color: "#10B981",
     fontWeight: "600",
   },
   // Stats Grid
@@ -750,7 +996,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statCardGradient: {
-    padding: 16,
+    padding: 12,
     alignItems: "center",
   },
   statValue: {
@@ -1101,7 +1347,7 @@ const styles = StyleSheet.create({
   branchesCount: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#8B5CF6",
+    color: "#10B981",
   },
   branchesLabel: {
     fontSize: 14,
@@ -1114,5 +1360,175 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // Finance Branch Picker
+  financeBranchPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  financeBranchText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  // Picker Modal
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  pickerContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    width: "100%",
+    maxWidth: 340,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  pickerOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  pickerOptionActive: {
+    backgroundColor: "#D1FAE5",
+  },
+  pickerOptionText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#374151",
+  },
+  pickerOptionTextActive: {
+    color: "#059669",
+    fontWeight: "700",
+  },
+  // Add Expense Button
+  addExpenseBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+  },
+  addExpenseBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#DC2626",
+  },
+  // Expense Modal
+  expenseOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  expenseContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+  },
+  expenseHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  expenseHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  expenseField: {
+    marginBottom: 16,
+  },
+  expenseLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  expenseInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#1F2937",
+    backgroundColor: "#F9FAFB",
+  },
+  expenseErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    padding: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginBottom: 16,
+  },
+  expenseErrorText: {
+    fontSize: 13,
+    color: "#DC2626",
+    flex: 1,
+  },
+  expenseActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  expenseCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+  },
+  expenseCancelBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  expenseSubmitBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+  },
+  expenseSubmitBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });
