@@ -221,8 +221,11 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
+        {/* Background extension for iOS pull-to-refresh overscroll */}
+        <View style={{ position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: roleConfig.colors[0] }} />
+
         <LinearGradient
-          colors={roleConfig.colors as [string, string]}
+          colors={[roleConfig.colors[0], roleConfig.colors[0]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.profileGradient}

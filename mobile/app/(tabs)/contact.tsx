@@ -13,7 +13,7 @@ import {
     RefreshControl,
     ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore, useChatStore, Conversation, Message, ChatUser } from "@/lib/stores";
 import { LinearGradient } from "expo-linear-gradient";
@@ -58,10 +58,12 @@ function ChatDetailModal({
     visible,
     onClose,
     recipient,
+    safeTop,
 }: {
     visible: boolean;
     onClose: () => void;
     recipient: ChatUser | null;
+    safeTop: number;
 }) {
     const { user, accessToken } = useAuthStore();
     const {
@@ -130,10 +132,14 @@ function ChatDetailModal({
 
     return (
         <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-            <SafeAreaView style={styles.modalContainer} edges={["top"]}>
+            <View style={[styles.modalContainer, { paddingTop: safeTop }]}>
                 {/* Header */}
-                <View style={styles.chatDetailHeader}>
-                    <TouchableOpacity onPress={onClose} style={styles.backButton}>
+                <View style={[styles.chatDetailHeader, { paddingVertical: Platform.OS === 'ios' ? 16 : 12 }]}>
+                    <TouchableOpacity
+                        onPress={onClose}
+                        style={styles.backButton}
+                        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                    >
                         <Ionicons name="arrow-back" size={24} color="#1F2937" />
                     </TouchableOpacity>
                     <View style={styles.chatDetailInfo}>
@@ -205,7 +211,7 @@ function ChatDetailModal({
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
-            </SafeAreaView>
+            </View>
         </Modal>
     );
 }
@@ -307,6 +313,7 @@ function NewChatModal({
 
 export default function ContactScreen() {
     const { user, accessToken } = useAuthStore();
+    const insets = useSafeAreaInsets();
     const {
         conversations,
         fetchConversations,
@@ -353,10 +360,10 @@ export default function ContactScreen() {
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+        <View style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Tin nhắn</Text>
+            <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'ios' ? 16 : 24) }]}>
+                <Text style={styles.headerTitle}>Tin nhắns</Text>
                 <TouchableOpacity style={styles.headerIcon} onPress={() => setShowNewChat(true)}>
                     <Ionicons name="create-outline" size={24} color="#3B82F6" />
                 </TouchableOpacity>
@@ -470,8 +477,9 @@ export default function ContactScreen() {
                     setSelectedUser(null);
                 }}
                 recipient={selectedUser}
+                safeTop={insets.top}
             />
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -485,7 +493,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingBottom: 16,
         backgroundColor: "#FFFFFF",
     },
     headerTitle: {
