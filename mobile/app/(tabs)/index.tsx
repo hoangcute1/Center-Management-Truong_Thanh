@@ -693,25 +693,25 @@ export default function HomeScreen() {
   const pendingPayments =
     role === "student"
       ? myRequests.filter(
-        (r) => r.status === "pending" || r.status === "overdue",
-      ).length
+          (r) => r.status === "pending" || r.status === "overdue",
+        ).length
       : role === "parent"
         ? childrenRequests
-          .flatMap((c) => c.requests)
-          .filter((r) => r.status === "pending" || r.status === "overdue")
-          .length
+            .flatMap((c) => c.requests)
+            .filter((r) => r.status === "pending" || r.status === "overdue")
+            .length
         : 0;
 
   const pendingPaymentAmount =
     role === "student"
       ? myRequests
-        .filter((r) => r.status === "pending" || r.status === "overdue")
-        .reduce((sum, r) => sum + r.finalAmount, 0)
-      : role === "parent"
-        ? childrenRequests
-          .flatMap((c) => c.requests)
           .filter((r) => r.status === "pending" || r.status === "overdue")
           .reduce((sum, r) => sum + r.finalAmount, 0)
+      : role === "parent"
+        ? childrenRequests
+            .flatMap((c) => c.requests)
+            .filter((r) => r.status === "pending" || r.status === "overdue")
+            .reduce((sum, r) => sum + r.finalAmount, 0)
         : 0;
 
   const pendingIncidents = myIncidents.filter(
@@ -743,7 +743,16 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Background extension for iOS pull-to-refresh overscroll */}
-        <View style={{ position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: roleConfig.colors[0] }} />
+        <View
+          style={{
+            position: "absolute",
+            top: -1000,
+            left: 0,
+            right: 0,
+            height: 1000,
+            backgroundColor: roleConfig.colors[0],
+          }}
+        />
 
         {/* Welcome Section with Solid Color to match Header */}
         <LinearGradient
@@ -838,57 +847,112 @@ export default function HomeScreen() {
           <View
             style={[
               styles.quickActionsGrid,
-              quickActions.length === 5 && styles.quickActionsGridFive,
+              role === "student" && styles.quickActionsGridFour,
+              role !== "student" &&
+                quickActions.length === 5 &&
+                styles.quickActionsGridFive,
             ]}
           >
-            {/* Student Specific Extra Actions - Leaderboard, Grades & Documents */}
-            {role === "student" && (
+            {/* Student: 2 rows x 4 items */}
+            {role === "student" ? (
               <>
                 <AnimatedQuickAction
                   index={0}
+                  colors={["#3B82F6", "#2563EB"]}
+                  icon="calendar"
+                  label="Lịch học"
+                  subtitle="Xem lịch tuần"
+                  onPress={() => router.push("/(tabs)/schedule")}
+                  isCompact={true}
+                />
+                <AnimatedQuickAction
+                  index={1}
+                  colors={["#10B981", "#059669"]}
+                  icon="school"
+                  label="Lớp học"
+                  subtitle="Quản lý lớp"
+                  onPress={() => router.push("/(tabs)/classes")}
+                  isCompact={true}
+                />
+                <AnimatedQuickAction
+                  index={2}
                   colors={["#F59E0B", "#D97706"]}
                   icon="ribbon"
                   label="Điểm số"
                   subtitle="Kết quả học tập"
                   onPress={() => router.push("/grades")}
-                  isCompact={false}
+                  isCompact={true}
                 />
-
                 <AnimatedQuickAction
-                  index={1}
+                  index={3}
                   colors={["#8B5CF6", "#7C3AED"]}
                   icon="trophy"
-                  label="Bảng xếp hạng"
-                  subtitle="Thành tích thi đua"
+                  label="Xếp hạng"
+                  subtitle="Thành tích"
                   onPress={() => router.push("/leaderboard")}
-                  isCompact={false}
+                  isCompact={true}
                 />
-
                 <AnimatedQuickAction
-                  index={2}
+                  index={4}
                   colors={["#EC4899", "#DB2777"]}
                   icon="document-text"
                   label="Tài liệu"
-                  subtitle="Học tập & ôn luyện"
-                  onPress={() => { }}
-                  isCompact={false}
+                  subtitle="Ôn luyện"
+                  onPress={() => router.push("/(tabs)/materials")}
+                  isCompact={true}
+                />
+                <AnimatedQuickAction
+                  index={5}
+                  colors={["#EF4444", "#DC2626"]}
+                  icon="warning"
+                  label="Sự cố"
+                  subtitle="Báo cáo"
+                  onPress={() => router.push("/incidents-report")}
+                  isCompact={true}
+                />
+                <AnimatedQuickAction
+                  index={6}
+                  colors={["#6366F1", "#4F46E5"]}
+                  icon="star"
+                  label="Đánh giá GV"
+                  subtitle="Đánh giá"
+                  onPress={() => router.push("/(tabs)/evaluations")}
+                  isCompact={true}
+                />
+                <AnimatedQuickAction
+                  index={7}
+                  colors={
+                    pendingPayments > 0
+                      ? ["#EF4444", "#DC2626"]
+                      : ["#F59E0B", "#D97706"]
+                  }
+                  icon="wallet"
+                  label="Thanh toán"
+                  subtitle={
+                    pendingPayments > 0
+                      ? `${pendingPayments} chờ`
+                      : "Hoàn thành"
+                  }
+                  onPress={() => router.push("/(tabs)/payments")}
+                  badge={pendingPayments}
+                  isCompact={true}
                 />
               </>
+            ) : (
+              quickActions.map((action, index) => (
+                <AnimatedQuickAction
+                  key={index}
+                  index={index}
+                  colors={action.colors as [string, string]}
+                  icon={action.icon}
+                  label={action.label}
+                  subtitle={action.subtitle}
+                  onPress={action.onPress}
+                  badge={(action as any).badge}
+                  isCompact={quickActions.length === 5}
+                />
+              ))
             )}
-
-            {quickActions.map((action, index) => (
-              <AnimatedQuickAction
-                key={index}
-                index={index}
-                colors={action.colors as [string, string]}
-                icon={action.icon}
-                label={action.label}
-                subtitle={action.subtitle}
-                onPress={action.onPress}
-                badge={(action as any).badge}
-                isCompact={quickActions.length === 5}
-              />
-            ))}
           </View>
         </View>
 
@@ -1156,7 +1220,10 @@ export default function HomeScreen() {
                     <Ionicons name="calendar" size={18} color="#FFFFFF" />
                   </LinearGradient>
                   <Text style={styles.teacherStatValue}>
-                    {sessions.filter((s) => new Date(s.endTime) < new Date()).length}
+                    {
+                      sessions.filter((s) => new Date(s.endTime) < new Date())
+                        .length
+                    }
                   </Text>
                   <Text style={styles.teacherStatLabel}>Buổi đã dạy</Text>
                 </View>
@@ -1489,19 +1556,22 @@ const styles = StyleSheet.create({
   quickActionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: -6,
+    marginHorizontal: -4,
   },
   quickActionsGridFive: {
     justifyContent: "flex-start",
   },
+  quickActionsGridFour: {
+    justifyContent: "center",
+  },
   quickActionCard: {
-    width: (width - 56) / 2,
-    paddingHorizontal: 6,
+    width: "50%",
+    paddingHorizontal: 4,
     marginBottom: 12,
     alignItems: "center",
   },
   quickActionCardCompact: {
-    width: (width - 64) / 3,
+    width: "25%",
     paddingHorizontal: 4,
     marginBottom: 14,
     alignItems: "center",
@@ -1525,7 +1595,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   quickActionGradientCompact: {
-    aspectRatio: 1.2,
+    aspectRatio: 1,
     borderRadius: 14,
     marginBottom: 8,
   },
@@ -1553,7 +1623,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   quickActionLabelCompact: {
-    fontSize: 13,
+    fontSize: 11,
   },
   quickActionSubtitle: {
     fontSize: 12,

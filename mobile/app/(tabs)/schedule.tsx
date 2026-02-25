@@ -195,9 +195,7 @@ export default function ScheduleScreen() {
     useState<TimetableItem | null>(null);
 
   // Teacher view mode: day view only
-  const [teacherViewMode, setTeacherViewMode] = useState<"week" | "day">(
-    "day",
-  );
+  const [teacherViewMode, setTeacherViewMode] = useState<"week" | "day">("day");
 
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
@@ -218,7 +216,9 @@ export default function ScheduleScreen() {
   const [childId, setChildId] = useState<string | null>(null);
 
   // State to store attendance records for student/parent
-  const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<any[]>([]);
+  const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<
+    any[]
+  >([]);
 
   // Fetch child info for parent on mount
   useEffect(() => {
@@ -483,7 +483,7 @@ export default function ScheduleScreen() {
         typeof cls.teacherId === "object" && cls.teacherId?.name
           ? cls.teacherId.name
           : users.find((u) => u._id === cls.teacherId)?.name ||
-          "Chưa phân công";
+            "Chưa phân công";
 
       const branchName =
         typeof cls.branchId === "object" && cls.branchId?.name
@@ -557,7 +557,7 @@ export default function ScheduleScreen() {
         typeof cls.teacherId === "object" && cls.teacherId?.name
           ? cls.teacherId.name
           : users.find((u) => u._id === cls.teacherId)?.name ||
-          "Chưa phân công";
+            "Chưa phân công";
 
       const branchName =
         typeof cls.branchId === "object" && cls.branchId?.name
@@ -614,21 +614,21 @@ export default function ScheduleScreen() {
       user?.role === "parent"
         ? classes // Parent: classes already filtered by childId from API
         : classes.filter((cls) => {
-          // Check if user is in studentIds
-          if (cls.studentIds && cls.studentIds.includes(user._id))
-            return true;
-          // Check if user is in students array
-          if (cls.students && cls.students.some((s) => s._id === user._id))
-            return true;
-          return false;
-        });
+            // Check if user is in studentIds
+            if (cls.studentIds && cls.studentIds.includes(user._id))
+              return true;
+            // Check if user is in students array
+            if (cls.students && cls.students.some((s) => s._id === user._id))
+              return true;
+            return false;
+          });
 
     studentClasses.forEach((cls, classIndex) => {
       const teacherName =
         typeof cls.teacherId === "object" && cls.teacherId
           ? (cls.teacherId as any).fullName ||
-          (cls.teacherId as any).name ||
-          "Giáo viên"
+            (cls.teacherId as any).name ||
+            "Giáo viên"
           : "Giáo viên";
 
       if (cls.schedule && cls.schedule.length > 0) {
@@ -663,22 +663,41 @@ export default function ScheduleScreen() {
             if (attendanceRecord) {
               attendanceStatus = attendanceRecord.status;
             } else {
-              // Fallback: check session status (but this is not attendance status)
-              const session = sessions.find((s) => {
-                const sessionClassId =
-                  typeof s.classId === "object"
-                    ? (s.classId as any)._id
-                    : s.classId;
-                const sessionDate = new Date(s.startTime);
-                return (
-                  sessionClassId === cls._id &&
-                  sessionDate.getDate() === selectedDate.getDate() &&
-                  sessionDate.getMonth() === selectedDate.getMonth() &&
-                  sessionDate.getFullYear() === selectedDate.getFullYear()
-                );
-              });
-              // Note: session.status is 'pending'/'approved'/'cancelled', not attendance status
-              // So we don't use it for attendance display
+              // Determine status based on time
+              const now = new Date();
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const selDate = new Date(selectedDate);
+              selDate.setHours(0, 0, 0, 0);
+
+              // Parse start/end times
+              const [startH, startM] = sch.startTime.split(":").map(Number);
+              const [endH, endM] = sch.endTime.split(":").map(Number);
+
+              const classStart = new Date(selectedDate);
+              classStart.setHours(startH, startM, 0, 0);
+              const classEnd = new Date(selectedDate);
+              classEnd.setHours(endH, endM, 0, 0);
+
+              if (selDate.getTime() < today.getTime()) {
+                // Past date, no attendance record → auto absent
+                attendanceStatus = "absent";
+              } else if (selDate.getTime() === today.getTime()) {
+                // Today
+                if (now >= classEnd) {
+                  // Class already ended, teacher didn't take attendance → auto absent
+                  attendanceStatus = "absent";
+                } else if (now >= classStart && now < classEnd) {
+                  // Currently in class
+                  attendanceStatus = "in_progress";
+                } else {
+                  // Class hasn't started yet today
+                  attendanceStatus = undefined; // "Sắp tới"
+                }
+              } else {
+                // Future date
+                attendanceStatus = undefined; // "Sắp tới"
+              }
             }
 
             timetable.push({
@@ -700,7 +719,14 @@ export default function ScheduleScreen() {
     // Sort by start time
     timetable.sort((a, b) => a.startTime.localeCompare(b.startTime));
     return timetable;
-  }, [classes, selectedDate, user, sessions, childId, studentAttendanceRecords]);
+  }, [
+    classes,
+    selectedDate,
+    user,
+    sessions,
+    childId,
+    studentAttendanceRecords,
+  ]);
 
   // Check if day has classes for student
   const studentHasClassesOnDate = useCallback(
@@ -715,12 +741,12 @@ export default function ScheduleScreen() {
         user?.role === "parent"
           ? classes
           : classes.filter((cls) => {
-            if (cls.studentIds && cls.studentIds.includes(user._id))
-              return true;
-            if (cls.students && cls.students.some((s) => s._id === user._id))
-              return true;
-            return false;
-          });
+              if (cls.studentIds && cls.studentIds.includes(user._id))
+                return true;
+              if (cls.students && cls.students.some((s) => s._id === user._id))
+                return true;
+              return false;
+            });
 
       return studentClasses.some(
         (cls) =>
@@ -959,8 +985,8 @@ export default function ScheduleScreen() {
       Alert.alert(
         "Lỗi",
         error?.response?.data?.message ||
-        error.message ||
-        "Không thể lưu điểm danh. Vui lòng thử lại.",
+          error.message ||
+          "Không thể lưu điểm danh. Vui lòng thử lại.",
       );
     } finally {
       setIsSavingAttendance(false);
@@ -1333,22 +1359,22 @@ export default function ScheduleScreen() {
               )
             )
           ) : // List View - show all classes
-            adminClassList.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <LinearGradient
-                  colors={["#F3F4F6", "#E5E7EB"]}
-                  style={styles.emptyIconBg}
-                >
-                  <Ionicons name="school-outline" size={48} color="#9CA3AF" />
-                </LinearGradient>
-                <Text style={styles.emptyTitle}>Không có lớp học</Text>
-                <Text style={styles.emptyText}>
-                  Chưa có lớp học nào trong hệ thống
-                </Text>
-              </View>
-            ) : (
-              adminClassList.map((cls) => renderAdminClassCard(cls))
-            )}
+          adminClassList.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <LinearGradient
+                colors={["#F3F4F6", "#E5E7EB"]}
+                style={styles.emptyIconBg}
+              >
+                <Ionicons name="school-outline" size={48} color="#9CA3AF" />
+              </LinearGradient>
+              <Text style={styles.emptyTitle}>Không có lớp học</Text>
+              <Text style={styles.emptyText}>
+                Chưa có lớp học nào trong hệ thống
+              </Text>
+            </View>
+          ) : (
+            adminClassList.map((cls) => renderAdminClassCard(cls))
+          )}
         </ScrollView>
 
         {/* Branch Picker Modal */}
@@ -1409,7 +1435,7 @@ export default function ScheduleScreen() {
                       style={[
                         styles.pickerItemText,
                         selectedBranch === branch._id &&
-                        styles.pickerItemTextActive,
+                          styles.pickerItemTextActive,
                       ]}
                     >
                       {branch.name}
@@ -1480,7 +1506,7 @@ export default function ScheduleScreen() {
                   <View style={styles.classDetailSection}>
                     <Text style={styles.sectionTitle}>Lịch học cố định</Text>
                     {selectedClassDetail.schedule &&
-                      selectedClassDetail.schedule.length > 0 ? (
+                    selectedClassDetail.schedule.length > 0 ? (
                       selectedClassDetail.schedule.map(
                         (sch: any, idx: number) => (
                           <View key={idx} style={styles.scheduleItem}>
@@ -1557,233 +1583,229 @@ export default function ScheduleScreen() {
         </View>
 
         {/* DAY VIEW */}
-          <>
-            {/* Week Calendar Header */}
-            <View style={styles.calendarContainer}>
-              <View style={styles.weekRow}>
-                {weekDates.map((date, index) => {
-                  const selected = isSelected(date);
-                  const today = isToday(date);
-                  return (
-                    <TouchableOpacity
-                      key={index}
+        <>
+          {/* Week Calendar Header */}
+          <View style={styles.calendarContainer}>
+            <View style={styles.weekRow}>
+              {weekDates.map((date, index) => {
+                const selected = isSelected(date);
+                const today = isToday(date);
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.dateCell,
+                      selected && styles.selectedDateCell,
+                    ]}
+                    onPress={() => setSelectedDate(date)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
                       style={[
-                        styles.dateCell,
-                        selected && styles.selectedDateCell,
+                        styles.dayText,
+                        selected && styles.selectedDayText,
+                        today && !selected && styles.todayDayText,
                       ]}
-                      onPress={() => setSelectedDate(date)}
-                      activeOpacity={0.7}
+                    >
+                      {daysOfWeek[(index + 1) % 7]}
+                    </Text>
+                    <View
+                      style={[
+                        styles.dateCircle,
+                        selected && styles.selectedDateCircle,
+                        today && !selected && styles.todayDateCircle,
+                      ]}
                     >
                       <Text
                         style={[
-                          styles.dayText,
-                          selected && styles.selectedDayText,
-                          today && !selected && styles.todayDayText,
+                          styles.dateText,
+                          selected && styles.selectedDateText,
+                          today && !selected && styles.todayDateText,
                         ]}
                       >
-                        {daysOfWeek[(index + 1) % 7]}
+                        {formatDate(date)}
                       </Text>
-                      <View
-                        style={[
-                          styles.dateCircle,
-                          selected && styles.selectedDateCircle,
-                          today && !selected && styles.todayDateCircle,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.dateText,
-                            selected && styles.selectedDateText,
-                            today && !selected && styles.todayDateText,
-                          ]}
-                        >
-                          {formatDate(date)}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Selected Date Header */}
+          <View style={styles.selectedDateHeader}>
+            <View style={styles.selectedDateInfo}>
+              <Text style={styles.selectedDateTitle}>
+                {fullDaysOfWeek[selectedDate.getDay()]}
+              </Text>
+              <Text style={styles.selectedDateSubtitle}>
+                {selectedDate.toLocaleDateString("vi-VN", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
                 })}
-              </View>
+              </Text>
             </View>
-
-            {/* Selected Date Header */}
-            <View style={styles.selectedDateHeader}>
-              <View style={styles.selectedDateInfo}>
-                <Text style={styles.selectedDateTitle}>
-                  {fullDaysOfWeek[selectedDate.getDay()]}
-                </Text>
-                <Text style={styles.selectedDateSubtitle}>
-                  {selectedDate.toLocaleDateString("vi-VN", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </Text>
-              </View>
-              <View style={styles.sessionCount}>
-                <Text style={styles.sessionCountText}>
-                  {teacherTimetable.length} buổi dạy
-                </Text>
-              </View>
+            <View style={styles.sessionCount}>
+              <Text style={styles.sessionCountText}>
+                {teacherTimetable.length} buổi dạy
+              </Text>
             </View>
+          </View>
 
-            {/* Schedule List */}
-            <ScrollView
-              style={styles.scheduleList}
-              contentContainerStyle={styles.scheduleContent}
-              refreshControl={
-                <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
-              }
-              showsVerticalScrollIndicator={false}
-            >
-              {teacherTimetable.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <LinearGradient
-                    colors={["#F3F4F6", "#E5E7EB"]}
-                    style={styles.emptyIconBg}
+          {/* Schedule List */}
+          <ScrollView
+            style={styles.scheduleList}
+            contentContainerStyle={styles.scheduleContent}
+            refreshControl={
+              <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+            }
+            showsVerticalScrollIndicator={false}
+          >
+            {teacherTimetable.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <LinearGradient
+                  colors={["#F3F4F6", "#E5E7EB"]}
+                  style={styles.emptyIconBg}
+                >
+                  <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>Không có lịch dạy</Text>
+                <Text style={styles.emptyText}>
+                  Bạn không có tiết dạy nào trong ngày này
+                </Text>
+              </View>
+            ) : (
+              teacherTimetable.map((item, index) => {
+                const classData = classes.find((c) => c._id === item.classId);
+                const studentCount =
+                  classData?.students?.length ||
+                  classData?.studentIds?.length ||
+                  0;
+                const canAttend = isWithinClassTime(
+                  selectedDate,
+                  item.startTime,
+                  item.endTime,
+                );
+
+                return (
+                  <View
+                    key={`${item.classId}-${index}`}
+                    style={[
+                      styles.teacherScheduleCard,
+                      canAttend && styles.teacherScheduleCardActive,
+                    ]}
                   >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={48}
-                      color="#9CA3AF"
-                    />
-                  </LinearGradient>
-                  <Text style={styles.emptyTitle}>Không có lịch dạy</Text>
-                  <Text style={styles.emptyText}>
-                    Bạn không có tiết dạy nào trong ngày này
-                  </Text>
-                </View>
-              ) : (
-                teacherTimetable.map((item, index) => {
-                  const classData = classes.find((c) => c._id === item.classId);
-                  const studentCount =
-                    classData?.students?.length ||
-                    classData?.studentIds?.length ||
-                    0;
-                  const canAttend = isWithinClassTime(
-                    selectedDate,
-                    item.startTime,
-                    item.endTime,
-                  );
-
-                  return (
-                    <View
-                      key={`${item.classId}-${index}`}
-                      style={[
-                        styles.teacherScheduleCard,
-                        canAttend && styles.teacherScheduleCardActive,
-                      ]}
-                    >
-                      <View style={styles.timeColumn}>
-                        <LinearGradient
-                          colors={
-                            canAttend
-                              ? ["#10B981", "#059669"]
-                              : ["#3B82F6", "#2563EB"]
-                          }
-                          style={styles.timeIndicator}
-                        />
-                        <Text style={styles.startTime}>{item.startTime}</Text>
-                        <Text style={styles.endTime}>{item.endTime}</Text>
-                      </View>
-                      <View style={styles.scheduleInfo}>
-                        <View style={styles.scheduleHeader}>
-                          <Text
-                            style={styles.className}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {item.className}
-                          </Text>
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
-                                backgroundColor: canAttend
-                                  ? "#D1FAE5"
-                                  : "#DBEAFE",
-                              },
-                            ]}
-                          >
-                            <Ionicons
-                              name={canAttend ? "checkmark-circle" : "time"}
-                              size={10}
-                              color={canAttend ? "#059669" : "#3B82F6"}
-                            />
-                            <Text
-                              style={[
-                                styles.statusText,
-                                { color: canAttend ? "#059669" : "#3B82F6" },
-                              ]}
-                            >
-                              {canAttend ? "Đang diễn ra" : "Sắp tới"}
-                            </Text>
-                          </View>
-                        </View>
+                    <View style={styles.timeColumn}>
+                      <LinearGradient
+                        colors={
+                          canAttend
+                            ? ["#10B981", "#059669"]
+                            : ["#3B82F6", "#2563EB"]
+                        }
+                        style={styles.timeIndicator}
+                      />
+                      <Text style={styles.startTime}>{item.startTime}</Text>
+                      <Text style={styles.endTime}>{item.endTime}</Text>
+                    </View>
+                    <View style={styles.scheduleInfo}>
+                      <View style={styles.scheduleHeader}>
                         <Text
-                          style={styles.subject}
+                          style={styles.className}
                           numberOfLines={1}
                           ellipsizeMode="tail"
                         >
-                          {item.subject}
+                          {item.className}
                         </Text>
-
-                        {/* Class info */}
-                        <View style={styles.classInfoRow}>
-                          <View style={styles.detailItem}>
-                            <Ionicons
-                              name="people-outline"
-                              size={12}
-                              color="#6B7280"
-                            />
-                            <Text style={styles.detailText}>
-                              {studentCount} học sinh
-                            </Text>
-                          </View>
-                          {item.room && (
-                            <View style={styles.detailItem}>
-                              <Ionicons
-                                name="location-outline"
-                                size={12}
-                                color="#6B7280"
-                              />
-                              <Text style={styles.detailText} numberOfLines={1}>
-                                {item.room}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-
-                        {/* Attendance button */}
-                        <TouchableOpacity
+                        <View
                           style={[
-                            styles.attendanceButton,
-                            !canAttend && styles.attendanceButtonDisabled,
+                            styles.statusBadge,
+                            {
+                              backgroundColor: canAttend
+                                ? "#D1FAE5"
+                                : "#DBEAFE",
+                            },
                           ]}
-                          onPress={() => handleOpenAttendance(item)}
-                          activeOpacity={0.7}
                         >
                           <Ionicons
-                            name="checkmark-done-circle"
-                            size={16}
-                            color={canAttend ? "#FFFFFF" : "#9CA3AF"}
+                            name={canAttend ? "checkmark-circle" : "time"}
+                            size={10}
+                            color={canAttend ? "#059669" : "#3B82F6"}
                           />
                           <Text
                             style={[
-                              styles.attendanceButtonText,
-                              !canAttend && styles.attendanceButtonTextDisabled,
+                              styles.statusText,
+                              { color: canAttend ? "#059669" : "#3B82F6" },
                             ]}
                           >
-                            {canAttend ? "Điểm danh" : "Chưa đến giờ"}
+                            {canAttend ? "Đang diễn ra" : "Sắp tới"}
                           </Text>
-                        </TouchableOpacity>
+                        </View>
                       </View>
+                      <Text
+                        style={styles.subject}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {item.subject}
+                      </Text>
+
+                      {/* Class info */}
+                      <View style={styles.classInfoRow}>
+                        <View style={styles.detailItem}>
+                          <Ionicons
+                            name="people-outline"
+                            size={12}
+                            color="#6B7280"
+                          />
+                          <Text style={styles.detailText}>
+                            {studentCount} học sinh
+                          </Text>
+                        </View>
+                        {item.room && (
+                          <View style={styles.detailItem}>
+                            <Ionicons
+                              name="location-outline"
+                              size={12}
+                              color="#6B7280"
+                            />
+                            <Text style={styles.detailText} numberOfLines={1}>
+                              {item.room}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Attendance button */}
+                      <TouchableOpacity
+                        style={[
+                          styles.attendanceButton,
+                          !canAttend && styles.attendanceButtonDisabled,
+                        ]}
+                        onPress={() => handleOpenAttendance(item)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="checkmark-done-circle"
+                          size={16}
+                          color={canAttend ? "#FFFFFF" : "#9CA3AF"}
+                        />
+                        <Text
+                          style={[
+                            styles.attendanceButtonText,
+                            !canAttend && styles.attendanceButtonTextDisabled,
+                          ]}
+                        >
+                          {canAttend ? "Điểm danh" : "Chưa đến giờ"}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                  );
-                })
-              )}
-            </ScrollView>
-          </>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        </>
 
         {/* Teacher Attendance Modal */}
         <Modal
@@ -1890,7 +1912,7 @@ export default function ScheduleScreen() {
                         style={[
                           styles.attendanceStatusBtn,
                           record.status === "present" &&
-                          styles.attendanceStatusBtnActive,
+                            styles.attendanceStatusBtnActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "present")
@@ -1909,7 +1931,7 @@ export default function ScheduleScreen() {
                           styles.attendanceStatusBtn,
                           styles.attendanceStatusBtnAbsent,
                           record.status === "absent" &&
-                          styles.attendanceStatusBtnAbsentActive,
+                            styles.attendanceStatusBtnAbsentActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "absent")
@@ -1928,7 +1950,7 @@ export default function ScheduleScreen() {
                           styles.attendanceStatusBtn,
                           styles.attendanceStatusBtnLate,
                           record.status === "late" &&
-                          styles.attendanceStatusBtnLateActive,
+                            styles.attendanceStatusBtnLateActive,
                         ]}
                         onPress={() =>
                           updateAttendanceStatus(record.studentId, "late")
@@ -2157,6 +2179,12 @@ export default function ScheduleScreen() {
                     colors: ["#8B5CF6", "#7C3AED"],
                     icon: "document-text",
                     label: "Có phép",
+                  };
+                case "in_progress":
+                  return {
+                    colors: ["#06B6D4", "#0891B2"],
+                    icon: "play-circle",
+                    label: "Đang học",
                   };
                 default:
                   return { colors: colors, icon: "calendar", label: "Sắp tới" };

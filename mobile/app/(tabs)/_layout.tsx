@@ -43,7 +43,8 @@ export default function TabsLayout() {
 
   // Check if tab should be visible based on role
   const shouldShowPayments = role === "parent"; // Hidden for student
-  const shouldShowChat = role === "teacher" || role === "student" || role === "parent"; // Chat for teacher, student, parent
+  const shouldShowChat =
+    role === "teacher" || role === "student" || role === "parent"; // Chat for teacher, student, parent
   const shouldShowContact = false; // Replaced by chat in incidents tab
   const shouldShowSchedule =
     role === "student" ||
@@ -165,16 +166,13 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Materials - visible for student only */}
+      {/* Materials - hidden from tab bar, accessible via quick access */}
       <Tabs.Screen
         name="materials"
         options={{
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
-          href:
-            role === "student"
-              ? "/(tabs)/materials"
-              : null,
+          href: null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
