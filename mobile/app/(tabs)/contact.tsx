@@ -59,11 +59,13 @@ function ChatDetailModal({
     onClose,
     recipient,
     safeTop,
+    safeBottom,
 }: {
     visible: boolean;
     onClose: () => void;
     recipient: ChatUser | null;
     safeTop: number;
+    safeBottom: number;
 }) {
     const { user, accessToken } = useAuthStore();
     const {
@@ -130,10 +132,14 @@ function ChatDetailModal({
 
     if (!recipient) return null;
 
+    const bottomPadding = Math.max(safeBottom, 12);
+    // Header height: paddingVertical(16) * 2 + avatar(40) + safeTop
+    const headerOffset = Platform.OS === 'ios' ? safeTop + 72 : 0;
+
     return (
         <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-            <View style={[styles.modalContainer, { paddingTop: safeTop }]}>
-                {/* Header */}
+            <SafeAreaView style={styles.modalContainer}>
+                {/* Header - outside KeyboardAvoidingView */}
                 <View style={[styles.chatDetailHeader, { paddingVertical: Platform.OS === 'ios' ? 16 : 12 }]}>
                     <TouchableOpacity
                         onPress={onClose}
@@ -158,11 +164,11 @@ function ChatDetailModal({
                     </View>
                 </View>
 
-                {/* Messages */}
+                {/* Messages + Input wrapped in KeyboardAvoidingView */}
                 <KeyboardAvoidingView
                     style={styles.messagesContainer}
-                    behavior={Platform.OS === "ios" ? "padding" : undefined}
-                    keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={headerOffset}
                 >
                     {isLoading && conversationMessages.length === 0 ? (
                         <View style={styles.loadingContainer}>
@@ -182,6 +188,8 @@ function ChatDetailModal({
                             keyExtractor={(item) => item._id}
                             contentContainerStyle={styles.messagesList}
                             onContentSizeChange={() => scrollViewRef.current?.scrollToEnd()}
+                            keyboardDismissMode="interactive"
+                            keyboardShouldPersistTaps="handled"
                         />
                     )}
 
@@ -193,7 +201,7 @@ function ChatDetailModal({
                     )}
 
                     {/* Input */}
-                    <View style={styles.inputContainer}>
+                    <View style={[styles.inputContainer, { paddingBottom: bottomPadding }]}>
                         <TextInput
                             style={styles.chatInput}
                             placeholder="Nhập tin nhắn..."
@@ -211,7 +219,7 @@ function ChatDetailModal({
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }
@@ -363,7 +371,7 @@ export default function ContactScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === 'ios' ? 16 : 24) }]}>
-                <Text style={styles.headerTitle}>Tin nhắns</Text>
+                <Text style={styles.headerTitle}>Tin nhắn</Text>
                 <TouchableOpacity style={styles.headerIcon} onPress={() => setShowNewChat(true)}>
                     <Ionicons name="create-outline" size={24} color="#3B82F6" />
                 </TouchableOpacity>
@@ -478,6 +486,7 @@ export default function ContactScreen() {
                 }}
                 recipient={selectedUser}
                 safeTop={insets.top}
+                safeBottom={insets.bottom}
             />
         </View>
     );
