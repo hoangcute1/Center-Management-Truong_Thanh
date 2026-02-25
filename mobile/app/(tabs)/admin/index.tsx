@@ -142,6 +142,14 @@ const adminMenuItems = [
     colors: ["#F59E0B", "#D97706"],
     onPress: () => router.push("/(tabs)/admin/leaderboard"),
   },
+  {
+    id: "evaluations",
+    icon: "star" as const,
+    label: "Đánh giá GV",
+    subtitle: "Đánh giá giáo viên",
+    colors: ["#EC4899", "#DB2777"],
+    onPress: () => router.push("/(tabs)/admin/evaluations"),
+  },
 ];
 
 // Format currency helper
@@ -187,13 +195,18 @@ export default function AdminDashboardScreen() {
   } = useFinanceStore();
 
   // Finance section state
-  const [selectedFinanceBranch, setSelectedFinanceBranch] = useState<string>("ALL");
-  const [selectedFinanceYear, setSelectedFinanceYear] = useState<number>(new Date().getFullYear());
+  const [selectedFinanceBranch, setSelectedFinanceBranch] =
+    useState<string>("ALL");
+  const [selectedFinanceYear, setSelectedFinanceYear] = useState<number>(
+    new Date().getFullYear(),
+  );
   const [showFinanceBranchPicker, setShowFinanceBranchPicker] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDesc, setExpenseDesc] = useState("");
-  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
+  const [expenseDate, setExpenseDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
   const [expenseError, setExpenseError] = useState("");
 
@@ -240,9 +253,15 @@ export default function AdminDashboardScreen() {
       ]);
 
       // API returns array directly
-      const studentsCount = Array.isArray(studentsRes.data) ? studentsRes.data.length : 0;
-      const teachersCount = Array.isArray(teachersRes.data) ? teachersRes.data.length : 0;
-      const parentsCount = Array.isArray(parentsRes.data) ? parentsRes.data.length : 0;
+      const studentsCount = Array.isArray(studentsRes.data)
+        ? studentsRes.data.length
+        : 0;
+      const teachersCount = Array.isArray(teachersRes.data)
+        ? teachersRes.data.length
+        : 0;
+      const parentsCount = Array.isArray(parentsRes.data)
+        ? parentsRes.data.length
+        : 0;
 
       setStats({
         students: studentsCount,
@@ -293,9 +312,11 @@ export default function AdminDashboardScreen() {
     }
   };
 
-  const selectedFinanceBranchName = selectedFinanceBranch === "ALL"
-    ? "Tất cả cơ sở"
-    : branches.find((b) => b._id === selectedFinanceBranch)?.name || "Chọn cơ sở";
+  const selectedFinanceBranchName =
+    selectedFinanceBranch === "ALL"
+      ? "Tất cả cơ sở"
+      : branches.find((b) => b._id === selectedFinanceBranch)?.name ||
+        "Chọn cơ sở";
 
   // Calculate dynamic stats
   const pendingIncidents = incidents.filter(
@@ -362,11 +383,16 @@ export default function AdminDashboardScreen() {
   const financeExpenseByMonth = financeDashboard?.chart?.expenseByMonth || [];
   const financeChartData = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
-    const rev = financeRevenueByMonth.find((r) => r.month === month)?.amount || 0;
-    const exp = financeExpenseByMonth.find((e) => e.month === month)?.amount || 0;
+    const rev =
+      financeRevenueByMonth.find((r) => r.month === month)?.amount || 0;
+    const exp =
+      financeExpenseByMonth.find((e) => e.month === month)?.amount || 0;
     return { month, revenue: rev, expense: exp };
   }).filter((d) => d.revenue > 0 || d.expense > 0);
-  const maxFinanceChartValue = Math.max(...financeChartData.map((d) => Math.max(d.revenue, d.expense)), 1);
+  const maxFinanceChartValue = Math.max(
+    ...financeChartData.map((d) => Math.max(d.revenue, d.expense)),
+    1,
+  );
 
   return (
     <View style={styles.container}>
@@ -451,13 +477,22 @@ export default function AdminDashboardScreen() {
                 <View style={styles.barChartContainer}>
                   {financeChartData.map((item, index) => (
                     <View key={index} style={styles.barWrapper}>
-                      <View style={{ flexDirection: "row", gap: 2, height: 120, alignItems: "flex-end" }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          gap: 2,
+                          height: 120,
+                          alignItems: "flex-end",
+                        }}
+                      >
                         <View style={[styles.barBackground, { width: 14 }]}>
                           <LinearGradient
                             colors={["#10B981", "#059669"]}
                             style={[
                               styles.bar,
-                              { height: `${(item.revenue / maxFinanceChartValue) * 100}%` },
+                              {
+                                height: `${(item.revenue / maxFinanceChartValue) * 100}%`,
+                              },
                             ]}
                           />
                         </View>
@@ -466,7 +501,9 @@ export default function AdminDashboardScreen() {
                             colors={["#EF4444", "#DC2626"]}
                             style={[
                               styles.bar,
-                              { height: `${(item.expense / maxFinanceChartValue) * 100}%` },
+                              {
+                                height: `${(item.expense / maxFinanceChartValue) * 100}%`,
+                              },
                             ]}
                           />
                         </View>
@@ -476,9 +513,15 @@ export default function AdminDashboardScreen() {
                   ))}
                 </View>
                 <View style={styles.chartLegend}>
-                  <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
-                  <Text style={[styles.legendText, { marginRight: 16 }]}>Doanh thu</Text>
-                  <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
+                  <View
+                    style={[styles.legendDot, { backgroundColor: "#10B981" }]}
+                  />
+                  <Text style={[styles.legendText, { marginRight: 16 }]}>
+                    Doanh thu
+                  </Text>
+                  <View
+                    style={[styles.legendDot, { backgroundColor: "#EF4444" }]}
+                  />
                   <Text style={styles.legendText}>Chi phí</Text>
                 </View>
               </>
@@ -591,35 +634,84 @@ export default function AdminDashboardScreen() {
             onPress={() => setShowFinanceBranchPicker(true)}
           >
             <Ionicons name="business" size={16} color="#10B981" />
-            <Text style={styles.financeBranchText} numberOfLines={1}>{selectedFinanceBranchName}</Text>
+            <Text style={styles.financeBranchText} numberOfLines={1}>
+              {selectedFinanceBranchName}
+            </Text>
             <Ionicons name="chevron-down" size={16} color="#6B7280" />
           </TouchableOpacity>
 
           {/* Branch Picker Modal */}
-          <Modal visible={showFinanceBranchPicker} transparent animationType="fade" onRequestClose={() => setShowFinanceBranchPicker(false)}>
-            <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowFinanceBranchPicker(false)}>
+          <Modal
+            visible={showFinanceBranchPicker}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowFinanceBranchPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.pickerOverlay}
+              activeOpacity={1}
+              onPress={() => setShowFinanceBranchPicker(false)}
+            >
               <View style={styles.pickerContainer}>
                 <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
                 <ScrollView style={{ maxHeight: 300 }}>
                   <TouchableOpacity
-                    style={[styles.pickerOption, selectedFinanceBranch === "ALL" && styles.pickerOptionActive]}
-                    onPress={() => { setSelectedFinanceBranch("ALL"); setShowFinanceBranchPicker(false); }}
+                    style={[
+                      styles.pickerOption,
+                      selectedFinanceBranch === "ALL" &&
+                        styles.pickerOptionActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedFinanceBranch("ALL");
+                      setShowFinanceBranchPicker(false);
+                    }}
                   >
-                    <Text style={[styles.pickerOptionText, selectedFinanceBranch === "ALL" && styles.pickerOptionTextActive]}>
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        selectedFinanceBranch === "ALL" &&
+                          styles.pickerOptionTextActive,
+                      ]}
+                    >
                       🏢 Tất cả cơ sở
                     </Text>
-                    {selectedFinanceBranch === "ALL" && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                    {selectedFinanceBranch === "ALL" && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={20}
+                        color="#10B981"
+                      />
+                    )}
                   </TouchableOpacity>
                   {branches.map((branch) => (
                     <TouchableOpacity
                       key={branch._id}
-                      style={[styles.pickerOption, selectedFinanceBranch === branch._id && styles.pickerOptionActive]}
-                      onPress={() => { setSelectedFinanceBranch(branch._id); setShowFinanceBranchPicker(false); }}
+                      style={[
+                        styles.pickerOption,
+                        selectedFinanceBranch === branch._id &&
+                          styles.pickerOptionActive,
+                      ]}
+                      onPress={() => {
+                        setSelectedFinanceBranch(branch._id);
+                        setShowFinanceBranchPicker(false);
+                      }}
                     >
-                      <Text style={[styles.pickerOptionText, selectedFinanceBranch === branch._id && styles.pickerOptionTextActive]}>
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          selectedFinanceBranch === branch._id &&
+                            styles.pickerOptionTextActive,
+                        ]}
+                      >
                         📍 {branch.name}
                       </Text>
-                      {selectedFinanceBranch === branch._id && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                      {selectedFinanceBranch === branch._id && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color="#10B981"
+                        />
+                      )}
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -632,32 +724,48 @@ export default function AdminDashboardScreen() {
             {financeStoreLoading ? (
               <View style={{ padding: 20, alignItems: "center" }}>
                 <ActivityIndicator size="small" color="#10B981" />
-                <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 8 }}>Đang tải...</Text>
+                <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 8 }}>
+                  Đang tải...
+                </Text>
               </View>
             ) : financeDashboard ? (
               <>
                 {/* Total Revenue */}
                 <View style={styles.financeItem}>
-                  <View style={[styles.financeIconBg, { backgroundColor: "#10B98120" }]}>
+                  <View
+                    style={[
+                      styles.financeIconBg,
+                      { backgroundColor: "#10B98120" },
+                    ]}
+                  >
                     <Ionicons name="trending-up" size={20} color="#10B981" />
                   </View>
                   <View style={styles.financeInfo}>
                     <Text style={styles.financeLabel}>Tổng doanh thu</Text>
                     <Text style={[styles.financeValue, { color: "#10B981" }]}>
-                      {formatFinanceCurrency(financeDashboard.summary.totalRevenue)}
+                      {formatFinanceCurrency(
+                        financeDashboard.summary.totalRevenue,
+                      )}
                     </Text>
                   </View>
                 </View>
 
                 {/* Total Expense + Add Button */}
                 <View style={styles.financeItem}>
-                  <View style={[styles.financeIconBg, { backgroundColor: "#EF444420" }]}>
+                  <View
+                    style={[
+                      styles.financeIconBg,
+                      { backgroundColor: "#EF444420" },
+                    ]}
+                  >
                     <Ionicons name="trending-down" size={20} color="#EF4444" />
                   </View>
                   <View style={styles.financeInfo}>
                     <Text style={styles.financeLabel}>Chi phí</Text>
                     <Text style={[styles.financeValue, { color: "#EF4444" }]}>
-                      {formatFinanceCurrency(financeDashboard.summary.totalExpense)}
+                      {formatFinanceCurrency(
+                        financeDashboard.summary.totalExpense,
+                      )}
                     </Text>
                   </View>
                   {selectedFinanceBranch !== "ALL" && (
@@ -673,12 +781,40 @@ export default function AdminDashboardScreen() {
 
                 {/* Profit */}
                 <View style={[styles.financeItem, { borderBottomWidth: 0 }]}>
-                  <View style={[styles.financeIconBg, { backgroundColor: financeDashboard.summary.profit >= 0 ? "#3B82F620" : "#F9731620" }]}>
-                    <Ionicons name="diamond" size={20} color={financeDashboard.summary.profit >= 0 ? "#3B82F6" : "#F97316"} />
+                  <View
+                    style={[
+                      styles.financeIconBg,
+                      {
+                        backgroundColor:
+                          financeDashboard.summary.profit >= 0
+                            ? "#3B82F620"
+                            : "#F9731620",
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="diamond"
+                      size={20}
+                      color={
+                        financeDashboard.summary.profit >= 0
+                          ? "#3B82F6"
+                          : "#F97316"
+                      }
+                    />
                   </View>
                   <View style={styles.financeInfo}>
                     <Text style={styles.financeLabel}>Lợi nhuận</Text>
-                    <Text style={[styles.financeValue, { color: financeDashboard.summary.profit >= 0 ? "#3B82F6" : "#F97316" }]}>
+                    <Text
+                      style={[
+                        styles.financeValue,
+                        {
+                          color:
+                            financeDashboard.summary.profit >= 0
+                              ? "#3B82F6"
+                              : "#F97316",
+                        },
+                      ]}
+                    >
                       {formatFinanceCurrency(financeDashboard.summary.profit)}
                     </Text>
                   </View>
@@ -687,19 +823,31 @@ export default function AdminDashboardScreen() {
             ) : (
               <View style={{ padding: 20, alignItems: "center" }}>
                 <Text style={{ fontSize: 32, marginBottom: 8 }}>💰</Text>
-                <Text style={{ fontSize: 13, color: "#6B7280" }}>Chưa có dữ liệu tài chính</Text>
+                <Text style={{ fontSize: 13, color: "#6B7280" }}>
+                  Chưa có dữ liệu tài chính
+                </Text>
               </View>
             )}
           </View>
         </View>
 
         {/* Expense Modal */}
-        <Modal visible={showExpenseModal} transparent animationType="fade" onRequestClose={() => setShowExpenseModal(false)}>
+        <Modal
+          visible={showExpenseModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowExpenseModal(false)}
+        >
           <View style={styles.expenseOverlay}>
             <View style={styles.expenseContainer}>
               <View style={styles.expenseHeader}>
                 <Text style={styles.expenseHeaderTitle}>💸 Thêm chi phí</Text>
-                <TouchableOpacity onPress={() => { setShowExpenseModal(false); setExpenseError(""); }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowExpenseModal(false);
+                    setExpenseError("");
+                  }}
+                >
                   <Ionicons name="close-circle" size={28} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
@@ -719,7 +867,10 @@ export default function AdminDashboardScreen() {
               <View style={styles.expenseField}>
                 <Text style={styles.expenseLabel}>Nội dung *</Text>
                 <TextInput
-                  style={[styles.expenseInput, { height: 80, textAlignVertical: "top" }]}
+                  style={[
+                    styles.expenseInput,
+                    { height: 80, textAlignVertical: "top" },
+                  ]}
                   value={expenseDesc}
                   onChangeText={setExpenseDesc}
                   placeholder="Nhập nội dung chi phí..."
@@ -750,19 +901,27 @@ export default function AdminDashboardScreen() {
               <View style={styles.expenseActions}>
                 <TouchableOpacity
                   style={styles.expenseCancelBtn}
-                  onPress={() => { setShowExpenseModal(false); setExpenseError(""); }}
+                  onPress={() => {
+                    setShowExpenseModal(false);
+                    setExpenseError("");
+                  }}
                 >
                   <Text style={styles.expenseCancelBtnText}>Hủy</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.expenseSubmitBtn, expenseSubmitting && { opacity: 0.6 }]}
+                  style={[
+                    styles.expenseSubmitBtn,
+                    expenseSubmitting && { opacity: 0.6 },
+                  ]}
                   onPress={handleAddExpense}
                   disabled={expenseSubmitting}
                 >
                   {expenseSubmitting ? (
                     <ActivityIndicator color="#FFF" size="small" />
                   ) : (
-                    <Text style={styles.expenseSubmitBtnText}>Thêm chi phí</Text>
+                    <Text style={styles.expenseSubmitBtnText}>
+                      Thêm chi phí
+                    </Text>
                   )}
                 </TouchableOpacity>
               </View>

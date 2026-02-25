@@ -106,12 +106,13 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
-      {/* Home - visible for all */}
+      {/* Home - visible for all except admin */}
       <Tabs.Screen
         name="index"
         options={{
           title: "Trang chủ",
           headerTitle: "Giáo dục Trường Thành",
+          href: role === "admin" ? null : "/(tabs)/index",
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -266,7 +267,7 @@ export default function TabsLayout() {
         name="admin"
         options={{
           title: "Quản lý",
-          headerTitle: "Quản lý hệ thống",
+          headerShown: false,
           href: shouldShowAdmin ? "/(tabs)/admin" : null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>

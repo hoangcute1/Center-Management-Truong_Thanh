@@ -22,7 +22,13 @@ import {
   useBranchesStore,
   useUsersStore,
   useAttendanceStore,
+  useSessionsStore,
 } from "@/lib/stores";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import { Platform } from "react-native";
+import { subjects, getSubjectLabel } from "@/lib/constants/subjects";
 import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
@@ -196,6 +202,35 @@ export default function ScheduleScreen() {
 
   // Teacher view mode: day view only
   const [teacherViewMode, setTeacherViewMode] = useState<"week" | "day">("day");
+
+  // Admin: Add irregular session states
+  const { createSession: createNewSession } = useSessionsStore();
+  const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
+  const [sessionForm, setSessionForm] = useState({
+    branchId: "",
+    classId: "",
+    teacherId: "",
+    subject: "",
+    title: "",
+    room: "",
+    date: new Date(),
+    startTime: "08:00",
+    endTime: "09:30",
+    type: "makeup" as "makeup" | "exam",
+    note: "",
+  });
+  const [showSessionDatePicker, setShowSessionDatePicker] = useState(false);
+  const [showSessionStartTimePicker, setShowSessionStartTimePicker] =
+    useState(false);
+  const [showSessionEndTimePicker, setShowSessionEndTimePicker] =
+    useState(false);
+  const [showSessionBranchPicker, setShowSessionBranchPicker] = useState(false);
+  const [showSessionClassPicker, setShowSessionClassPicker] = useState(false);
+  const [showSessionTeacherPicker, setShowSessionTeacherPicker] =
+    useState(false);
+  const [showSessionSubjectPicker, setShowSessionSubjectPicker] =
+    useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
@@ -1124,6 +1159,88 @@ export default function ScheduleScreen() {
   const selectedBranchName =
     branches.find((b) => b._id === selectedBranch)?.name || "Tất cả chi nhánh";
 
+  // Filtered classes for session form (by branch and subject)
+  const sessionFormClasses = useMemo(() => {
+    let result = classes;
+    if (sessionForm.branchId) {
+      result = result.filter((cls: any) => {
+        const branchId =
+          typeof cls.branchId === "string" ? cls.branchId : cls.branchId?._id;
+        return branchId === sessionForm.branchId;
+      });
+    }
+    if (sessionForm.subject) {
+      result = result.filter((cls: any) => cls.subject === sessionForm.subject);
+    }
+    return result;
+  }, [classes, sessionForm.branchId, sessionForm.subject]);
+
+  // Teachers list for session form
+  const sessionTeachers = useMemo(() => {
+    return users.filter((u: any) => u.role === "teacher");
+  }, [users]);
+
+  // Reset session form
+  const resetSessionForm = () => {
+    setSessionForm({
+      branchId: "",
+      classId: "",
+      teacherId: "",
+      subject: "",
+      title: "",
+      room: "",
+      date: new Date(),
+      startTime: "08:00",
+      endTime: "09:30",
+      type: "makeup",
+      note: "",
+    });
+  };
+
+  // Handle create session submit
+  const handleCreateSession = async () => {
+    if (!sessionForm.title.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập tiêu đề buổi học");
+      return;
+    }
+    if (!sessionForm.subject) {
+      Alert.alert("Lỗi", "Vui lòng chọn môn học");
+      return;
+    }
+    if (sessionForm.startTime >= sessionForm.endTime) {
+      Alert.alert("Lỗi", "Giờ kết thúc phải sau giờ bắt đầu");
+      return;
+    }
+
+    setIsCreatingSession(true);
+    try {
+      const dateStr = sessionForm.date.toISOString().split("T")[0];
+      const startDateTime = new Date(`${dateStr}T${sessionForm.startTime}:00`);
+      const endDateTime = new Date(`${dateStr}T${sessionForm.endTime}:00`);
+
+      await createNewSession({
+        classId: sessionForm.classId || undefined,
+        teacherId: sessionForm.teacherId || undefined,
+        subject: sessionForm.subject || undefined,
+        title: sessionForm.title || undefined,
+        room: sessionForm.room || undefined,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        type: sessionForm.type,
+        note: sessionForm.note || undefined,
+      } as any);
+
+      Alert.alert("Thành công", "Đã tạo buổi học bất thường");
+      setShowCreateSessionModal(false);
+      resetSessionForm();
+      loadSchedule();
+    } catch (error: any) {
+      Alert.alert("Lỗi", error.message || "Không thể tạo buổi học");
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
+
   // Admin View
   if (isAdmin) {
     return (
@@ -1537,11 +1654,715 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* FAB - Add Irregular Session */}
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => {
+            resetSessionForm();
+            setShowCreateSessionModal(true);
+          }}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={["#3B82F6", "#2563EB"]}
+            style={styles.fabGradient}
+          >
+            <Ionicons name="add" size={28} color="#fff" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Create Session Modal */}
+        <Modal
+          visible={showCreateSessionModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowCreateSessionModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.classDetailModal, { maxHeight: "90%" }]}>
+              <View style={styles.modalHeader}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: "#EEF2FF",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="calendar" size={20} color="#3B82F6" />
+                  </View>
+                  <View>
+                    <Text style={styles.modalTitle}>
+                      Thêm buổi học bất thường
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
+                      Tạo buổi học bù hoặc kiểm tra
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowCreateSessionModal(false)}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Session Type Toggle */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Loại buổi học</Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeChip,
+                        sessionForm.type === "makeup" && styles.typeChipActive,
+                      ]}
+                      onPress={() =>
+                        setSessionForm((prev) => ({ ...prev, type: "makeup" }))
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.typeChipText,
+                          sessionForm.type === "makeup" &&
+                            styles.typeChipTextActive,
+                        ]}
+                      >
+                        Học bù
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeChip,
+                        sessionForm.type === "exam" && styles.typeChipActive,
+                      ]}
+                      onPress={() =>
+                        setSessionForm((prev) => ({ ...prev, type: "exam" }))
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.typeChipText,
+                          sessionForm.type === "exam" &&
+                            styles.typeChipTextActive,
+                        ]}
+                      >
+                        Kiểm tra
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Title */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Tiêu đề *</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="VD: Buổi ôn tập, Kiểm tra giữa kỳ..."
+                    placeholderTextColor="#9CA3AF"
+                    value={sessionForm.title}
+                    onChangeText={(text) =>
+                      setSessionForm((prev) => ({ ...prev, title: text }))
+                    }
+                  />
+                </View>
+
+                {/* Branch Picker */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Cơ sở</Text>
+                  <TouchableOpacity
+                    style={styles.formPicker}
+                    onPress={() => setShowSessionBranchPicker(true)}
+                  >
+                    <Ionicons
+                      name="business-outline"
+                      size={18}
+                      color="#6B7280"
+                    />
+                    <Text
+                      style={[
+                        styles.formPickerText,
+                        !sessionForm.branchId && { color: "#9CA3AF" },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {sessionForm.branchId
+                        ? branches.find((b) => b._id === sessionForm.branchId)
+                            ?.name
+                        : "Chọn cơ sở"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Subject Picker */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Môn học *</Text>
+                  <TouchableOpacity
+                    style={styles.formPicker}
+                    onPress={() => setShowSessionSubjectPicker(true)}
+                  >
+                    <Ionicons name="book-outline" size={18} color="#6B7280" />
+                    <Text
+                      style={[
+                        styles.formPickerText,
+                        !sessionForm.subject && { color: "#9CA3AF" },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {sessionForm.subject
+                        ? getSubjectLabel(sessionForm.subject)
+                        : "Chọn môn học"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Class Picker */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Lớp học</Text>
+                  <TouchableOpacity
+                    style={styles.formPicker}
+                    onPress={() => setShowSessionClassPicker(true)}
+                  >
+                    <Ionicons name="school-outline" size={18} color="#6B7280" />
+                    <Text
+                      style={[
+                        styles.formPickerText,
+                        !sessionForm.classId && { color: "#9CA3AF" },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {sessionForm.classId
+                        ? classes.find(
+                            (c: any) => c._id === sessionForm.classId,
+                          )?.name
+                        : "Chọn lớp học"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Teacher Picker */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Giáo viên</Text>
+                  <TouchableOpacity
+                    style={styles.formPicker}
+                    onPress={() => setShowSessionTeacherPicker(true)}
+                  >
+                    <Ionicons name="person-outline" size={18} color="#6B7280" />
+                    <Text
+                      style={[
+                        styles.formPickerText,
+                        !sessionForm.teacherId && { color: "#9CA3AF" },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {sessionForm.teacherId
+                        ? users.find(
+                            (u: any) => u._id === sessionForm.teacherId,
+                          )?.name
+                        : "Chọn giáo viên"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Room */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Phòng học</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="VD: P201, Lab A..."
+                    placeholderTextColor="#9CA3AF"
+                    value={sessionForm.room}
+                    onChangeText={(text) =>
+                      setSessionForm((prev) => ({ ...prev, room: text }))
+                    }
+                  />
+                </View>
+
+                {/* Date */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Ngày học *</Text>
+                  <TouchableOpacity
+                    style={styles.formPicker}
+                    onPress={() => setShowSessionDatePicker(true)}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color="#6B7280"
+                    />
+                    <Text style={styles.formPickerText}>
+                      {sessionForm.date.toLocaleDateString("vi-VN", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                  {showSessionDatePicker && (
+                    <DateTimePicker
+                      value={sessionForm.date}
+                      mode="date"
+                      onChange={(event: DateTimePickerEvent, date?: Date) => {
+                        setShowSessionDatePicker(Platform.OS === "ios");
+                        if (date) setSessionForm((prev) => ({ ...prev, date }));
+                      }}
+                    />
+                  )}
+                </View>
+
+                {/* Time Row */}
+                <View
+                  style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.formLabel}>Giờ bắt đầu *</Text>
+                    <TouchableOpacity
+                      style={styles.formPicker}
+                      onPress={() => setShowSessionStartTimePicker(true)}
+                    >
+                      <Ionicons name="time-outline" size={18} color="#6B7280" />
+                      <Text style={styles.formPickerText}>
+                        {sessionForm.startTime}
+                      </Text>
+                    </TouchableOpacity>
+                    {showSessionStartTimePicker && (
+                      <DateTimePicker
+                        value={(() => {
+                          const d = new Date();
+                          const [h, m] = sessionForm.startTime.split(":");
+                          d.setHours(parseInt(h), parseInt(m));
+                          return d;
+                        })()}
+                        mode="time"
+                        is24Hour={true}
+                        onChange={(event: DateTimePickerEvent, date?: Date) => {
+                          setShowSessionStartTimePicker(Platform.OS === "ios");
+                          if (date) {
+                            const h = date
+                              .getHours()
+                              .toString()
+                              .padStart(2, "0");
+                            const m = date
+                              .getMinutes()
+                              .toString()
+                              .padStart(2, "0");
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              startTime: `${h}:${m}`,
+                            }));
+                          }
+                        }}
+                      />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.formLabel}>Giờ kết thúc *</Text>
+                    <TouchableOpacity
+                      style={styles.formPicker}
+                      onPress={() => setShowSessionEndTimePicker(true)}
+                    >
+                      <Ionicons name="time-outline" size={18} color="#6B7280" />
+                      <Text style={styles.formPickerText}>
+                        {sessionForm.endTime}
+                      </Text>
+                    </TouchableOpacity>
+                    {showSessionEndTimePicker && (
+                      <DateTimePicker
+                        value={(() => {
+                          const d = new Date();
+                          const [h, m] = sessionForm.endTime.split(":");
+                          d.setHours(parseInt(h), parseInt(m));
+                          return d;
+                        })()}
+                        mode="time"
+                        is24Hour={true}
+                        onChange={(event: DateTimePickerEvent, date?: Date) => {
+                          setShowSessionEndTimePicker(Platform.OS === "ios");
+                          if (date) {
+                            const h = date
+                              .getHours()
+                              .toString()
+                              .padStart(2, "0");
+                            const m = date
+                              .getMinutes()
+                              .toString()
+                              .padStart(2, "0");
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              endTime: `${h}:${m}`,
+                            }));
+                          }
+                        }}
+                      />
+                    )}
+                  </View>
+                </View>
+
+                {/* Note */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.formLabel}>Ghi chú</Text>
+                  <TextInput
+                    style={[
+                      styles.formInput,
+                      { height: 80, textAlignVertical: "top" },
+                    ]}
+                    placeholder="Ghi chú thêm..."
+                    placeholderTextColor="#9CA3AF"
+                    value={sessionForm.note}
+                    onChangeText={(text) =>
+                      setSessionForm((prev) => ({ ...prev, note: text }))
+                    }
+                    multiline
+                  />
+                </View>
+              </ScrollView>
+
+              {/* Submit Buttons */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 10,
+                  paddingTop: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: "#F3F4F6",
+                }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.formButton,
+                    { flex: 1, backgroundColor: "#F3F4F6" },
+                  ]}
+                  onPress={() => setShowCreateSessionModal(false)}
+                >
+                  <Text style={[styles.formButtonText, { color: "#6B7280" }]}>
+                    Hủy
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.formButton, { flex: 2 }]}
+                  onPress={handleCreateSession}
+                  disabled={isCreatingSession}
+                >
+                  <LinearGradient
+                    colors={["#3B82F6", "#2563EB"]}
+                    style={[
+                      styles.formButtonGradient,
+                      isCreatingSession && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Ionicons name="add-circle" size={18} color="#fff" />
+                    <Text style={[styles.formButtonText, { color: "#fff" }]}>
+                      {isCreatingSession ? "Đang tạo..." : "Tạo buổi học"}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Session Branch Picker Modal */}
+        <Modal
+          visible={showSessionBranchPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSessionBranchPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => setShowSessionBranchPicker(false)}
+          >
+            <View style={styles.pickerContainer}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>Chọn cơ sở</Text>
+                <TouchableOpacity
+                  onPress={() => setShowSessionBranchPicker(false)}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerList}>
+                <TouchableOpacity
+                  style={[
+                    styles.pickerItem,
+                    !sessionForm.branchId && styles.pickerItemActive,
+                  ]}
+                  onPress={() => {
+                    setSessionForm((prev) => ({
+                      ...prev,
+                      branchId: "",
+                      classId: "",
+                    }));
+                    setShowSessionBranchPicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.pickerItemText,
+                      !sessionForm.branchId && styles.pickerItemTextActive,
+                    ]}
+                  >
+                    Tất cả
+                  </Text>
+                  {!sessionForm.branchId && (
+                    <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+                {branches.map((branch) => (
+                  <TouchableOpacity
+                    key={branch._id}
+                    style={[
+                      styles.pickerItem,
+                      sessionForm.branchId === branch._id &&
+                        styles.pickerItemActive,
+                    ]}
+                    onPress={() => {
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        branchId: branch._id,
+                        classId: "",
+                      }));
+                      setShowSessionBranchPicker(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerItemText,
+                        sessionForm.branchId === branch._id &&
+                          styles.pickerItemTextActive,
+                      ]}
+                    >
+                      {branch.name}
+                    </Text>
+                    {sessionForm.branchId === branch._id && (
+                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Session Subject Picker Modal */}
+        <Modal
+          visible={showSessionSubjectPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSessionSubjectPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => setShowSessionSubjectPicker(false)}
+          >
+            <View style={styles.pickerContainer}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>Chọn môn học</Text>
+                <TouchableOpacity
+                  onPress={() => setShowSessionSubjectPicker(false)}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerList}>
+                {subjects.map((subj) => (
+                  <TouchableOpacity
+                    key={subj.value}
+                    style={[
+                      styles.pickerItem,
+                      sessionForm.subject === subj.value &&
+                        styles.pickerItemActive,
+                    ]}
+                    onPress={() => {
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        subject: subj.value,
+                        classId: "",
+                      }));
+                      setShowSessionSubjectPicker(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerItemText,
+                        sessionForm.subject === subj.value &&
+                          styles.pickerItemTextActive,
+                      ]}
+                    >
+                      {subj.label}
+                    </Text>
+                    {sessionForm.subject === subj.value && (
+                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Session Class Picker Modal */}
+        <Modal
+          visible={showSessionClassPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSessionClassPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => setShowSessionClassPicker(false)}
+          >
+            <View style={styles.pickerContainer}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>Chọn lớp học</Text>
+                <TouchableOpacity
+                  onPress={() => setShowSessionClassPicker(false)}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerList}>
+                {sessionFormClasses.map((cls: any) => (
+                  <TouchableOpacity
+                    key={cls._id}
+                    style={[
+                      styles.pickerItem,
+                      sessionForm.classId === cls._id &&
+                        styles.pickerItemActive,
+                    ]}
+                    onPress={() => {
+                      const teacherId =
+                        typeof cls.teacherId === "object"
+                          ? cls.teacherId?._id
+                          : cls.teacherId;
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        classId: cls._id,
+                        teacherId: teacherId || prev.teacherId,
+                      }));
+                      setShowSessionClassPicker(false);
+                    }}
+                  >
+                    <View>
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          sessionForm.classId === cls._id &&
+                            styles.pickerItemTextActive,
+                        ]}
+                      >
+                        {cls.name}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
+                        {cls.subject ? getSubjectLabel(cls.subject) : ""}
+                      </Text>
+                    </View>
+                    {sessionForm.classId === cls._id && (
+                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+                {sessionFormClasses.length === 0 && (
+                  <Text
+                    style={{
+                      padding: 16,
+                      color: "#9CA3AF",
+                      textAlign: "center",
+                    }}
+                  >
+                    Không có lớp học phù hợp
+                  </Text>
+                )}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Session Teacher Picker Modal */}
+        <Modal
+          visible={showSessionTeacherPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSessionTeacherPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => setShowSessionTeacherPicker(false)}
+          >
+            <View style={styles.pickerContainer}>
+              <View style={styles.pickerHeader}>
+                <Text style={styles.pickerTitle}>Chọn giáo viên</Text>
+                <TouchableOpacity
+                  onPress={() => setShowSessionTeacherPicker(false)}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.pickerList}>
+                {sessionTeachers.map((teacher: any) => (
+                  <TouchableOpacity
+                    key={teacher._id}
+                    style={[
+                      styles.pickerItem,
+                      sessionForm.teacherId === teacher._id &&
+                        styles.pickerItemActive,
+                    ]}
+                    onPress={() => {
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        teacherId: teacher._id,
+                      }));
+                      setShowSessionTeacherPicker(false);
+                    }}
+                  >
+                    <View>
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          sessionForm.teacherId === teacher._id &&
+                            styles.pickerItemTextActive,
+                        ]}
+                      >
+                        {teacher.name}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
+                        {teacher.email}
+                      </Text>
+                    </View>
+                    {sessionForm.teacherId === teacher._id && (
+                      <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </SafeAreaView>
     );
   }
-
-  // Teacher View with Week/Day toggle
   if (isTeacher) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
@@ -3275,5 +4096,98 @@ const styles = StyleSheet.create({
   teacherScheduleCardActive: {
     borderWidth: 2,
     borderColor: "#10B981",
+  },
+  // FAB styles
+  fab: {
+    position: "absolute",
+    bottom: 24,
+    right: 20,
+    zIndex: 10,
+  },
+  fabGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#3B82F6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  // Session form styles
+  formLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 6,
+  },
+  formInput: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  formPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  formPickerText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  formButton: {
+    borderRadius: 10,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  formButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    width: "100%",
+    borderRadius: 10,
+  },
+  formButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  typeChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  typeChipActive: {
+    backgroundColor: "#EEF2FF",
+    borderColor: "#3B82F6",
+  },
+  typeChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#6B7280",
+  },
+  typeChipTextActive: {
+    color: "#3B82F6",
   },
 });
