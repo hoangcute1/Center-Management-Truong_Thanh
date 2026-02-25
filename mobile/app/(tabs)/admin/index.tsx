@@ -393,13 +393,13 @@ export default function AdminDashboardScreen() {
             left: 0,
             right: 0,
             height: 1000,
-            backgroundColor: "#10B981", // Matches header top color
+            backgroundColor: "#8B5CF6", // Matches header top color
           }}
         />
 
         {/* Welcome Header */}
         <LinearGradient
-          colors={["#10B981", "#059669"]}
+          colors={["#8B5CF6", "#8B5CF6"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.welcomeGradient, { paddingTop: insets.top + 20 }]}

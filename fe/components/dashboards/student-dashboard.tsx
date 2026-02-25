@@ -734,7 +734,7 @@ function SettingsModal({
               </button>
             </div>
           </div>
-        )}
+        )}x
 
         {/* Form Inputs */}
         <div className="space-y-4 text-sm">

@@ -693,25 +693,25 @@ export default function HomeScreen() {
   const pendingPayments =
     role === "student"
       ? myRequests.filter(
-          (r) => r.status === "pending" || r.status === "overdue",
-        ).length
+        (r) => r.status === "pending" || r.status === "overdue",
+      ).length
       : role === "parent"
         ? childrenRequests
-            .flatMap((c) => c.requests)
-            .filter((r) => r.status === "pending" || r.status === "overdue")
-            .length
+          .flatMap((c) => c.requests)
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .length
         : 0;
 
   const pendingPaymentAmount =
     role === "student"
       ? myRequests
-          .filter((r) => r.status === "pending" || r.status === "overdue")
-          .reduce((sum, r) => sum + r.finalAmount, 0)
+        .filter((r) => r.status === "pending" || r.status === "overdue")
+        .reduce((sum, r) => sum + r.finalAmount, 0)
       : role === "parent"
         ? childrenRequests
-            .flatMap((c) => c.requests)
-            .filter((r) => r.status === "pending" || r.status === "overdue")
-            .reduce((sum, r) => sum + r.finalAmount, 0)
+          .flatMap((c) => c.requests)
+          .filter((r) => r.status === "pending" || r.status === "overdue")
+          .reduce((sum, r) => sum + r.finalAmount, 0)
         : 0;
 
   const pendingIncidents = myIncidents.filter(
@@ -734,13 +734,20 @@ export default function HomeScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+          />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome Section with Gradient */}
+        {/* Background extension for iOS pull-to-refresh overscroll */}
+        <View style={{ position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: roleConfig.colors[0] }} />
+
+        {/* Welcome Section with Solid Color to match Header */}
         <LinearGradient
-          colors={roleConfig.colors as [string, string]}
+          colors={[roleConfig.colors[0], roleConfig.colors[0]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.welcomeGradient}
@@ -863,7 +870,7 @@ export default function HomeScreen() {
                   icon="document-text"
                   label="Tài liệu"
                   subtitle="Học tập & ôn luyện"
-                  onPress={() => {}}
+                  onPress={() => { }}
                   isCompact={false}
                 />
               </>

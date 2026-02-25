@@ -35,7 +35,7 @@ export default function TabsLayout() {
       case "parent":
         return "#F59E0B";
       case "admin":
-        return "#10B981";
+        return "#8B5CF6";
       default:
         return "#3B82F6";
     }
