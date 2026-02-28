@@ -3,7 +3,7 @@ import { useAuthStore } from "@/lib/stores";
 import { ActivityIndicator, View } from "react-native";
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -14,6 +14,9 @@ export default function Index() {
   }
 
   if (isAuthenticated) {
+    if (user?.role === "admin") {
+      return <Redirect href="/(tabs)/admin" />;
+    }
     return <Redirect href="/(tabs)" />;
   }
 
