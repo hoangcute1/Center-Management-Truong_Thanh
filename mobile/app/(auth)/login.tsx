@@ -161,8 +161,9 @@ export default function LoginScreen() {
       console.log("[LOGIN] User role:", userData.role);
 
       if (selectedRole && userData.role !== selectedRole) {
-        const mismatchMessage = `Tài khoản này thuộc vai trò "${ROLE_CONFIG[userData.role as Role]?.label || userData.role
-          }". Vui lòng chọn lại.`;
+        const mismatchMessage = `Tài khoản này thuộc vai trò "${
+          ROLE_CONFIG[userData.role as Role]?.label || userData.role
+        }". Vui lòng chọn lại.`;
         setFormError(mismatchMessage);
         Alert.alert("Sai vai trò", mismatchMessage);
         await logout();
@@ -190,7 +191,12 @@ export default function LoginScreen() {
 
       setFormError(null);
       console.log("[LOGIN] Redirecting to tabs...");
-      router.replace("/(tabs)");
+      // Admin goes directly to admin dashboard, others to home
+      if (userData.role === "admin") {
+        router.replace("/(tabs)/admin");
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (err: any) {
       const message =
         err?.message || "Đăng nhập thất bại. Vui lòng thử lại sau.";
@@ -281,7 +287,7 @@ export default function LoginScreen() {
                     style={[
                       styles.branchItem,
                       selectedBranch?._id === branch._id &&
-                      styles.branchItemSelected,
+                        styles.branchItemSelected,
                     ]}
                     onPress={() => {
                       selectBranch(branch);
@@ -303,7 +309,7 @@ export default function LoginScreen() {
                           style={[
                             styles.branchItemText,
                             selectedBranch?._id === branch._id &&
-                            styles.branchItemTextSelected,
+                              styles.branchItemTextSelected,
                           ]}
                         >
                           {branch.name}

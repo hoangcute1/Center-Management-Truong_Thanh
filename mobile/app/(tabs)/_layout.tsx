@@ -43,7 +43,8 @@ export default function TabsLayout() {
 
   // Check if tab should be visible based on role
   const shouldShowPayments = role === "parent"; // Hidden for student
-  const shouldShowChat = role === "teacher" || role === "student" || role === "parent"; // Chat for teacher, student, parent
+  const shouldShowChat =
+    role === "teacher" || role === "student" || role === "parent"; // Chat for teacher, student, parent
   const shouldShowContact = false; // Replaced by chat in incidents tab
   const shouldShowSchedule =
     role === "student" ||
@@ -60,7 +61,7 @@ export default function TabsLayout() {
   // Back button component for admin accessing schedule/classes
   const BackButton = () => (
     <TouchableOpacity
-      onPress={() => router.back()}
+      onPress={() => router.replace("/(tabs)/admin")}
       style={{ marginLeft: 8, padding: 8 }}
     >
       <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -105,16 +106,36 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
-      {/* Home - visible for all */}
+      {/* Home - visible for all except admin */}
       <Tabs.Screen
         name="index"
         options={{
           title: "Trang chủ",
           headerTitle: "Giáo dục Trường Thành",
+          href: role === "admin" ? null : "/(tabs)",
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
                 name={focused ? "home" : "home-outline"}
+                size={24}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Admin Dashboard - visible for admin only, placed before schedule for admin tab order */}
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: "Quản lý",
+          headerShown: false,
+          href: shouldShowAdmin ? "/(tabs)/admin" : null,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
+              <Ionicons
+                name={focused ? "shield-checkmark" : "shield-checkmark-outline"}
                 size={24}
                 color={color}
               />
@@ -165,16 +186,13 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Materials - visible for student only */}
+      {/* Materials - hidden from tab bar, accessible via quick access */}
       <Tabs.Screen
         name="materials"
         options={{
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
-          href:
-            role === "student"
-              ? "/(tabs)/materials"
-              : null,
+          href: null,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -255,25 +273,6 @@ export default function TabsLayout() {
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
                 name={focused ? "chatbubbles" : "chatbubbles-outline"}
-                size={24}
-                color={color}
-              />
-            </View>
-          ),
-        }}
-      />
-
-      {/* Admin Dashboard - visible for admin only */}
-      <Tabs.Screen
-        name="admin"
-        options={{
-          title: "Quản lý",
-          headerTitle: "Quản lý hệ thống",
-          href: shouldShowAdmin ? "/(tabs)/admin" : null,
-          tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
-              <Ionicons
-                name={focused ? "shield-checkmark" : "shield-checkmark-outline"}
                 size={24}
                 color={color}
               />

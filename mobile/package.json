@@ -4,7 +4,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
+    "android": "set \"ANDROID_HOME=%LOCALAPPDATA%\\Android\\Sdk\" && set \"PATH=%LOCALAPPDATA%\\Android\\Sdk\\emulator;%LOCALAPPDATA%\\Android\\Sdk\\platform-tools;%PATH%\" && expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",

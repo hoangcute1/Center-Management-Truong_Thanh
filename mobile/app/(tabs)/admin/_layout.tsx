@@ -6,7 +6,7 @@ import { router } from "expo-router";
 export default function AdminLayout() {
   const BackButton = () => (
     <TouchableOpacity
-      onPress={() => router.back()}
+      onPress={() => router.replace("/(tabs)/admin")}
       style={{ marginLeft: 8, padding: 8 }}
     >
       <Ionicons name="arrow-back" size={24} color="#FFFFFF" />

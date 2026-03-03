@@ -10,10 +10,14 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import {
   useClassesStore,
   useAttendanceStore,
@@ -67,6 +71,7 @@ export default function AdminAttendanceScreen() {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("classes");
 
   // Session-based states
@@ -182,23 +187,65 @@ export default function AdminAttendanceScreen() {
     setIsLoadingAttendance(true);
 
     try {
-      // Get attendance records for students in this class
+      // Try to fetch real attendance data for the selected date
+      await fetchSessions({ classId: classData._id, date: selectedDate });
+      const classSessions = sessions.filter(
+        (s) =>
+          (typeof s.classId === "object" ? s.classId?._id : s.classId) ===
+          classData._id,
+      );
+
+      let hasAttendanceData = false;
+      let attendanceRecords: StoreAttendanceRecord[] = [];
+
+      // Check if any session has attendance for this date
+      for (const session of classSessions) {
+        try {
+          const records = await fetchSessionAttendance(session._id);
+          if (records && records.length > 0) {
+            hasAttendanceData = true;
+            attendanceRecords = records;
+            break;
+          }
+        } catch {
+          // No attendance for this session
+        }
+      }
+
+      if (hasAttendanceData) {
+        setClassAttendanceData(attendanceRecords);
+      } else {
+        // Auto-absent: if teacher hasn't taken attendance, default all students to absent
+        const studentAttendance = (classData.students || []).map((student) => ({
+          _id: student._id,
+          studentId: {
+            _id: student._id,
+            fullName: student.fullName || student.name || "Học sinh",
+          },
+          status: "absent" as const,
+          sessionId: "",
+          notes: "Chưa điểm danh - Tự động ghi vắng",
+        }));
+        setClassAttendanceData(
+          studentAttendance as unknown as StoreAttendanceRecord[],
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+      // Fallback: auto-absent
       const studentAttendance = (classData.students || []).map((student) => ({
         _id: student._id,
         studentId: {
           _id: student._id,
           fullName: student.fullName || student.name || "Học sinh",
         },
-        status: "present" as const,
+        status: "absent" as const,
         sessionId: "",
-        notes: "",
+        notes: "Chưa điểm danh - Tự động ghi vắng",
       }));
       setClassAttendanceData(
         studentAttendance as unknown as StoreAttendanceRecord[],
       );
-    } catch (error) {
-      console.error("Error fetching attendance:", error);
-      setClassAttendanceData([]);
     } finally {
       setIsLoadingAttendance(false);
     }
@@ -499,9 +546,10 @@ export default function AdminAttendanceScreen() {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      {/* Summary Header - No duplicate title */}
+  // List header component - scrolls with the list to fix scroll issues
+  const renderListHeader = () => (
+    <>
+      {/* Summary Header */}
       <LinearGradient colors={["#14B8A6", "#0D9488"]} style={styles.header}>
         <View style={styles.headerContent}>
           <Ionicons name="checkbox" size={28} color="rgba(255,255,255,0.9)" />
@@ -597,6 +645,37 @@ export default function AdminAttendanceScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Date Picker */}
+      <View style={styles.datePickerRow}>
+        <TouchableOpacity
+          style={styles.datePickerButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Ionicons name="calendar-outline" size={18} color="#14B8A6" />
+          <Text style={styles.datePickerText}>
+            {new Date(selectedDate).toLocaleDateString("vi-VN", {
+              weekday: "long",
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#6B7280" />
+        </TouchableOpacity>
+      </View>
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date(selectedDate)}
+          mode="date"
+          onChange={(event: DateTimePickerEvent, date?: Date) => {
+            setShowDatePicker(Platform.OS === "ios");
+            if (date) {
+              setSelectedDate(date.toISOString().split("T")[0]);
+            }
+          }}
+        />
+      )}
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
@@ -721,12 +800,14 @@ export default function AdminAttendanceScreen() {
       <View style={styles.sectionHeader}>
         <Ionicons name="stats-chart" size={18} color="#374151" />
         <Text style={styles.sectionTitle}>
-          {viewMode === "classes"
-            ? `Điểm danh theo lớp - ${new Date(selectedDate).toLocaleDateString("vi-VN")}`
-            : "Danh sách buổi học"}
+          {viewMode === "classes" ? `Điểm danh theo lớp` : "Danh sách buổi học"}
         </Text>
       </View>
+    </>
+  );
 
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {/* Content */}
       {sessionsLoading && !isRefreshing ? (
         <View style={styles.loadingContainer}>
@@ -741,6 +822,7 @@ export default function AdminAttendanceScreen() {
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderListHeader}
           refreshControl={
             <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
           }
@@ -762,6 +844,7 @@ export default function AdminAttendanceScreen() {
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderListHeader}
           refreshControl={
             <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
           }
@@ -1164,6 +1247,28 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 14,
+    color: "#1F2937",
+  },
+  // Date Picker
+  datePickerRow: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  datePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    gap: 8,
+  },
+  datePickerText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
     color: "#1F2937",
   },
   // Filter

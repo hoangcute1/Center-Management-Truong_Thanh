@@ -24,6 +24,14 @@ import {
 } from "@/lib/stores";
 import type { IncidentType, IncidentStatus, Incident } from "@/lib/stores";
 
+const safeGoBack = () => {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace("/(tabs)");
+  }
+};
+
 // ============ HELPERS ============
 
 const incidentTypeOptions: {
@@ -251,9 +259,7 @@ function ReportIncidentModal({
                     ) : (
                       <>
                         <Ionicons name="send" size={20} color="#FFFFFF" />
-                        <Text style={styles.submitButtonText}>
-                          Gửi báo cáo
-                        </Text>
+                        <Text style={styles.submitButtonText}>Gửi báo cáo</Text>
                       </>
                     )}
                   </LinearGradient>
@@ -313,10 +319,7 @@ function IncidentDetailModal({
             >
               <Ionicons name="flag" size={16} color={statusColors.text} />
               <Text
-                style={[
-                  styles.detailStatusText,
-                  { color: statusColors.text },
-                ]}
+                style={[styles.detailStatusText, { color: statusColors.text }]}
               >
                 {getIncidentStatusLabel(incident.status)}
               </Text>
@@ -410,11 +413,7 @@ function IncidentDetailModal({
                 Thông tin giải quyết
               </Text>
               <View style={styles.resolvedCard}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color="#10B981"
-                />
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
                 <View style={styles.resolvedContent}>
                   <Text style={styles.resolvedText}>
                     Đã giải quyết vào {formatDate(incident.resolvedAt)}
@@ -511,10 +510,7 @@ export default function IncidentsReportScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-        >
+        <TouchableOpacity onPress={() => safeGoBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Báo cáo sự cố</Text>
@@ -530,10 +526,7 @@ export default function IncidentsReportScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={fetchMyIncidents}
-          />
+          <RefreshControl refreshing={isLoading} onRefresh={fetchMyIncidents} />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -623,11 +616,7 @@ export default function IncidentsReportScreen() {
                 colors={["#F3F4F6", "#E5E7EB"]}
                 style={styles.emptyIcon}
               >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={48}
-                  color="#10B981"
-                />
+                <Ionicons name="checkmark-circle" size={48} color="#10B981" />
               </LinearGradient>
               <Text style={styles.emptyStateTitle}>
                 {activeFilter === "all"
@@ -697,11 +686,7 @@ export default function IncidentsReportScreen() {
                   </Text>
                   {incident.adminNote && (
                     <View style={styles.incidentAdminNote}>
-                      <Ionicons
-                        name="chatbubble"
-                        size={12}
-                        color="#3B82F6"
-                      />
+                      <Ionicons name="chatbubble" size={12} color="#3B82F6" />
                       <Text
                         style={styles.incidentAdminNoteText}
                         numberOfLines={1}

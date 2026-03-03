@@ -249,9 +249,10 @@ export default function AdminPaymentsScreen() {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      {/* Summary Header - No duplicate title */}
+  // List header component - scrolls with list to fix scroll issues
+  const renderListHeader = () => (
+    <>
+      {/* Summary Header */}
       <LinearGradient colors={["#22C55E", "#16A34A"]} style={styles.header}>
         <View style={styles.headerContent}>
           <Ionicons name="wallet" size={28} color="rgba(255,255,255,0.9)" />
@@ -315,7 +316,11 @@ export default function AdminPaymentsScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+    </>
+  );
 
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {/* Payments List */}
       {isLoading && !isRefreshing ? (
         <View style={styles.loadingContainer}>
@@ -330,6 +335,7 @@ export default function AdminPaymentsScreen() {
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderListHeader}
           refreshControl={
             <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
           }

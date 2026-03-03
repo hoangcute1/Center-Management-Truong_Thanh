@@ -12,7 +12,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { gradingService, StudentGradeRecord } from "@/lib/services/grading.service";
+import {
+  gradingService,
+  StudentGradeRecord,
+} from "@/lib/services/grading.service";
+
+const safeGoBack = () => {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace("/(tabs)");
+  }
+};
 
 export default function GradesListScreen() {
   const { user } = useAuthStore();
@@ -47,16 +58,19 @@ export default function GradesListScreen() {
     if (!grades.length) return [];
 
     const groups: Record<string, StudentGradeRecord[]> = {};
-    grades.forEach(g => {
+    grades.forEach((g) => {
       const key = g.classId?._id || "unknown";
       if (!groups[key]) groups[key] = [];
       groups[key].push(g);
     });
 
-    return Object.keys(groups).map(classId => {
+    return Object.keys(groups).map((classId) => {
       const list = groups[classId];
       // Sort by date desc
-      list.sort((a, b) => new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime());
+      list.sort(
+        (a, b) =>
+          new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime(),
+      );
 
       const subjectName = list[0]?.classId?.name || "Môn học";
       const teacherName = list[0]?.gradedBy?.name || "Giáo viên";
@@ -64,7 +78,7 @@ export default function GradesListScreen() {
       // Calculate Average
       let totalScore = 0;
       let totalMax = 0;
-      list.forEach(g => {
+      list.forEach((g) => {
         totalScore += g.score;
         totalMax += g.maxScore;
       });
@@ -77,14 +91,14 @@ export default function GradesListScreen() {
       const avg = parseFloat(avgScore.toFixed(1));
 
       // Trend
-      let trend: 'up' | 'down' | 'same' = 'same';
+      let trend: "up" | "down" | "same" = "same";
       if (list.length >= 2) {
         const latest = (list[0].score / list[0].maxScore) * 10;
         const previous = (list[1].score / list[1].maxScore) * 10;
-        if (latest > previous) trend = 'up';
-        else if (latest < previous) trend = 'down';
+        if (latest > previous) trend = "up";
+        else if (latest < previous) trend = "down";
       } else if (list.length === 1) {
-        trend = 'same';
+        trend = "same";
       }
 
       return {
@@ -92,7 +106,7 @@ export default function GradesListScreen() {
         name: subjectName,
         teacher: teacherName,
         avgScore: avg,
-        trend
+        trend,
       };
     });
   }, [grades]);
@@ -101,7 +115,7 @@ export default function GradesListScreen() {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.replace("/(tabs)")}
+          onPress={() => safeGoBack()}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -123,7 +137,11 @@ export default function GradesListScreen() {
         </Text>
 
         {loading && !refreshing ? (
-          <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 20 }} />
+          <ActivityIndicator
+            size="large"
+            color="#3B82F6"
+            style={{ marginTop: 20 }}
+          />
         ) : processedSubjects.length > 0 ? (
           processedSubjects.map((sub) => (
             <TouchableOpacity
@@ -131,7 +149,7 @@ export default function GradesListScreen() {
               style={styles.subjectCard}
               onPress={() =>
                 router.push(
-                  `/grades/${sub.id}?name=${encodeURIComponent(sub.name)}`
+                  `/grades/${sub.id}?name=${encodeURIComponent(sub.name)}`,
                 )
               }
               activeOpacity={0.7}
@@ -167,7 +185,11 @@ export default function GradesListScreen() {
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={{ textAlign: 'center', color: '#6B7280', marginTop: 20 }}>Không có dữ liệu điểm số nào.</Text>
+          <Text
+            style={{ textAlign: "center", color: "#6B7280", marginTop: 20 }}
+          >
+            Không có dữ liệu điểm số nào.
+          </Text>
         )}
       </ScrollView>
     </SafeAreaView>

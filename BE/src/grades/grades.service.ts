@@ -30,7 +30,10 @@ import {
   AssignmentDocument,
 } from '../assignments/schemas/assignment.schema';
 import { ClassEntity, ClassDocument } from '../classes/schemas/class.schema';
-import { Attendance, AttendanceDocument } from '../attendance/schemas/attendance.schema';
+import {
+  Attendance,
+  AttendanceDocument,
+} from '../attendance/schemas/attendance.schema';
 
 @Injectable()
 export class GradesService {
@@ -496,34 +499,40 @@ export class GradesService {
    * - Top điểm: Tính trung bình điểm từ các bài kiểm tra giáo viên tạo và chấm
    * - Chuyên cần: Tính tỉ lệ có mặt từ lúc tạo tài khoản đến hiện tại
    */
-  async getLeaderboard(query: LeaderboardQueryDto): Promise<LeaderboardResponse> {
+  async getLeaderboard(
+    query: LeaderboardQueryDto,
+  ): Promise<LeaderboardResponse> {
     const limit = query.limit || 10;
-    
+
     // Lấy danh sách học sinh (có thể filter theo branch/class)
     const studentFilter: any = { role: 'student', status: 'active' };
-    
+
     if (query.branchId) {
       studentFilter.branchId = query.branchId;
     }
-    
+
     let studentIds: Types.ObjectId[] | null = null;
-    
+
     if (query.classId) {
       // Nếu filter theo class, lấy học sinh của class đó
       const classDoc = await this.classModel.findById(query.classId).exec();
       if (classDoc && classDoc.studentIds) {
-        studentIds = classDoc.studentIds.map(id => new Types.ObjectId(id.toString()));
+        studentIds = classDoc.studentIds.map(
+          (id) => new Types.ObjectId(id.toString()),
+        );
       }
     }
-    
+
     // Query students
-    const students = studentIds 
-      ? await this.userModel.find({ 
-          _id: { $in: studentIds },
-          status: 'active'
-        }).exec()
+    const students = studentIds
+      ? await this.userModel
+          .find({
+            _id: { $in: studentIds },
+            status: 'active',
+          })
+          .exec()
       : await this.userModel.find(studentFilter).exec();
-    
+
     if (students.length === 0) {
       return {
         score: [],
@@ -542,36 +551,54 @@ export class GradesService {
     let studentsWithGrades = 0;
 
     for (const student of students) {
-      const grades = await this.gradeModel.find({ 
-        studentId: student._id 
-      }).populate('classId', 'name').exec();
-      
+      const grades = await this.gradeModel
+        .find({
+          studentId: student._id,
+        })
+        .populate('classId', 'name')
+        .exec();
+
+      let averageScore = 0;
+      let totalGrades = 0;
+      let className: string | undefined = undefined;
+
       if (grades.length > 0) {
         const totalPoints = grades.reduce((sum, g) => sum + g.score, 0);
-        const maxPossiblePoints = grades.reduce((sum, g) => sum + g.maxScore, 0);
-        const averageScore = maxPossiblePoints > 0 
-          ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
-          : 0;
-        
+        const maxPossiblePoints = grades.reduce(
+          (sum, g) => sum + g.maxScore,
+          0,
+        );
+        averageScore =
+          maxPossiblePoints > 0
+            ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
+            : 0;
+        totalGrades = grades.length;
+
         // Lấy tên lớp đầu tiên (hoặc có thể lấy nhiều lớp)
-        const classNames = [...new Set(grades.map(g => (g.classId as any)?.name).filter(Boolean))];
-        
-        scoreRankings.push({
-          rank: 0, // sẽ được assign sau khi sort
-          studentId: student._id.toString(),
-          studentName: student.name,
-          studentCode: student.studentCode,
-          avatarUrl: student.avatarUrl,
-          averageScore,
-          totalGrades: grades.length,
-          className: classNames.join(', ') || undefined,
-        });
-        
+        const classNames = [
+          ...new Set(
+            grades.map((g) => (g.classId as any)?.name).filter(Boolean),
+          ),
+        ];
+        className = classNames.join(', ') || undefined;
+
         totalAvgScore += averageScore;
         studentsWithGrades++;
       }
+
+      // Include ALL students (those without grades get 0)
+      scoreRankings.push({
+        rank: 0, // sẽ được assign sau khi sort
+        studentId: student._id.toString(),
+        studentName: student.name,
+        studentCode: student.studentCode,
+        avatarUrl: student.avatarUrl,
+        averageScore,
+        totalGrades,
+        className,
+      });
     }
-    
+
     // Sort và assign rank cho score
     scoreRankings.sort((a, b) => b.averageScore - a.averageScore);
     scoreRankings.forEach((item, index) => {
@@ -584,21 +611,28 @@ export class GradesService {
     let studentsWithAttendance = 0;
 
     for (const student of students) {
-      const attendanceRecords = await this.attendanceModel.find({
-        studentId: student._id,
-      }).exec();
-      
-      const presentCount = attendanceRecords.filter(r => r.status === 'present').length;
+      const attendanceRecords = await this.attendanceModel
+        .find({
+          studentId: student._id,
+        })
+        .exec();
+
+      const presentCount = attendanceRecords.filter(
+        (r) => r.status === 'present',
+      ).length;
       const totalSessions = attendanceRecords.length;
-      const attendanceRate = totalSessions > 0 
-        ? Math.round((presentCount / totalSessions) * 100)
-        : 0;
-      
+      const attendanceRate =
+        totalSessions > 0
+          ? Math.round((presentCount / totalSessions) * 100)
+          : 0;
+
       // Tính số ngày từ lúc tạo tài khoản đến hiện tại
       const createdAt = (student as any).createdAt || new Date();
       const now = new Date();
-      const daysEnrolled = Math.floor((now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
-      
+      const daysEnrolled = Math.floor(
+        (now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24),
+      );
+
       attendanceRankings.push({
         rank: 0,
         studentId: student._id.toString(),
@@ -610,13 +644,13 @@ export class GradesService {
         totalSessions,
         daysEnrolled: Math.max(daysEnrolled, 0),
       });
-      
+
       if (totalSessions > 0) {
         totalAttendanceRate += attendanceRate;
         studentsWithAttendance++;
       }
     }
-    
+
     // Sort và assign rank cho attendance (theo rate, rồi theo số ngày enrolled)
     attendanceRankings.sort((a, b) => {
       if (b.attendanceRate !== a.attendanceRate) {
@@ -633,12 +667,14 @@ export class GradesService {
       attendance: attendanceRankings.slice(0, limit),
       summary: {
         totalStudents: students.length,
-        averageScore: studentsWithGrades > 0 
-          ? parseFloat((totalAvgScore / studentsWithGrades).toFixed(2))
-          : 0,
-        averageAttendanceRate: studentsWithAttendance > 0 
-          ? Math.round(totalAttendanceRate / studentsWithAttendance)
-          : 0,
+        averageScore:
+          studentsWithGrades > 0
+            ? parseFloat((totalAvgScore / studentsWithGrades).toFixed(2))
+            : 0,
+        averageAttendanceRate:
+          studentsWithAttendance > 0
+            ? Math.round(totalAttendanceRate / studentsWithAttendance)
+            : 0,
       },
     };
   }
@@ -646,12 +682,17 @@ export class GradesService {
   /**
    * Lấy bảng xếp hạng cho lớp của giáo viên
    */
-  async getTeacherLeaderboard(teacherId: string, query: LeaderboardQueryDto): Promise<LeaderboardResponse> {
+  async getTeacherLeaderboard(
+    teacherId: string,
+    query: LeaderboardQueryDto,
+  ): Promise<LeaderboardResponse> {
     // Lấy danh sách lớp mà giáo viên đang dạy
-    const classes = await this.classModel.find({
-      teacherId: new Types.ObjectId(teacherId),
-    }).exec();
-    
+    const classes = await this.classModel
+      .find({
+        teacherId: new Types.ObjectId(teacherId),
+      })
+      .exec();
+
     if (classes.length === 0) {
       return {
         score: [],
@@ -663,74 +704,102 @@ export class GradesService {
         },
       };
     }
-    
+
     // Lấy tất cả học sinh từ các lớp
     const allStudentIds: Types.ObjectId[] = [];
     for (const cls of classes) {
       if (cls.studentIds) {
-        allStudentIds.push(...cls.studentIds.map(id => new Types.ObjectId(id.toString())));
+        allStudentIds.push(
+          ...cls.studentIds.map((id) => new Types.ObjectId(id.toString())),
+        );
       }
     }
-    
+
     // Remove duplicates
-    const uniqueStudentIds = [...new Set(allStudentIds.map(id => id.toString()))].map(id => new Types.ObjectId(id));
-    
+    const uniqueStudentIds = [
+      ...new Set(allStudentIds.map((id) => id.toString())),
+    ].map((id) => new Types.ObjectId(id));
+
     // Nếu có filter theo classId, chỉ lấy học sinh của class đó
     let finalStudentIds = uniqueStudentIds;
     if (query.classId) {
-      const targetClass = classes.find(c => c._id.toString() === query.classId);
+      const targetClass = classes.find(
+        (c) => c._id.toString() === query.classId,
+      );
       if (targetClass && targetClass.studentIds) {
-        finalStudentIds = targetClass.studentIds.map(id => new Types.ObjectId(id.toString()));
+        finalStudentIds = targetClass.studentIds.map(
+          (id) => new Types.ObjectId(id.toString()),
+        );
       }
     }
-    
-    const students = await this.userModel.find({
-      _id: { $in: finalStudentIds },
-      status: 'active',
-    }).exec();
-    
+
+    const students = await this.userModel
+      .find({
+        _id: { $in: finalStudentIds },
+        status: 'active',
+      })
+      .exec();
+
     const limit = query.limit || 10;
-    
+
     // ===== TOP ĐIỂM (chỉ tính điểm từ các lớp của giáo viên) =====
-    const classIds = query.classId 
+    const classIds = query.classId
       ? [new Types.ObjectId(query.classId)]
-      : classes.map(c => c._id);
-    
+      : classes.map((c) => c._id);
+
     const scoreRankings: ScoreLeaderboardItem[] = [];
     let totalAvgScore = 0;
     let studentsWithGrades = 0;
 
     for (const student of students) {
-      const grades = await this.gradeModel.find({ 
-        studentId: student._id,
-        classId: { $in: classIds },
-      }).populate('classId', 'name').exec();
-      
+      const grades = await this.gradeModel
+        .find({
+          studentId: student._id,
+          classId: { $in: classIds },
+        })
+        .populate('classId', 'name')
+        .exec();
+
+      let averageScore = 0;
+      let totalGrades = 0;
+      let className: string | undefined = undefined;
+
       if (grades.length > 0) {
         const totalPoints = grades.reduce((sum, g) => sum + g.score, 0);
-        const maxPossiblePoints = grades.reduce((sum, g) => sum + g.maxScore, 0);
-        const averageScore = maxPossiblePoints > 0 
-          ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
-          : 0;
-        
-        const classNames = [...new Set(grades.map(g => (g.classId as any)?.name).filter(Boolean))];
-        
-        scoreRankings.push({
-          rank: 0,
-          studentId: student._id.toString(),
-          studentName: student.name,
-          studentCode: student.studentCode,
-          avatarUrl: student.avatarUrl,
-          averageScore,
-          totalGrades: grades.length,
-          className: classNames.join(', ') || undefined,
-        });
-        
+        const maxPossiblePoints = grades.reduce(
+          (sum, g) => sum + g.maxScore,
+          0,
+        );
+        averageScore =
+          maxPossiblePoints > 0
+            ? parseFloat(((totalPoints / maxPossiblePoints) * 10).toFixed(2))
+            : 0;
+        totalGrades = grades.length;
+
+        const classNames = [
+          ...new Set(
+            grades.map((g) => (g.classId as any)?.name).filter(Boolean),
+          ),
+        ];
+        className = classNames.join(', ') || undefined;
+
         totalAvgScore += averageScore;
         studentsWithGrades++;
       }
+
+      // Include ALL students (those without grades get 0)
+      scoreRankings.push({
+        rank: 0,
+        studentId: student._id.toString(),
+        studentName: student.name,
+        studentCode: student.studentCode,
+        avatarUrl: student.avatarUrl,
+        averageScore,
+        totalGrades,
+        className,
+      });
     }
-    
+
     scoreRankings.sort((a, b) => b.averageScore - a.averageScore);
     scoreRankings.forEach((item, index) => {
       item.rank = index + 1;
@@ -742,20 +811,27 @@ export class GradesService {
     let studentsWithAttendance = 0;
 
     for (const student of students) {
-      const attendanceRecords = await this.attendanceModel.find({
-        studentId: student._id,
-      }).exec();
-      
-      const presentCount = attendanceRecords.filter(r => r.status === 'present').length;
+      const attendanceRecords = await this.attendanceModel
+        .find({
+          studentId: student._id,
+        })
+        .exec();
+
+      const presentCount = attendanceRecords.filter(
+        (r) => r.status === 'present',
+      ).length;
       const totalSessions = attendanceRecords.length;
-      const attendanceRate = totalSessions > 0 
-        ? Math.round((presentCount / totalSessions) * 100)
-        : 0;
-      
+      const attendanceRate =
+        totalSessions > 0
+          ? Math.round((presentCount / totalSessions) * 100)
+          : 0;
+
       const createdAt = (student as any).createdAt || new Date();
       const now = new Date();
-      const daysEnrolled = Math.floor((now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
-      
+      const daysEnrolled = Math.floor(
+        (now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24),
+      );
+
       attendanceRankings.push({
         rank: 0,
         studentId: student._id.toString(),
@@ -767,13 +843,13 @@ export class GradesService {
         totalSessions,
         daysEnrolled: Math.max(daysEnrolled, 0),
       });
-      
+
       if (totalSessions > 0) {
         totalAttendanceRate += attendanceRate;
         studentsWithAttendance++;
       }
     }
-    
+
     attendanceRankings.sort((a, b) => {
       if (b.attendanceRate !== a.attendanceRate) {
         return b.attendanceRate - a.attendanceRate;
@@ -789,12 +865,14 @@ export class GradesService {
       attendance: attendanceRankings.slice(0, limit),
       summary: {
         totalStudents: students.length,
-        averageScore: studentsWithGrades > 0 
-          ? parseFloat((totalAvgScore / studentsWithGrades).toFixed(2))
-          : 0,
-        averageAttendanceRate: studentsWithAttendance > 0 
-          ? Math.round(totalAttendanceRate / studentsWithAttendance)
-          : 0,
+        averageScore:
+          studentsWithGrades > 0
+            ? parseFloat((totalAvgScore / studentsWithGrades).toFixed(2))
+            : 0,
+        averageAttendanceRate:
+          studentsWithAttendance > 0
+            ? Math.round(totalAttendanceRate / studentsWithAttendance)
+            : 0,
       },
     };
   }
@@ -802,7 +880,10 @@ export class GradesService {
   /**
    * Lấy thứ hạng của học sinh hiện tại trong cơ sở của họ
    */
-  async getStudentOverallRank(studentId: string, branchId?: string): Promise<{
+  async getStudentOverallRank(
+    studentId: string,
+    branchId?: string,
+  ): Promise<{
     scoreRank: number | null;
     attendanceRank: number | null;
     totalStudents: number;
@@ -812,10 +893,14 @@ export class GradesService {
       query.branchId = branchId;
     }
     const leaderboard = await this.getLeaderboard(query);
-    
-    const scoreItem = leaderboard.score.find(item => item.studentId === studentId);
-    const attendanceItem = leaderboard.attendance.find(item => item.studentId === studentId);
-    
+
+    const scoreItem = leaderboard.score.find(
+      (item) => item.studentId === studentId,
+    );
+    const attendanceItem = leaderboard.attendance.find(
+      (item) => item.studentId === studentId,
+    );
+
     return {
       scoreRank: scoreItem?.rank || null,
       attendanceRank: attendanceItem?.rank || null,

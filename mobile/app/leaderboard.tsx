@@ -13,6 +13,14 @@ import { router } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore, useLeaderboardStore } from "@/lib/stores";
 
+const safeGoBack = () => {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace("/(tabs)");
+  }
+};
+
 const leaderboardTypes = [
   { id: "score", label: "Top điểm", icon: "📊" },
   { id: "attendance", label: "Chuyên cần", icon: "📅" },
@@ -25,8 +33,14 @@ export default function LeaderboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { user } = useAuthStore();
-  const { leaderboard, myRank, loading, fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank } =
-    useLeaderboardStore();
+  const {
+    leaderboard,
+    myRank,
+    loading,
+    fetchLeaderboard,
+    fetchTeacherLeaderboard,
+    fetchMyRank,
+  } = useLeaderboardStore();
 
   // Fetch leaderboard data on mount
   useEffect(() => {
@@ -61,7 +75,13 @@ export default function LeaderboardScreen() {
       await fetchMyRank();
     }
     setRefreshing(false);
-  }, [fetchLeaderboard, fetchTeacherLeaderboard, fetchMyRank, user?.role, user?.branchId]);
+  }, [
+    fetchLeaderboard,
+    fetchTeacherLeaderboard,
+    fetchMyRank,
+    user?.role,
+    user?.branchId,
+  ]);
 
   // Get current leaderboard data based on active tab
   const currentScoreData = leaderboard?.score || [];
@@ -84,7 +104,7 @@ export default function LeaderboardScreen() {
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => safeGoBack()}
             style={styles.backButton}
           >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -103,7 +123,7 @@ export default function LeaderboardScreen() {
   // Render score item for podium
   const renderScorePodiumItem = (
     item: (typeof currentScoreData)[0],
-    position: 1 | 2 | 3
+    position: 1 | 2 | 3,
   ) => {
     const isFirst = position === 1;
     const avatarSize = isFirst ? 80 : 64;
@@ -171,7 +191,7 @@ export default function LeaderboardScreen() {
   // Render attendance item for podium
   const renderAttendancePodiumItem = (
     item: (typeof currentAttendanceData)[0],
-    position: 1 | 2 | 3
+    position: 1 | 2 | 3,
   ) => {
     const isFirst = position === 1;
     const avatarSize = isFirst ? 80 : 64;
@@ -243,7 +263,7 @@ export default function LeaderboardScreen() {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeGoBack()}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -382,9 +402,7 @@ export default function LeaderboardScreen() {
             ) : currentAttendanceData.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
-                <Text style={styles.emptyText}>
-                  Chưa có dữ liệu chuyên cần
-                </Text>
+                <Text style={styles.emptyText}>Chưa có dữ liệu chuyên cần</Text>
               </View>
             ) : null}
 
@@ -399,7 +417,9 @@ export default function LeaderboardScreen() {
                   ]}
                 >
                   <Text style={styles.listRank}>{item.rank}</Text>
-                  <View style={[styles.listAvatar, { backgroundColor: "#D1FAE5" }]}>
+                  <View
+                    style={[styles.listAvatar, { backgroundColor: "#D1FAE5" }]}
+                  >
                     <Text style={[styles.listAvatarText, { color: "#10B981" }]}>
                       {item.studentName?.charAt(0) || "?"}
                     </Text>

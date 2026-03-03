@@ -13,16 +13,27 @@ import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { gradingService, StudentGradeRecord } from "@/lib/services/grading.service";
+import {
+  gradingService,
+  StudentGradeRecord,
+} from "@/lib/services/grading.service";
+
+const safeGoBack = () => {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace("/(tabs)");
+  }
+};
 
 const CATEGORY_LABELS: Record<string, string> = {
-  'test_15p': 'Kiểm tra 15 phút',
-  'test_45p': 'Kiểm tra 1 tiết',
-  'test_60p': 'Kiểm tra 1 tiết',
-  'mid_term': 'Thi giữa kỳ',
-  'final_term': 'Thi cuối kỳ',
-  'assignment': 'Bài tập về nhà',
-  'other': 'Khác'
+  test_15p: "Kiểm tra 15 phút",
+  test_45p: "Kiểm tra 1 tiết",
+  test_60p: "Kiểm tra 1 tiết",
+  mid_term: "Thi giữa kỳ",
+  final_term: "Thi cuối kỳ",
+  assignment: "Bài tập về nhà",
+  other: "Khác",
 };
 
 export default function GradeDetailScreen() {
@@ -38,7 +49,7 @@ export default function GradeDetailScreen() {
   const classGrades = useMemo(() => {
     if (!grades.length) return [];
     // Filter by classId
-    return grades.filter(g => g.classId?._id === id);
+    return grades.filter((g) => g.classId?._id === id);
   }, [grades, id]);
 
   const fetchGrades = useCallback(async () => {
@@ -66,11 +77,12 @@ export default function GradeDetailScreen() {
 
   // Calculate Statistics
   const stats = useMemo(() => {
-    if (!classGrades.length) return { avg: "N/A", rank: "--", rankColor: "#6B7280" };
+    if (!classGrades.length)
+      return { avg: "N/A", rank: "--", rankColor: "#6B7280" };
 
     let totalScore = 0;
     let totalMax = 0;
-    classGrades.forEach(g => {
+    classGrades.forEach((g) => {
       totalScore += g.score;
       totalMax += g.maxScore;
     });
@@ -83,9 +95,16 @@ export default function GradeDetailScreen() {
     let rank = "Yếu";
     let rankColor = "#EF4444"; // Red
 
-    if (avg >= 8) { rank = "Giỏi"; rankColor = "#10B981"; }
-    else if (avg >= 6.5) { rank = "Khá"; rankColor = "#3B82F6"; }
-    else if (avg >= 5) { rank = "Trung bình"; rankColor = "#F59E0B"; }
+    if (avg >= 8) {
+      rank = "Giỏi";
+      rankColor = "#10B981";
+    } else if (avg >= 6.5) {
+      rank = "Khá";
+      rankColor = "#3B82F6";
+    } else if (avg >= 5) {
+      rank = "Trung bình";
+      rankColor = "#F59E0B";
+    }
 
     return { avg: avgStr, rank, rankColor };
   }, [classGrades]);
@@ -93,7 +112,7 @@ export default function GradeDetailScreen() {
   // Group by Category
   const groupedScores = useMemo(() => {
     const groups: Record<string, StudentGradeRecord[]> = {};
-    classGrades.forEach(g => {
+    classGrades.forEach((g) => {
       const cat = g.gradingSheetId?.category || "other";
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(g);
@@ -103,14 +122,19 @@ export default function GradeDetailScreen() {
 
   // Get recent feedback
   const feedbackList = useMemo(() => {
-    return classGrades.filter(g => g.feedback).sort((a, b) => new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime());
+    return classGrades
+      .filter((g) => g.feedback)
+      .sort(
+        (a, b) =>
+          new Date(b.gradedAt).getTime() - new Date(a.gradedAt).getTime(),
+      );
   }, [classGrades]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeGoBack()}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -122,10 +146,16 @@ export default function GradeDetailScreen() {
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {loading && !refreshing ? (
-          <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 20 }} />
+          <ActivityIndicator
+            size="large"
+            color="#3B82F6"
+            style={{ marginTop: 20 }}
+          />
         ) : (
           <>
             {/* Summary Card */}
@@ -140,7 +170,9 @@ export default function GradeDetailScreen() {
                 </View>
                 <View style={styles.rankContainer}>
                   <Text style={styles.rankLabel}>Xếp loại</Text>
-                  <View style={[styles.rankBadge, { borderColor: stats.rankColor }]}>
+                  <View
+                    style={[styles.rankBadge, { borderColor: stats.rankColor }]}
+                  >
                     <Text style={styles.rankText}>{stats.rank}</Text>
                   </View>
                 </View>
@@ -150,43 +182,61 @@ export default function GradeDetailScreen() {
             {/* Detailed Scores */}
             <Text style={styles.sectionTitle}>Bảng điểm chi tiết</Text>
             <View style={styles.detailCard}>
-
-              {Object.keys(groupedScores).length > 0 ? Object.keys(groupedScores).map((cat, idx) => (
-                <View key={cat}>
-                  <View style={styles.scoreRow}>
-                    <Text style={styles.scoreLabel}>{CATEGORY_LABELS[cat] || cat}</Text>
-                    <View style={styles.multiScore}>
-                      {groupedScores[cat].map((g, i) => (
-                        <Text key={i} style={styles.scoreTag}>{g.score}</Text>
-                      ))}
+              {Object.keys(groupedScores).length > 0 ? (
+                Object.keys(groupedScores).map((cat, idx) => (
+                  <View key={cat}>
+                    <View style={styles.scoreRow}>
+                      <Text style={styles.scoreLabel}>
+                        {CATEGORY_LABELS[cat] || cat}
+                      </Text>
+                      <View style={styles.multiScore}>
+                        {groupedScores[cat].map((g, i) => (
+                          <Text key={i} style={styles.scoreTag}>
+                            {g.score}
+                          </Text>
+                        ))}
+                      </View>
                     </View>
+                    {idx < Object.keys(groupedScores).length - 1 && (
+                      <View style={styles.divider} />
+                    )}
                   </View>
-                  {idx < Object.keys(groupedScores).length - 1 && <View style={styles.divider} />}
-                </View>
-              )) : <Text style={{ textAlign: 'center', color: '#6B7280', padding: 10 }}>Chưa có điểm số</Text>}
-
+                ))
+              ) : (
+                <Text
+                  style={{ textAlign: "center", color: "#6B7280", padding: 10 }}
+                >
+                  Chưa có điểm số
+                </Text>
+              )}
             </View>
 
             {/* Teacher Comments */}
             <Text style={styles.sectionTitle}>Nhận xét của giáo viên</Text>
-            {feedbackList.length > 0 ? feedbackList.map((f, i) => (
-              <View key={i} style={styles.commentCard}>
-                <View style={styles.commentHeader}>
-                  <View style={styles.teacherAvatar}>
-                    <Text style={styles.avatarText}>G</Text>
+            {feedbackList.length > 0 ? (
+              feedbackList.map((f, i) => (
+                <View key={i} style={styles.commentCard}>
+                  <View style={styles.commentHeader}>
+                    <View style={styles.teacherAvatar}>
+                      <Text style={styles.avatarText}>G</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.commentTeacher}>
+                        {f.gradedBy?.name || "Giáo viên"}
+                      </Text>
+                      <Text style={styles.commentDate}>
+                        {new Date(f.gradedAt).toLocaleDateString("vi-VN")}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.commentTeacher}>{f.gradedBy?.name || "Giáo viên"}</Text>
-                    <Text style={styles.commentDate}>{new Date(f.gradedAt).toLocaleDateString('vi-VN')}</Text>
-                  </View>
+                  <Text style={styles.commentContent}>{f.feedback}</Text>
                 </View>
-                <Text style={styles.commentContent}>
-                  {f.feedback}
-                </Text>
-              </View>
-            )) : (
+              ))
+            ) : (
               <View style={styles.commentCard}>
-                <Text style={{ color: '#6B7280', textAlign: 'center' }}>Chưa có nhận xét nào.</Text>
+                <Text style={{ color: "#6B7280", textAlign: "center" }}>
+                  Chưa có nhận xét nào.
+                </Text>
               </View>
             )}
           </>
@@ -305,10 +355,10 @@ const styles = StyleSheet.create({
   multiScore: {
     flexDirection: "row",
     gap: 8,
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
     flex: 1,
-    marginLeft: 10
+    marginLeft: 10,
   },
   scoreTag: {
     fontSize: 14,
