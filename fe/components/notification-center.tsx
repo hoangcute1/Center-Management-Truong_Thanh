@@ -1,56 +1,66 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, CheckCircle, AlertCircle, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-interface Notification {
-  id: string;
-  type: "success" | "warning" | "info";
-  title: string;
-  message: string;
-  timestamp: Date;
-  read: boolean;
-}
+import { useNotificationsStore, type Notification } from "@/lib/stores/notifications-store";
 
 export default function NotificationCenter({ userRole }: { userRole: string }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "success",
-      title: "Thanh toán thành công",
-      message: "Học phí tháng này đã được thanh toán",
-      timestamp: new Date(),
-      read: false,
-    },
-    {
-      id: "2",
-      type: "info",
-      title: "Lịch học thay đổi",
-      message: "Buổi học thứ 4 dời sang thứ 5",
-      timestamp: new Date(),
-      read: false,
-    },
-  ]);
 
-  const unread = notifications.filter((n) => !n.read).length;
+  const {
+    notifications,
+    unreadCount,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    isLoading
+  } = useNotificationsStore();
+
+  useEffect(() => {
+    fetchNotifications().catch(console.error);
+  }, [fetchNotifications]);
+
   const iconFor = (type: Notification["type"]) => {
-    if (type === "success")
-      return <CheckCircle className="text-green-600" size={18} />;
-    if (type === "warning")
-      return <AlertCircle className="text-orange-600" size={18} />;
-    return <Info className="text-blue-600" size={18} />;
+    switch (type) {
+      case "success":
+        return <CheckCircle className="text-green-600" size={18} />;
+      case "warning":
+        return <AlertCircle className="text-orange-600" size={18} />;
+      case "error":
+        return <AlertCircle className="text-red-600" size={18} />;
+      case "reminder":
+        return <Bell className="text-purple-600" size={18} />;
+      case "info":
+      default:
+        return <Info className="text-blue-600" size={18} />;
+    }
   };
 
-  const markAll = () =>
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
-  const markOne = (id: string) =>
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  const remove = (id: string) =>
-    setNotifications(notifications.filter((n) => n.id !== id));
+  const markOne = async (id: string) => {
+    try {
+      await markAsRead(id);
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await deleteNotification(id);
+    } catch (error) {
+      console.error("Failed to delete notification", error);
+    }
+  };
+
+  const handleMarkAll = async () => {
+    try {
+      await markAllAsRead();
+    } catch (error) {
+      console.error("Failed to mark all as read", error);
+    }
+  };
 
   return (
     <div className="relative">
@@ -59,55 +69,80 @@ export default function NotificationCenter({ userRole }: { userRole: string }) {
         className="relative p-2 hover:bg-gray-100 rounded-full transition"
       >
         <Bell size={22} />
-        {unread > 0 && (
+        {unreadCount > 0 && (
           <Badge
-            className="absolute -top-1 -right-1 bg-red-600 text-white h-5 w-5 justify-center"
+            className="absolute -top-1 -right-1 bg-red-600 text-white h-5 w-5 justify-center flex items-center"
             variant="destructive"
           >
-            {unread}
+            {unreadCount > 99 ? "99+" : unreadCount}
           </Badge>
         )}
       </button>
+
       {isOpen && (
-        <Card className="absolute right-0 top-12 w-80 shadow-2xl">
-          <div className="p-4 border-b flex justify-between items-center">
+        <Card className="absolute right-0 top-12 w-80 shadow-2xl z-50 overflow-hidden">
+          <div className="p-4 border-b flex justify-between items-center bg-white sticky top-0">
             <div>
-              <p className="font-semibold">Thông báo</p>
+              <p className="font-semibold text-gray-900">Thông báo</p>
               <p className="text-xs text-gray-500">Vai trò: {userRole}</p>
             </div>
-            {unread > 0 && (
-              <button onClick={markAll} className="text-xs text-blue-600">
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAll}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              >
                 Đánh dấu đã đọc
               </button>
             )}
           </div>
-          <div className="max-h-72 overflow-y-auto divide-y">
-            {notifications.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">
-                Không có thông báo
+
+          <div className="max-h-80 overflow-y-auto divide-y bg-white">
+            {isLoading && notifications.length === 0 ? (
+              <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
+                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm text-gray-500">Đang tải...</p>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
+                <Bell className="text-gray-300" size={32} />
+                <p className="text-sm text-gray-500 font-medium">Không có thông báo</p>
               </div>
             ) : (
               notifications.map((n) => (
-                <div key={n.id} className="p-3 flex gap-2 items-start">
-                  <div className="mt-1">{iconFor(n.type)}</div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{n.title}</p>
-                    <p className="text-sm text-gray-600">{n.message}</p>
-                    <div className="mt-1 flex gap-2 text-xs text-gray-500">
-                      {!n.read && (
+                <div
+                  key={n._id}
+                  className={`p-4 flex gap-3 items-start transition-colors ${!n.isRead ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
+                >
+                  <div className="mt-0.5 shrink-0 bg-white rounded-full p-1 shadow-xs border border-gray-100">
+                    {iconFor(n.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                      {n.title}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1 line-clamp-2 leading-relaxed">
+                      {n.message}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                      <span>{new Date(n.createdAt).toLocaleDateString("vi-VN", { hour: '2-digit', minute: '2-digit' })}</span>
+                      <div className="flex gap-3">
                         <button
-                          onClick={() => markOne(n.id)}
-                          className="text-blue-600"
+                          onClick={() => !n.isRead && markOne(n._id)}
+                          className={`font-medium transition-colors ${n.isRead
+                              ? 'text-gray-400 cursor-default'
+                              : 'text-blue-600 hover:text-blue-800'
+                            }`}
+                          disabled={n.isRead}
                         >
-                          Đánh dấu
+                          Đã đọc
                         </button>
-                      )}
-                      <button
-                        onClick={() => remove(n.id)}
-                        className="text-red-600"
-                      >
-                        Xoá
-                      </button>
+                        <button
+                          onClick={() => remove(n._id)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          Xóa
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

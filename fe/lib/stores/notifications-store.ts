@@ -9,12 +9,12 @@ export interface Notification {
   message: string;
   type: "info" | "success" | "warning" | "error" | "reminder";
   category?:
-    | "attendance"
-    | "tuition"
-    | "assessment"
-    | "class"
-    | "system"
-    | "chat";
+  | "attendance"
+  | "tuition"
+  | "assessment"
+  | "class"
+  | "system"
+  | "chat";
   isRead: boolean;
   link?: string;
   metadata?: Record<string, any>;
@@ -56,13 +56,17 @@ export const useNotificationsStore = create<
         ? response.data
         : response.data.notifications || [];
       const unreadCount = notifications.filter(
-        (n: Notification) => !n.isRead
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (n: any) => n.read === false || n.isRead === false
       ).length;
 
       set({
-        notifications: notifications.map((n: Notification) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        notifications: notifications.map((n: any) => ({
           ...n,
           id: n._id,
+          message: n.body || n.message,
+          isRead: n.read !== undefined ? n.read : n.isRead,
         })),
         unreadCount,
         isLoading: false,
@@ -87,8 +91,7 @@ export const useNotificationsStore = create<
         return { notifications, unreadCount };
       });
     } catch (error: any) {
-      const message =
-        error.response?.data?.message || "Lỗi khi đánh dấu đã đọc";
+      const message = error.response?.data?.message || "Lỗi khi đánh dấu đã đọc";
       set({ error: message });
       throw new Error(message);
     }
@@ -103,8 +106,7 @@ export const useNotificationsStore = create<
         unreadCount: 0,
       }));
     } catch (error: any) {
-      const message =
-        error.response?.data?.message || "Lỗi khi đánh dấu tất cả đã đọc";
+      const message = error.response?.data?.message || "Lỗi khi đánh dấu tất cả đã đọc";
       set({ error: message });
       throw new Error(message);
     }

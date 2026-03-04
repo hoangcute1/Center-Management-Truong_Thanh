@@ -34,7 +34,21 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.get("/notifications");
-      const notifications = response.data;
+      const dataNotifications = Array.isArray(response.data)
+        ? response.data
+        : response.data.notifications || [];
+
+      // Map backend data to frontend notification interface
+      const notifications = dataNotifications.map((n: any) => ({
+        ...n,
+        // Backend uses 'read', frontend uses 'isRead'
+        isRead: n.read !== undefined ? n.read : n.isRead,
+        // Backend uses 'body', frontend uses 'content'
+        content: n.body || n.content,
+        // Parse date
+        createdAt: new Date(n.createdAt),
+      }));
+
       const unreadCount = notifications.filter(
         (n: Notification) => !n.isRead
       ).length;
