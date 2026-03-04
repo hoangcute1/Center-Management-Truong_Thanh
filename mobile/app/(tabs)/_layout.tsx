@@ -43,8 +43,7 @@ export default function TabsLayout() {
 
   // Check if tab should be visible based on role
   const shouldShowPayments = role === "parent"; // Hidden for student
-  const shouldShowChat =
-    role === "teacher" || role === "student" || role === "parent"; // Chat for teacher, student, parent
+  const shouldShowChat = role === "teacher" || role === "student"; // Chat tab only for teacher and student, parent uses quick access
   const shouldShowContact = false; // Replaced by chat in incidents tab
   const shouldShowSchedule =
     role === "student" ||
@@ -62,6 +61,16 @@ export default function TabsLayout() {
   const BackButton = () => (
     <TouchableOpacity
       onPress={() => router.replace("/(tabs)/admin")}
+      style={{ marginLeft: 8, padding: 8 }}
+    >
+      <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+    </TouchableOpacity>
+  );
+
+  // Back button for teacher/student/parent to go back to home
+  const HomeBackButton = () => (
+    <TouchableOpacity
+      onPress={() => router.replace("/(tabs)")}
       style={{ marginLeft: 8, padding: 8 }}
     >
       <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -151,7 +160,12 @@ export default function TabsLayout() {
           title: role === "teacher" ? "Lịch dạy" : "Lịch học",
           headerTitle: role === "teacher" ? "Lịch dạy" : "Lịch học",
           href: shouldShowSchedule ? "/(tabs)/schedule" : null,
-          headerLeft: role === "admin" ? () => <BackButton /> : undefined,
+          headerLeft:
+            role === "admin"
+              ? () => <BackButton />
+              : role === "teacher"
+                ? () => <HomeBackButton />
+                : undefined,
           // tabBarStyle removed to keep tab bar visible
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>

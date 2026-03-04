@@ -12,10 +12,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useChildrenStore } from "@/lib/stores/children-store";
 import {
   gradingService,
   StudentGradeRecord,
 } from "@/lib/services/grading.service";
+import ChildSelector from "@/components/ChildSelector";
 
 const safeGoBack = () => {
   if (router.canGoBack()) {
@@ -27,15 +29,19 @@ const safeGoBack = () => {
 
 export default function GradesListScreen() {
   const { user } = useAuthStore();
+  const { selectedChild } = useChildrenStore();
   const [grades, setGrades] = useState<StudentGradeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const targetStudentId =
+    user?.role === "parent" ? selectedChild?._id : user?._id;
+
   const fetchGrades = useCallback(async () => {
-    if (!user?._id) return;
+    if (!targetStudentId) return;
     try {
-      if (!refreshing) setLoading(true); // Don't show full loader on refresh
-      const data = await gradingService.getMyGrades(user._id);
+      if (!refreshing) setLoading(true);
+      const data = await gradingService.getMyGrades(targetStudentId);
       setGrades(data);
     } catch (e) {
       console.error("Failed to fetch grades:", e);
@@ -43,11 +49,11 @@ export default function GradesListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?._id, refreshing]);
+  }, [targetStudentId, refreshing]);
 
   useEffect(() => {
     fetchGrades();
-  }, []); // Run once on mount (and when user is available via internal check) But useCallback dep makes it safe.
+  }, [targetStudentId]); // Re-fetch when target changes
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -123,6 +129,9 @@ export default function GradesListScreen() {
         <Text style={styles.headerTitle}>Kết quả học tập</Text>
         <View style={{ width: 40 }} />
       </View>
+
+      {/* Child Selector for Parent */}
+      {user?.role === "parent" && <ChildSelector />}
 
       <ScrollView
         style={styles.content}

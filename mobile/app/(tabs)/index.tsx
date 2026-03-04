@@ -9,6 +9,7 @@ import {
   Dimensions,
   Animated,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,6 +23,7 @@ import {
   useScheduleStore,
   useFeedbackStore,
   getUserDisplayName,
+  useChildrenStore,
 } from "@/lib/stores";
 import { router } from "expo-router";
 import api from "@/lib/api";
@@ -30,6 +32,7 @@ import {
   StudentGradeRecord,
   StudentRankInfo,
 } from "@/lib/services/grading.service";
+import ChildSelector from "@/components/ChildSelector";
 
 const { width } = Dimensions.get("window");
 
@@ -394,6 +397,14 @@ const getQuickActions = (
         onPress: () => router.push("/(tabs)/payments"),
       },
       {
+        icon: "chatbubbles" as const,
+        label: "Chat",
+        subtitle: "Nhắn tin",
+        colors: ["#6366F1", "#4F46E5"],
+        badge: 0,
+        onPress: () => router.push("/(tabs)/incidents"),
+      },
+      {
         icon: "warning" as const,
         label: "Sự cố",
         subtitle: "Báo cáo sự cố",
@@ -504,13 +515,9 @@ export default function HomeScreen() {
   const { myIncidents, fetchMyIncidents } = useIncidentsStore();
   const { sessions, fetchMySessions } = useScheduleStore();
   const { myRatings, fetchMyRatings } = useFeedbackStore();
+  const { children, selectedChild, fetchChildren } = useChildrenStore();
 
   const role = user?.role || "student";
-  const [childInfo, setChildInfo] = useState<{
-    _id: string;
-    name: string;
-    email: string;
-  } | null>(null);
 
   // State for grades data
   const [gradesData, setGradesData] = useState<StudentGradeRecord[]>([]);
@@ -519,33 +526,20 @@ export default function HomeScreen() {
     Record<string, StudentRankInfo>
   >({});
 
-  // Fetch child info for parent
-  const fetchChildInfo = useCallback(async () => {
-    if (role === "parent" && user?.childEmail) {
-      try {
-        const response = await api.get("/users/child-by-email", {
-          params: { email: user.childEmail },
-        });
-        if (response.data) {
-          setChildInfo({
-            _id: response.data._id,
-            name: response.data.name || response.data.fullName,
-            email: response.data.email,
-          });
-          return response.data._id;
-        }
-      } catch (error) {
-        console.error("Error fetching child info:", error);
-      }
+  // Fetch children for parent (multi-child support)
+  const fetchChildrenData = useCallback(async () => {
+    if (role === "parent" && user?._id) {
+      await fetchChildren(user._id);
+      return useChildrenStore.getState().selectedChild?._id || null;
     }
     return null;
-  }, [role, user?.childEmail]);
+  }, [role, user?._id]);
 
   // Fetch grades for student or parent's child
   const fetchGrades = useCallback(
     async (studentId?: string) => {
       const targetId =
-        studentId || (role === "student" ? user?._id : childInfo?._id);
+        studentId || (role === "student" ? user?._id : selectedChild?._id);
       if (!targetId) return;
 
       setGradesLoading(true);
@@ -577,7 +571,7 @@ export default function HomeScreen() {
         setGradesLoading(false);
       }
     },
-    [role, user?._id, childInfo?._id],
+    [role, user?._id, selectedChild?._id],
   );
 
   // Calculate average score from grades
@@ -659,9 +653,9 @@ export default function HomeScreen() {
   const loadData = useCallback(async () => {
     await fetchNotifications();
 
-    // For parent, get child info first then fetch classes with childId
+    // For parent, get children info first then fetch classes with selected childId
     if (role === "parent") {
-      const childId = await fetchChildInfo();
+      const childId = await fetchChildrenData();
       if (childId) {
         await fetchClasses(undefined, childId);
         await fetchGrades(childId); // Fetch grades for child
@@ -683,7 +677,15 @@ export default function HomeScreen() {
     } else {
       await fetchClasses();
     }
-  }, [role, fetchChildInfo, fetchGrades, user?._id]);
+  }, [role, fetchChildrenData, fetchGrades, user?._id]);
+
+  // Re-fetch data when selected child changes
+  useEffect(() => {
+    if (role === "parent" && selectedChild?._id) {
+      fetchClasses(undefined, selectedChild._id);
+      fetchGrades(selectedChild._id);
+    }
+  }, [selectedChild?._id]);
 
   const onRefresh = async () => {
     await loadData();
@@ -764,11 +766,18 @@ export default function HomeScreen() {
           <View style={styles.welcomeContent}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatarCircle}>
-                <Ionicons
-                  name="person"
-                  size={32}
-                  color={roleConfig.colors[0]}
-                />
+                {user?.avatarUrl ? (
+                  <Image
+                    source={{ uri: user.avatarUrl }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={32}
+                    color={roleConfig.colors[0]}
+                  />
+                )}
               </View>
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge}>
@@ -970,7 +979,10 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {!childInfo && classes.length === 0 ? (
+            {/* Child selector for multi-child support */}
+            <ChildSelector />
+
+            {!selectedChild && children.length === 0 && classes.length === 0 ? (
               <View style={styles.emptyCard}>
                 <LinearGradient
                   colors={["#FEF3C7", "#FDE68A"]}
@@ -996,7 +1008,9 @@ export default function HomeScreen() {
                   </LinearGradient>
                   <View style={styles.childHeaderInfo}>
                     <Text style={styles.childName}>
-                      {childInfo?.name || "Con của bạn"}
+                      {selectedChild?.name ||
+                        selectedChild?.fullName ||
+                        "Con của bạn"}
                     </Text>
                     <Text style={styles.childGrade}>
                       Đang theo học {classes.length} lớp
@@ -1009,12 +1023,14 @@ export default function HomeScreen() {
                     <Text style={styles.childStatLabel}>Lớp học</Text>
                   </View>
                   <View style={styles.childStatItem}>
-                    <Text style={styles.childStatValue}>8.2</Text>
+                    <Text style={styles.childStatValue}>
+                      {averageScore || "-"}
+                    </Text>
                     <Text style={styles.childStatLabel}>Điểm TB</Text>
                   </View>
                   <View style={styles.childStatItem}>
-                    <Text style={styles.childStatValue}>95%</Text>
-                    <Text style={styles.childStatLabel}>Chuyên cần</Text>
+                    <Text style={styles.childStatValue}>{children.length}</Text>
+                    <Text style={styles.childStatLabel}>Số con</Text>
                   </View>
                 </View>
               </View>
@@ -1385,6 +1401,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
   },
   notificationBadge: {
     position: "absolute",

@@ -27,7 +27,7 @@ import type { UserDocument } from './schemas/user.schema';
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Post()
   @Roles(UserRole.Admin)
@@ -93,6 +93,20 @@ export class UsersController {
       return { children: [] };
     }
     return this.usersService.getParentChildren(parentId);
+  }
+
+  // Cập nhật profile cá nhân (tất cả role đều được phép)
+  @Patch('me/profile')
+  @Roles(UserRole.Admin, UserRole.Teacher, UserRole.Student, UserRole.Parent)
+  updateMyProfile(
+    @CurrentUser() currentUser: UserDocument,
+    @Body() body: { name?: string; phone?: string; avatarUrl?: string },
+  ) {
+    const updateData: any = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
+    return this.usersService.update(currentUser._id.toString(), updateData);
   }
 
   // Cho phép parent tìm child bằng email

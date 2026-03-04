@@ -13,6 +13,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useChildrenStore } from "@/lib/stores/children-store";
 import {
   gradingService,
   StudentGradeRecord,
@@ -41,9 +42,13 @@ export default function GradeDetailScreen() {
   const subjectName = typeof name === "string" ? name : "Chi tiết môn học";
 
   const { user } = useAuthStore();
+  const { selectedChild } = useChildrenStore();
   const [grades, setGrades] = useState<StudentGradeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const targetStudentId =
+    user?.role === "parent" ? selectedChild?._id : user?._id;
 
   // Filtered grades for this class
   const classGrades = useMemo(() => {
@@ -53,10 +58,10 @@ export default function GradeDetailScreen() {
   }, [grades, id]);
 
   const fetchGrades = useCallback(async () => {
-    if (!user?._id) return;
+    if (!targetStudentId) return;
     try {
       if (!refreshing) setLoading(true);
-      const data = await gradingService.getMyGrades(user._id);
+      const data = await gradingService.getMyGrades(targetStudentId);
       setGrades(data);
     } catch (e) {
       console.error("Failed to fetch grades:", e);
@@ -64,11 +69,11 @@ export default function GradeDetailScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?._id, refreshing]);
+  }, [targetStudentId, refreshing]);
 
   useEffect(() => {
     fetchGrades();
-  }, []);
+  }, [targetStudentId]);
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -23,6 +23,7 @@ import {
   useUsersStore,
   useAttendanceStore,
   useSessionsStore,
+  useChildrenStore,
 } from "@/lib/stores";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -30,6 +31,7 @@ import DateTimePicker, {
 import { Platform } from "react-native";
 import { subjects, getSubjectLabel } from "@/lib/constants/subjects";
 import api from "@/lib/api";
+import ChildSelector from "@/components/ChildSelector";
 
 const { width } = Dimensions.get("window");
 
@@ -247,36 +249,24 @@ export default function ScheduleScreen() {
     return monday;
   }, [weekOffset]);
 
-  // State to store child info for parent
-  const [childId, setChildId] = useState<string | null>(null);
+  // Multi-child support for parent
+  const { children, selectedChild, fetchChildren } = useChildrenStore();
 
   // State to store attendance records for student/parent
   const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<
     any[]
   >([]);
 
-  // Fetch child info for parent on mount
+  // Fetch children for parent on mount
   useEffect(() => {
-    const initChildId = async () => {
-      if (user?.role === "parent" && user?.childEmail && !childId) {
-        try {
-          const response = await api.get("/users/child-by-email", {
-            params: { email: user.childEmail },
-          });
-          if (response.data?._id) {
-            setChildId(response.data._id);
-          }
-        } catch (error) {
-          console.error("Error fetching child info:", error);
-        }
-      }
-    };
-    initChildId();
+    if (user?.role === "parent" && user?._id) {
+      fetchChildren(user._id);
+    }
   }, [user]);
 
   useEffect(() => {
     loadSchedule();
-  }, [user, weekOffset, childId]);
+  }, [user, weekOffset, selectedChild?._id]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -310,15 +300,16 @@ export default function ScheduleScreen() {
         setStudentAttendanceRecords([]);
       }
     } else if (user.role === "parent") {
-      // For parent, need childId to fetch child's classes
-      if (childId) {
-        await fetchClasses(undefined, childId);
+      // For parent, use selected child from children store
+      const cId = selectedChild?._id;
+      if (cId) {
+        await fetchClasses(undefined, cId);
         const { startDate, endDate } = getWeekRange(currentWeekStart);
-        await fetchStudentSchedule(childId, startDate, endDate);
+        await fetchStudentSchedule(cId, startDate, endDate);
         // Fetch attendance records for child
         try {
           const attendanceRes = await api.get("/attendance", {
-            params: { studentId: childId },
+            params: { studentId: cId },
           });
           setStudentAttendanceRecords(
             Array.isArray(attendanceRes.data) ? attendanceRes.data : [],
@@ -328,7 +319,7 @@ export default function ScheduleScreen() {
           setStudentAttendanceRecords([]);
         }
       }
-      // If no childId yet, wait for it to be fetched
+      // If no selectedChild yet, wait for children store to load
     }
   };
 
@@ -639,15 +630,16 @@ export default function ScheduleScreen() {
     const dayIndex = selectedDate.getDay();
     const timetable: (TimetableItem & { attendanceStatus?: string })[] = [];
 
-    // For parent, use childId; for student, use user._id
-    const targetStudentId = user?.role === "parent" ? childId : user?._id;
+    // For parent, use selectedChild._id; for student, use user._id
+    const targetStudentId =
+      user?.role === "parent" ? selectedChild?._id : user?._id;
 
     // Filter classes where student is enrolled
     // For parent: API already returns child's classes, so we can use all classes
     // For student: filter by studentIds
     const studentClasses =
       user?.role === "parent"
-        ? classes // Parent: classes already filtered by childId from API
+        ? classes // Parent: classes already filtered by selectedChild from API
         : classes.filter((cls) => {
             // Check if user is in studentIds
             if (cls.studentIds && cls.studentIds.includes(user._id))
@@ -759,7 +751,7 @@ export default function ScheduleScreen() {
     selectedDate,
     user,
     sessions,
-    childId,
+    selectedChild?._id,
     studentAttendanceRecords,
   ]);
 
@@ -770,7 +762,7 @@ export default function ScheduleScreen() {
 
       const dayIndex = date.getDay();
 
-      // For parent: use all classes (already filtered by childId from API)
+      // For parent: use all classes (already filtered by selectedChild from API)
       // For student: filter by studentIds
       const studentClasses =
         user?.role === "parent"
@@ -2851,6 +2843,9 @@ export default function ScheduleScreen() {
   // Student View (original)
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      {/* Child Selector for Parent */}
+      {user?.role === "parent" && <ChildSelector />}
+
       {/* Week Calendar Header */}
       <View style={styles.calendarContainer}>
         <View style={styles.weekHeader}>

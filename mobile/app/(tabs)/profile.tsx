@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,17 +18,53 @@ import { router } from "expo-router";
 import { useAuthStore, getUserDisplayName } from "@/lib/stores";
 import { useUiStore } from "@/lib/stores/ui-store";
 import api from "@/lib/api";
+import * as ImagePicker from "expo-image-picker";
+
+const CLOUDINARY_CLOUD_NAME = "dtwbakrv7";
+const CLOUDINARY_UPLOAD_PRESET = "sdn_upload";
+
+const uploadToCloudinary = async (uri: string): Promise<string> => {
+  const formData = new FormData();
+  const filename = uri.split("/").pop() || "avatar.jpg";
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : "image/jpeg";
+  formData.append("file", { uri, name: filename, type } as any);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    { method: "POST", body: formData },
+  );
+  if (!response.ok) throw new Error("Upload failed");
+  const data = await response.json();
+  return data.secure_url;
+};
 
 const getRoleConfig = (role: string) => {
   switch (role) {
     case "student":
-      return { label: "Học sinh", colors: ["#3B82F6", "#3B82F6"], icon: "school" };
+      return {
+        label: "Học sinh",
+        colors: ["#3B82F6", "#3B82F6"],
+        icon: "school",
+      };
     case "teacher":
-      return { label: "Giáo viên", colors: ["#10B981", "#10B981"], icon: "person" };
+      return {
+        label: "Giáo viên",
+        colors: ["#10B981", "#10B981"],
+        icon: "person",
+      };
     case "parent":
-      return { label: "Phụ huynh", colors: ["#F59E0B", "#F59E0B"], icon: "people" };
+      return {
+        label: "Phụ huynh",
+        colors: ["#F59E0B", "#F59E0B"],
+        icon: "people",
+      };
     case "admin":
-      return { label: "Quản trị viên", colors: ["#8B5CF6", "#8B5CF6"], icon: "settings" };
+      return {
+        label: "Quản trị viên",
+        colors: ["#8B5CF6", "#8B5CF6"],
+        icon: "settings",
+      };
     default:
       return { label: role, colors: ["#6B7280", "#4B5563"], icon: "person" };
   }
@@ -42,6 +79,40 @@ export default function ProfileScreen() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const handlePickAvatar = async () => {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert(
+        "Quyền truy cập",
+        "Cần quyền truy cập thư viện ảnh để thay đổi ảnh đại diện",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    setIsUploadingAvatar(true);
+    try {
+      const imageUri = result.assets[0].uri;
+      const avatarUrl = await uploadToCloudinary(imageUri);
+      await api.patch("/users/me/profile", { avatarUrl });
+      if (updateUser && user) {
+        updateUser({ ...user, avatarUrl });
+      }
+      Alert.alert("Thành công", "Đã cập nhật ảnh đại diện");
+    } catch (error: any) {
+      Alert.alert("Lỗi", "Không thể cập nhật ảnh đại diện. Vui lòng thử lại.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const [profileForm, setProfileForm] = useState({
     fullName: user?.fullName || user?.name || "",
@@ -87,7 +158,7 @@ export default function ProfileScreen() {
 
     setIsUpdating(true);
     try {
-      await api.patch(`/users/${user?._id}`, {
+      await api.patch("/users/me/profile", {
         name: profileForm.fullName.trim(),
         phone: profileForm.phone.trim() || undefined,
       });
@@ -193,19 +264,19 @@ export default function ProfileScreen() {
           icon: "help-circle-outline" as const,
           label: "Trợ giúp",
           color: "#10B981",
-          onPress: () => { },
+          onPress: () => {},
         },
         {
           icon: "chatbubble-outline" as const,
           label: "Liên hệ hỗ trợ",
           color: "#EC4899",
-          onPress: () => { },
+          onPress: () => {},
         },
         {
           icon: "information-circle-outline" as const,
           label: "Về ứng dụng",
           color: "#6B7280",
-          onPress: () => { },
+          onPress: () => {},
         },
       ],
     },
@@ -213,7 +284,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: isDark ? "#0B1220" : "#F3F4F6" }]}
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#0B1220" : "#F3F4F6" },
+      ]}
       edges={["left", "right"]}
     >
       <ScrollView
@@ -222,7 +296,16 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         {/* Background extension for iOS pull-to-refresh overscroll */}
-        <View style={{ position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: roleConfig.colors[0] }} />
+        <View
+          style={{
+            position: "absolute",
+            top: -1000,
+            left: 0,
+            right: 0,
+            height: 1000,
+            backgroundColor: roleConfig.colors[0],
+          }}
+        />
 
         <LinearGradient
           colors={[roleConfig.colors[0], roleConfig.colors[0]]}
@@ -232,9 +315,29 @@ export default function ProfileScreen() {
         >
           <View style={styles.avatarContainer}>
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={48} color={roleConfig.colors[0]} />
+              {user?.avatarUrl ? (
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Ionicons
+                  name="person"
+                  size={48}
+                  color={roleConfig.colors[0]}
+                />
+              )}
+              {isUploadingAvatar && (
+                <View style={styles.avatarLoading}>
+                  <ActivityIndicator color="#FFFFFF" />
+                </View>
+              )}
             </View>
-            <TouchableOpacity style={styles.editAvatarButton}>
+            <TouchableOpacity
+              style={styles.editAvatarButton}
+              onPress={handlePickAvatar}
+              disabled={isUploadingAvatar}
+            >
               <Ionicons name="camera" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -246,15 +349,32 @@ export default function ProfileScreen() {
           </View>
         </LinearGradient>
 
-        <View style={[styles.infoCard, { backgroundColor: isDark ? "#111827" : "#FFFFFF" }]}>
-          <Text style={[styles.cardTitle, { color: isDark ? "#E5E7EB" : "#1F2937" }]}>Thông tin liên hệ</Text>
+        <View
+          style={[
+            styles.infoCard,
+            { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+          ]}
+        >
+          <Text
+            style={[
+              styles.cardTitle,
+              { color: isDark ? "#E5E7EB" : "#1F2937" },
+            ]}
+          >
+            Thông tin liên hệ
+          </Text>
           <View style={styles.infoRow}>
             <View style={[styles.infoIconBg, { backgroundColor: "#EFF6FF" }]}>
               <Ionicons name="mail-outline" size={18} color="#3B82F6" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={[styles.infoText, { color: isDark ? "#E5E7EB" : "#374151" }]}>
+              <Text
+                style={[
+                  styles.infoText,
+                  { color: isDark ? "#E5E7EB" : "#374151" },
+                ]}
+              >
                 {user?.email || "Chưa cập nhật"}
               </Text>
             </View>
@@ -265,7 +385,12 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Số điện thoại</Text>
-              <Text style={[styles.infoText, { color: isDark ? "#E5E7EB" : "#374151" }]}>
+              <Text
+                style={[
+                  styles.infoText,
+                  { color: isDark ? "#E5E7EB" : "#374151" },
+                ]}
+              >
                 {user?.phone || "Chưa cập nhật"}
               </Text>
             </View>
@@ -275,7 +400,12 @@ export default function ProfileScreen() {
         {menuSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.menuSection}>
             <Text style={styles.menuSectionTitle}>{section.title}</Text>
-            <View style={[styles.menuCard, { backgroundColor: isDark ? "#111827" : "#FFFFFF" }]}>
+            <View
+              style={[
+                styles.menuCard,
+                { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+              ]}
+            >
               {section.items.map((item, index) => (
                 <TouchableOpacity
                   key={index}
@@ -294,7 +424,12 @@ export default function ProfileScreen() {
                   >
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
-                  <Text style={[styles.menuItemLabel, { color: isDark ? "#E5E7EB" : "#374151" }]}>
+                  <Text
+                    style={[
+                      styles.menuItemLabel,
+                      { color: isDark ? "#E5E7EB" : "#374151" },
+                    ]}
+                  >
                     {item.label}
                   </Text>
                   <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
@@ -375,7 +510,10 @@ export default function ProfileScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, isUpdating && styles.submitButtonDisabled]}
+              style={[
+                styles.submitButton,
+                isUpdating && styles.submitButtonDisabled,
+              ]}
               onPress={handleUpdateProfile}
               disabled={isUpdating}
             >
@@ -505,14 +643,21 @@ export default function ProfileScreen() {
               [
                 { key: "light", label: "Sáng", icon: "sunny-outline" },
                 { key: "dark", label: "Tối", icon: "moon" },
-                { key: "system", label: "Theo hệ thống", icon: "laptop-outline" },
+                {
+                  key: "system",
+                  label: "Theo hệ thống",
+                  icon: "laptop-outline",
+                },
               ] as const
             ).map((opt) => {
               const active = selectedTheme === opt.key;
               return (
                 <TouchableOpacity
                   key={opt.key}
-                  style={[styles.themeOption, active && styles.themeOptionActive]}
+                  style={[
+                    styles.themeOption,
+                    active && styles.themeOptionActive,
+                  ]}
                   onPress={() => {
                     setSelectedTheme(opt.key);
                     setTheme(opt.key);
@@ -535,7 +680,11 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   {active && (
-                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={22}
+                      color="#10B981"
+                    />
                   )}
                 </TouchableOpacity>
               );
@@ -578,6 +727,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+  },
+  avatarLoading: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 28,
   },
   editAvatarButton: {
     position: "absolute",

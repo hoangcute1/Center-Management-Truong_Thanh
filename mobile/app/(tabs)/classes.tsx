@@ -24,12 +24,14 @@ import {
   Class,
   useBranchesStore,
   useUsersStore,
+  useChildrenStore,
 } from "@/lib/stores";
 import {
   getSubjectLabel,
   subjects as SUBJECTS,
 } from "@/lib/constants/subjects";
 import api from "@/lib/api";
+import ChildSelector from "@/components/ChildSelector";
 
 const { width } = Dimensions.get("window");
 
@@ -115,39 +117,24 @@ export default function ClassesScreen() {
   const [showStudentsList, setShowStudentsList] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [loadingStudents, setLoadingStudents] = useState(false);
-  const [studentsList, setStudentsList] = useState<Array<{_id: string; fullName?: string; name?: string; email: string}>>([]);
+  const [studentsList, setStudentsList] = useState<
+    Array<{ _id: string; fullName?: string; name?: string; email: string }>
+  >([]);
 
   const isAdmin = user?.role === "admin";
   const isParent = user?.role === "parent";
   const teachers = users.filter((u) => u.role === "teacher");
 
-  // State to store child info for parent
-  const [childId, setChildId] = useState<string | null>(null);
-
-  // Fetch child info for parent
-  const fetchChildId = async () => {
-    if (user?.role === "parent" && user?.childEmail) {
-      try {
-        const response = await api.get("/users/child-by-email", {
-          params: { email: user.childEmail },
-        });
-        if (response.data?._id) {
-          setChildId(response.data._id);
-          return response.data._id;
-        }
-      } catch (error) {
-        console.error("Error fetching child info:", error);
-      }
-    }
-    return null;
-  };
+  // Multi-child support for parent
+  const { children, selectedChild, fetchChildren } = useChildrenStore();
 
   useEffect(() => {
     const loadData = async () => {
-      if (isParent) {
-        const cId = await fetchChildId();
-        if (cId) {
-          await fetchClasses(undefined, cId);
+      if (isParent && user?._id) {
+        await fetchChildren(user._id);
+        const child = useChildrenStore.getState().selectedChild;
+        if (child) {
+          await fetchClasses(undefined, child._id);
         } else {
           await fetchClasses();
         }
@@ -160,9 +147,16 @@ export default function ClassesScreen() {
     loadData();
   }, []);
 
+  // Re-fetch classes when selected child changes
+  useEffect(() => {
+    if (isParent && selectedChild?._id) {
+      fetchClasses(undefined, selectedChild._id);
+    }
+  }, [selectedChild?._id]);
+
   const onRefresh = async () => {
-    if (isParent && childId) {
-      await fetchClasses(undefined, childId);
+    if (isParent && selectedChild?._id) {
+      await fetchClasses(undefined, selectedChild._id);
     } else {
       await fetchClasses();
     }
@@ -460,6 +454,9 @@ export default function ClassesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      {/* Child Selector for Parent */}
+      {isParent && <ChildSelector />}
+
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
         <ScrollView
@@ -539,17 +536,24 @@ export default function ClassesScreen() {
         <SafeAreaView style={styles.modalContainer}>
           {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => {
-              if (showStudentsList) {
-                setShowStudentsList(false);
-              } else {
-                closeDetail();
-              }
-            }} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => {
+                if (showStudentsList) {
+                  setShowStudentsList(false);
+                } else {
+                  closeDetail();
+                }
+              }}
+              style={styles.backButton}
+            >
               <Ionicons name="arrow-back" size={24} color="#1F2937" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {showStudentsList ? "Danh sách học sinh" : isEditing ? "Chỉnh sửa lớp học" : "Chi tiết lớp học"}
+              {showStudentsList
+                ? "Danh sách học sinh"
+                : isEditing
+                  ? "Chỉnh sửa lớp học"
+                  : "Chi tiết lớp học"}
             </Text>
             {isAdmin && !isEditing && (
               <TouchableOpacity
@@ -589,11 +593,24 @@ export default function ClassesScreen() {
               >
                 <Ionicons name="book" size={24} color="#FFFFFF" />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "700",
+                      color: "#FFFFFF",
+                    }}
+                  >
                     {selectedClass.name}
                   </Text>
-                  <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>
-                    {getSubjectLabel(selectedClass.subject)} • {studentsList.length} học sinh
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: "rgba(255,255,255,0.8)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {getSubjectLabel(selectedClass.subject)} •{" "}
+                    {studentsList.length} học sinh
                   </Text>
                 </View>
               </LinearGradient>
@@ -634,9 +651,18 @@ export default function ClassesScreen() {
 
               {/* Student list */}
               {loadingStudents ? (
-                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 60 }}>
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingTop: 60,
+                  }}
+                >
                   <ActivityIndicator size="large" color="#3B82F6" />
-                  <Text style={{ fontSize: 14, color: "#6B7280", marginTop: 12 }}>
+                  <Text
+                    style={{ fontSize: 14, color: "#6B7280", marginTop: 12 }}
+                  >
                     Đang tải danh sách học sinh...
                   </Text>
                 </View>
@@ -650,7 +676,10 @@ export default function ClassesScreen() {
                     return sName.includes(q) || sEmail.includes(q);
                   })}
                   keyExtractor={(item) => item._id}
-                  contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 16,
+                    paddingBottom: 40,
+                  }}
                   showsVerticalScrollIndicator={false}
                   renderItem={({ item, index }) => (
                     <View
@@ -670,45 +699,100 @@ export default function ClassesScreen() {
                     >
                       <View
                         style={{
-                          width: 32, height: 32, borderRadius: 16,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
                           backgroundColor: index < 3 ? "#EFF6FF" : "#F3F4F6",
-                          justifyContent: "center", alignItems: "center", marginRight: 12,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginRight: 12,
                         }}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: index < 3 ? "#3B82F6" : "#6B7280" }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: index < 3 ? "#3B82F6" : "#6B7280",
+                          }}
+                        >
                           {index + 1}
                         </Text>
                       </View>
                       <View
                         style={{
-                          width: 44, height: 44, borderRadius: 22,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
                           backgroundColor: "#EFF6FF",
-                          justifyContent: "center", alignItems: "center", marginRight: 12,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginRight: 12,
                         }}
                       >
-                        <Text style={{ fontSize: 16, fontWeight: "bold", color: "#3B82F6" }}>
-                          {(item.fullName || item.name || "?").charAt(0).toUpperCase()}
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "bold",
+                            color: "#3B82F6",
+                          }}
+                        >
+                          {(item.fullName || item.name || "?")
+                            .charAt(0)
+                            .toUpperCase()}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: "600", color: "#111827" }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: "600",
+                            color: "#111827",
+                          }}
+                        >
                           {item.fullName || item.name || "Chưa cập nhật"}
                         </Text>
-                        <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#6B7280",
+                            marginTop: 2,
+                          }}
+                        >
                           {item.email}
                         </Text>
                       </View>
-                      <Ionicons name="person-circle-outline" size={24} color="#D1D5DB" />
+                      <Ionicons
+                        name="person-circle-outline"
+                        size={24}
+                        color="#D1D5DB"
+                      />
                     </View>
                   )}
                   ListEmptyComponent={
                     <View style={{ alignItems: "center", paddingVertical: 48 }}>
-                      <Ionicons name="people-outline" size={56} color="#D1D5DB" />
-                      <Text style={{ fontSize: 16, fontWeight: "600", color: "#6B7280", marginTop: 12 }}>
-                        {studentSearchQuery ? "Không tìm thấy học sinh" : "Chưa có học sinh"}
+                      <Ionicons
+                        name="people-outline"
+                        size={56}
+                        color="#D1D5DB"
+                      />
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: "#6B7280",
+                          marginTop: 12,
+                        }}
+                      >
+                        {studentSearchQuery
+                          ? "Không tìm thấy học sinh"
+                          : "Chưa có học sinh"}
                       </Text>
-                      <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 4 }}>
-                        {studentSearchQuery ? "Thử tìm với từ khóa khác" : "Lớp học chưa có học sinh nào"}
+                      <Text
+                        style={{ fontSize: 14, color: "#9CA3AF", marginTop: 4 }}
+                      >
+                        {studentSearchQuery
+                          ? "Thử tìm với từ khóa khác"
+                          : "Lớp học chưa có học sinh nào"}
                       </Text>
                     </View>
                   }
@@ -716,7 +800,11 @@ export default function ClassesScreen() {
               )}
             </View>
           ) : selectedClass ? (
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16 }}
+              showsVerticalScrollIndicator={false}
+            >
               {!isEditing ? (
                 <>
                   {/* Class Header */}
@@ -774,31 +862,41 @@ export default function ClassesScreen() {
                   <TouchableOpacity
                     style={{
                       marginBottom: 16,
-                      backgroundColor: '#EFF6FF',
+                      backgroundColor: "#EFF6FF",
                       borderRadius: 14,
                       paddingHorizontal: 16,
                       paddingVertical: 14,
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                      flexDirection: "row",
+                      alignItems: "center",
                       borderWidth: 1,
-                      borderColor: '#DBEAFE',
+                      borderColor: "#DBEAFE",
                     }}
                     onPress={async () => {
                       setStudentSearchQuery("");
                       setShowStudentsList(true);
                       setLoadingStudents(true);
                       try {
-                        const response = await api.get(`/classes/${selectedClass._id}`);
+                        const response = await api.get(
+                          `/classes/${selectedClass._id}`,
+                        );
                         const classData = response.data;
-                        if (classData.studentIds && Array.isArray(classData.studentIds) && classData.studentIds.length > 0 && typeof classData.studentIds[0] === 'object') {
+                        if (
+                          classData.studentIds &&
+                          Array.isArray(classData.studentIds) &&
+                          classData.studentIds.length > 0 &&
+                          typeof classData.studentIds[0] === "object"
+                        ) {
                           setStudentsList(classData.studentIds);
-                        } else if (classData.students && Array.isArray(classData.students)) {
+                        } else if (
+                          classData.students &&
+                          Array.isArray(classData.students)
+                        ) {
                           setStudentsList(classData.students);
                         } else {
                           setStudentsList([]);
                         }
                       } catch (err) {
-                        console.error('Error fetching class students:', err);
+                        console.error("Error fetching class students:", err);
                         setStudentsList(selectedClass.students || []);
                       } finally {
                         setLoadingStudents(false);
@@ -808,14 +906,29 @@ export default function ClassesScreen() {
                   >
                     <Ionicons name="people" size={20} color="#3B82F6" />
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E40AF' }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "600",
+                          color: "#1E40AF",
+                        }}
+                      >
                         Chi tiết học sinh
                       </Text>
-                      <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                        {selectedClass.students?.length || selectedClass.studentIds?.length || 0} học sinh trong lớp
+                      <Text
+                        style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}
+                      >
+                        {selectedClass.students?.length ||
+                          selectedClass.studentIds?.length ||
+                          0}{" "}
+                        học sinh trong lớp
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#3B82F6"
+                    />
                   </TouchableOpacity>
 
                   {/* Info Cards */}
@@ -1034,7 +1147,7 @@ export default function ClassesScreen() {
                   >
                     {createForm.subject
                       ? SUBJECTS.find((s) => s.value === createForm.subject)
-                        ?.label
+                          ?.label
                       : "Chọn môn học"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -1092,7 +1205,7 @@ export default function ClassesScreen() {
                   >
                     {createForm.branchId
                       ? branches.find((b) => b._id === createForm.branchId)
-                        ?.name
+                          ?.name
                       : "Chọn cơ sở"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -1115,9 +1228,9 @@ export default function ClassesScreen() {
                   >
                     {createForm.teacherId
                       ? teachers.find((t) => t._id === createForm.teacherId)
-                        ?.fullName ||
-                      teachers.find((t) => t._id === createForm.teacherId)
-                        ?.name
+                          ?.fullName ||
+                        teachers.find((t) => t._id === createForm.teacherId)
+                          ?.name
                       : "Chọn giáo viên"}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -1161,7 +1274,7 @@ export default function ClassesScreen() {
                               style={[
                                 styles.dayPickerItem,
                                 sch.dayOfWeek === day &&
-                                styles.dayPickerItemActive,
+                                  styles.dayPickerItemActive,
                               ]}
                               onPress={() =>
                                 updateSchedule(index, "dayOfWeek", day)
@@ -1171,7 +1284,7 @@ export default function ClassesScreen() {
                                 style={[
                                   styles.dayPickerText,
                                   sch.dayOfWeek === day &&
-                                  styles.dayPickerTextActive,
+                                    styles.dayPickerTextActive,
                                 ]}
                               >
                                 {DAYS_OF_WEEK[day]}
@@ -1283,7 +1396,7 @@ export default function ClassesScreen() {
                   style={[
                     styles.pickerItem,
                     createForm.subject === item.value &&
-                    styles.pickerItemActive,
+                      styles.pickerItemActive,
                   ]}
                   onPress={() => {
                     setCreateForm({ ...createForm, subject: item.value });
@@ -1294,7 +1407,7 @@ export default function ClassesScreen() {
                     style={[
                       styles.pickerItemText,
                       createForm.subject === item.value &&
-                      styles.pickerItemTextActive,
+                        styles.pickerItemTextActive,
                     ]}
                   >
                     {item.label}
@@ -1341,7 +1454,7 @@ export default function ClassesScreen() {
                     style={[
                       styles.pickerItemText,
                       createForm.grade === item.value &&
-                      styles.pickerItemTextActive,
+                        styles.pickerItemTextActive,
                     ]}
                   >
                     {item.label}
@@ -1388,7 +1501,7 @@ export default function ClassesScreen() {
                     style={[
                       styles.pickerItemText,
                       createForm.branchId === item._id &&
-                      styles.pickerItemTextActive,
+                        styles.pickerItemTextActive,
                     ]}
                   >
                     {item.name}
@@ -1425,7 +1538,7 @@ export default function ClassesScreen() {
                   style={[
                     styles.pickerItem,
                     createForm.teacherId === item._id &&
-                    styles.pickerItemActive,
+                      styles.pickerItemActive,
                   ]}
                   onPress={() => {
                     setCreateForm({ ...createForm, teacherId: item._id });
@@ -1437,7 +1550,7 @@ export default function ClassesScreen() {
                       style={[
                         styles.pickerItemText,
                         createForm.teacherId === item._id &&
-                        styles.pickerItemTextActive,
+                          styles.pickerItemTextActive,
                       ]}
                     >
                       {item.fullName || item.name || "Giáo viên"}
