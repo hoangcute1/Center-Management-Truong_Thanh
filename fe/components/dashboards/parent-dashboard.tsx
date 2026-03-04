@@ -45,6 +45,118 @@ const dayNames = [
   "THỨ BẢY",
 ];
 
+const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const DAY_NAMES_VN = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+// Helper functions for week navigation
+const getStartOfWeek = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+};
+
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const formatDate = (date: Date): string => {
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  return `${day}/${month}`;
+};
+
+const formatWeekRange = (startOfWeek: Date): string => {
+  const endOfWeek = addDays(startOfWeek, 6);
+  const startDay = startOfWeek.getDate().toString().padStart(2, "0");
+  const startMonth = (startOfWeek.getMonth() + 1).toString().padStart(2, "0");
+  const endDay = endOfWeek.getDate().toString().padStart(2, "0");
+  const endMonth = (endOfWeek.getMonth() + 1).toString().padStart(2, "0");
+  const year = startOfWeek.getFullYear();
+  if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+    return `${startDay} - ${endDay}/${startMonth}/${year}`;
+  }
+  return `${startDay}/${startMonth} - ${endDay}/${endMonth}/${year}`;
+};
+
+const isSameWeek = (date1: Date, date2: Date): boolean => {
+  const start1 = getStartOfWeek(date1);
+  const start2 = getStartOfWeek(date2);
+  return start1.getTime() === start2.getTime();
+};
+
+const getWeeksInYear = (
+  year: number,
+  accountCreatedAt: Date,
+  currentDate: Date,
+): { value: string; label: string; startDate: Date }[] => {
+  const weeks: { value: string; label: string; startDate: Date }[] = [];
+  let date = new Date(year, 0, 1);
+  const day = date.getDay();
+  const diff = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
+  date.setDate(date.getDate() + diff);
+  const accountStart = getStartOfWeek(accountCreatedAt);
+  accountStart.setHours(0, 0, 0, 0);
+  const currentWeekStart = getStartOfWeek(currentDate);
+  currentWeekStart.setHours(0, 0, 0, 0);
+  while (
+    date.getFullYear() === year ||
+    (date.getFullYear() === year + 1 &&
+      date.getMonth() === 0 &&
+      date.getDate() <= 7)
+  ) {
+    const weekStart = new Date(date);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = addDays(weekStart, 6);
+    if (
+      weekStart.getTime() >= accountStart.getTime() &&
+      weekStart.getTime() <= currentWeekStart.getTime()
+    ) {
+      const startStr = `${weekStart.getDate().toString().padStart(2, "0")}/${(weekStart.getMonth() + 1).toString().padStart(2, "0")}`;
+      const endStr = `${weekEnd.getDate().toString().padStart(2, "0")}/${(weekEnd.getMonth() + 1).toString().padStart(2, "0")}`;
+      weeks.push({
+        value: weekStart.toISOString(),
+        label: `${startStr} To ${endStr}`,
+        startDate: weekStart,
+      });
+    }
+    date = addDays(date, 7);
+    if (weekStart.getTime() > currentWeekStart.getTime()) break;
+  }
+  return weeks;
+};
+
+const getAvailableYears = (
+  accountCreatedAt: Date,
+  currentDate: Date,
+): number[] => {
+  const years: number[] = [];
+  const startYear = accountCreatedAt.getFullYear();
+  const endYear = currentDate.getFullYear();
+  for (let year = endYear; year >= startYear; year--) {
+    years.push(year);
+  }
+  return years;
+};
+
+type ParentDaySchedule = {
+  day: string;
+  date: string;
+  items: Array<{
+    classId: string;
+    className: string;
+    classCode: string;
+    teacherName: string;
+    startTime: string;
+    endTime: string;
+    room?: string;
+    attendanceStatus: "present" | "absent" | "late" | "excused" | null;
+    sessionStatus: "past" | "in-progress" | "upcoming";
+  }>;
+};
+
 interface ParentDashboardProps {
   user: {
     id: string;
@@ -787,6 +899,14 @@ export default function ParentDashboard({
   const [showDetail, setShowDetail] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Week navigation state
+  const [selectedYear, setSelectedYear] = useState<number>(() =>
+    new Date().getFullYear(),
+  );
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() =>
+    getStartOfWeek(new Date()),
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside to close profile dropdown
@@ -1050,6 +1170,52 @@ export default function ParentDashboard({
     }
   }, [dashboardData?.attendanceRecords]);
 
+  // Week navigation computed values
+  const authUserCreatedAt = (authUser as unknown as Record<string, unknown>)
+    ?.createdAt as string | undefined;
+  const accountCreatedAt = useMemo(() => {
+    if (authUserCreatedAt) return getStartOfWeek(new Date(authUserCreatedAt));
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return getStartOfWeek(oneYearAgo);
+  }, [authUserCreatedAt]);
+
+  const currentWeekStartMemo = useMemo(() => getStartOfWeek(new Date()), []);
+  const currentDateMemo = useMemo(() => new Date(), []);
+
+  const availableYears = useMemo(
+    () => getAvailableYears(accountCreatedAt, currentDateMemo),
+    [accountCreatedAt, currentDateMemo],
+  );
+
+  const weeksInSelectedYear = useMemo(
+    () => getWeeksInYear(selectedYear, accountCreatedAt, currentDateMemo),
+    [selectedYear, accountCreatedAt, currentDateMemo],
+  );
+
+  const isCurrentWeek = isSameWeek(selectedWeekStart, new Date());
+
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    const weeks = getWeeksInYear(year, accountCreatedAt, currentDateMemo);
+    if (weeks.length > 0) {
+      if (year === currentDateMemo.getFullYear()) {
+        setSelectedWeekStart(currentWeekStartMemo);
+      } else {
+        setSelectedWeekStart(weeks[weeks.length - 1].startDate);
+      }
+    }
+  };
+
+  const handleWeekChange = (weekValue: string) => {
+    setSelectedWeekStart(new Date(weekValue));
+  };
+
+  const goToCurrentWeek = () => {
+    setSelectedYear(currentDateMemo.getFullYear());
+    setSelectedWeekStart(currentWeekStartMemo);
+  };
+
   // Use real data or fallback to mock data
   const childData = dashboardData?.child || child;
   const classesData = dashboardData?.classes?.length
@@ -1182,176 +1348,158 @@ export default function ParentDashboard({
     return result;
   }, [dashboardData]);
 
-  // Build current week schedule with attendance status
-  const currentWeekSchedule = useMemo(() => {
+  // Build week schedule with attendance status (week-navigated, like student)
+  const weekSchedule = useMemo((): ParentDaySchedule[] => {
     if (!dashboardData?.classes?.length) return [];
 
-    const localDayNames = [
-      "Chủ nhật",
-      "Thứ hai",
-      "Thứ ba",
-      "Thứ tư",
-      "Thứ năm",
-      "Thứ sáu",
-      "Thứ bảy",
-    ];
-
-    // Get current week's dates (Monday to Sunday)
+    const now = new Date();
     const today = new Date();
-    const currentDay = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
-    monday.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
 
-    const result: Array<{
-      date: Date;
-      dayName: string;
-      dateStr: string;
-      items: Array<{
-        classId: string;
-        className: string;
-        classCode: string;
-        teacherName: string;
-        startTime: string;
-        endTime: string;
-        room?: string;
-        attendanceStatus: "present" | "absent" | "late" | "excused" | null;
-      }>;
-    }> = [];
+    const result: ParentDaySchedule[] = [];
 
-    // Build 7 days starting from Monday
     for (let i = 0; i < 7; i++) {
-      const currentDate = new Date(monday);
-      currentDate.setDate(monday.getDate() + i);
-      const dayOfWeek = currentDate.getDay();
+      const dayDate = addDays(selectedWeekStart, i);
+      dayDate.setHours(0, 0, 0, 0);
+      const dayOfWeek = dayDate.getDay();
+      const isPast = dayDate < today;
+      const isToday = dayDate.getTime() === today.getTime();
 
-      const items: (typeof result)[0]["items"] = [];
+      const items: ParentDaySchedule["items"] = [];
 
-      // Find classes scheduled for this day
       dashboardData.classes.forEach((classItem) => {
         const scheduleArray = classItem.schedule || [];
-        scheduleArray.forEach(
-          (sched: {
-            dayOfWeek: number;
-            startTime: string;
-            endTime: string;
-            room?: string;
-          }) => {
-            if (sched.dayOfWeek === dayOfWeek) {
-              // Find attendance for this class on this date
-              const targetYear = currentDate.getFullYear();
-              const targetMonth = currentDate.getMonth();
-              const targetDay = currentDate.getDate();
+        scheduleArray.forEach((sched) => {
+          if (sched.dayOfWeek === dayOfWeek) {
+            const targetYear = dayDate.getFullYear();
+            const targetMonth = dayDate.getMonth();
+            const targetDay = dayDate.getDate();
 
-              // First, check in attendanceRecords (from API)
-              let attendanceStatus:
-                | "present"
-                | "absent"
-                | "late"
-                | "excused"
-                | null = null;
+            // Look up attendance from records
+            let attendanceStatus:
+              | "present"
+              | "absent"
+              | "late"
+              | "excused"
+              | null = null;
 
-              let attendanceRecord = dashboardData.attendanceRecords?.find(
-                (r) => {
-                  const session = r.sessionId as {
-                    _id: string;
-                    startTime: string;
-                    classId: { _id: string; name: string } | string;
-                  };
-                  if (session?.startTime) {
-                    const sessionDate = new Date(session.startTime);
-                    const sessionYear = sessionDate.getFullYear();
-                    const sessionMonth = sessionDate.getMonth();
-                    const sessionDay = sessionDate.getDate();
-
-                    if (
-                      sessionYear === targetYear &&
-                      sessionMonth === targetMonth &&
-                      sessionDay === targetDay
-                    ) {
-                      // Check classId match - handle nested object
-                      const sessionClassId =
-                        typeof session.classId === "object" && session.classId
-                          ? (session.classId as { _id: string })._id
-                          : session.classId;
-                      // Also handle if classItem._id is in session.classId as nested
-                      return sessionClassId === classItem._id;
-                    }
+            let attendanceRecord = dashboardData.attendanceRecords?.find(
+              (r) => {
+                const session = r.sessionId as {
+                  _id: string;
+                  startTime: string;
+                  classId: { _id: string; name: string } | string;
+                };
+                if (session?.startTime) {
+                  const sessionDate = new Date(session.startTime);
+                  if (
+                    sessionDate.getFullYear() === targetYear &&
+                    sessionDate.getMonth() === targetMonth &&
+                    sessionDate.getDate() === targetDay
+                  ) {
+                    const sessionClassId =
+                      typeof session.classId === "object" && session.classId
+                        ? (session.classId as { _id: string })._id
+                        : session.classId;
+                    return sessionClassId === classItem._id;
                   }
-                  return false;
-                },
-              );
-
-              // If not found by classId match, try just by date
-              if (!attendanceRecord) {
-                attendanceRecord = dashboardData.attendanceRecords?.find(
-                  (r) => {
-                    const session = r.sessionId as {
-                      _id: string;
-                      startTime: string;
-                      classId: { _id: string; name: string } | string;
-                    };
-                    if (session?.startTime) {
-                      const sessionDate = new Date(session.startTime);
-                      return (
-                        sessionDate.getFullYear() === targetYear &&
-                        sessionDate.getMonth() === targetMonth &&
-                        sessionDate.getDate() === targetDay
-                      );
-                    }
-                    return false;
-                  },
-                );
-              }
-
-              if (attendanceRecord) {
-                attendanceStatus = attendanceRecord.status;
-              } else {
-                // Fallback: check in upcomingSessions
-                const sessionRecord = dashboardData.upcomingSessions?.find(
-                  (s) => {
-                    const sessionDate = new Date(s.date);
-                    return (
-                      sessionDate.getFullYear() === targetYear &&
-                      sessionDate.getMonth() === targetMonth &&
-                      sessionDate.getDate() === targetDay &&
-                      s.classId === classItem._id
-                    );
-                  },
-                );
-                if (sessionRecord) {
-                  attendanceStatus = sessionRecord.attendanceStatus || null;
                 }
-              }
+                return false;
+              },
+            );
 
-              items.push({
-                classId: classItem._id,
-                className: classItem.name,
-                classCode:
-                  ((classItem as unknown as Record<string, unknown>)
-                    .code as string) ||
-                  classItem.name.substring(0, 7).toUpperCase(),
-                teacherName: classItem.teacherName,
-                startTime: sched.startTime,
-                endTime: sched.endTime,
-                room: sched.room,
-                attendanceStatus,
+            if (!attendanceRecord) {
+              attendanceRecord = dashboardData.attendanceRecords?.find((r) => {
+                const session = r.sessionId as {
+                  _id: string;
+                  startTime: string;
+                  classId: { _id: string; name: string } | string;
+                };
+                if (session?.startTime) {
+                  const sessionDate = new Date(session.startTime);
+                  return (
+                    sessionDate.getFullYear() === targetYear &&
+                    sessionDate.getMonth() === targetMonth &&
+                    sessionDate.getDate() === targetDay
+                  );
+                }
+                return false;
               });
             }
-          },
-        );
+
+            if (attendanceRecord) {
+              attendanceStatus = attendanceRecord.status;
+            } else {
+              const sessionRecord = dashboardData.upcomingSessions?.find(
+                (s) => {
+                  const sessionDate = new Date(s.date);
+                  return (
+                    sessionDate.getFullYear() === targetYear &&
+                    sessionDate.getMonth() === targetMonth &&
+                    sessionDate.getDate() === targetDay &&
+                    s.classId === classItem._id
+                  );
+                },
+              );
+              if (sessionRecord) {
+                attendanceStatus = sessionRecord.attendanceStatus || null;
+              }
+            }
+
+            // Determine session status: past / in-progress / upcoming
+            let sessionStatus: "past" | "in-progress" | "upcoming" = "upcoming";
+            if (isPast && !isToday) {
+              sessionStatus = "past";
+            } else if (isToday) {
+              // Parse startTime and endTime (format "HH:mm")
+              const [startH, startM] = sched.startTime.split(":").map(Number);
+              const [endH, endM] = sched.endTime.split(":").map(Number);
+              const sessionStart = new Date(dayDate);
+              sessionStart.setHours(startH, startM, 0, 0);
+              const sessionEnd = new Date(dayDate);
+              sessionEnd.setHours(endH, endM, 0, 0);
+
+              if (now >= sessionStart && now <= sessionEnd) {
+                sessionStatus = "in-progress";
+              } else if (now > sessionEnd) {
+                sessionStatus = "past";
+              } else {
+                sessionStatus = "upcoming";
+              }
+            }
+
+            // Auto absent: if session is past and no attendance was recorded
+            if (sessionStatus === "past" && !attendanceStatus) {
+              attendanceStatus = "absent";
+            }
+
+            items.push({
+              classId: classItem._id,
+              className: classItem.name,
+              classCode:
+                ((classItem as unknown as Record<string, unknown>)
+                  .code as string) ||
+                classItem.name.substring(0, 7).toUpperCase(),
+              teacherName: classItem.teacherName,
+              startTime: sched.startTime,
+              endTime: sched.endTime,
+              room: sched.room,
+              attendanceStatus,
+              sessionStatus,
+            });
+          }
+        });
       });
 
       result.push({
-        date: currentDate,
-        dayName: localDayNames[dayOfWeek],
-        dateStr: `${currentDate.getDate()}/${currentDate.getMonth() + 1}`,
+        day: DAY_NAMES[i],
+        date: formatDate(dayDate),
         items: items.sort((a, b) => a.startTime.localeCompare(b.startTime)),
       });
     }
 
     return result;
-  }, [dashboardData]);
+  }, [selectedWeekStart, dashboardData]);
 
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
@@ -1729,78 +1877,155 @@ export default function ParentDashboard({
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
-            <Card className="p-5 space-y-4">
-              <p className="font-semibold text-gray-900 text-lg">
-                Thời khóa biểu của con (Tuần này)
-              </p>
-              {currentWeekSchedule.length > 0 ? (
+            <Card className="p-6 space-y-5 bg-white border-0 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📅</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {isCurrentWeek ? "Lịch học con tuần này" : "Lịch học con"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {isCurrentWeek
+                        ? "Theo dõi các buổi học của con"
+                        : `Tuần ${formatWeekRange(selectedWeekStart)}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Year Selector */}
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => handleYearChange(Number(e.target.value))}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent cursor-pointer"
+                  >
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Week Selector */}
+                  <select
+                    value={
+                      weeksInSelectedYear.find(
+                        (w) =>
+                          w.startDate.toDateString() ===
+                          selectedWeekStart.toDateString(),
+                      )?.value || ""
+                    }
+                    onChange={(e) => handleWeekChange(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent cursor-pointer min-w-35"
+                  >
+                    {weeksInSelectedYear.map((week) => (
+                      <option key={week.value} value={week.value}>
+                        {week.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Current Week Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToCurrentWeek}
+                    className="text-sm border-gray-200 hover:bg-gray-50"
+                  >
+                    Tuần hiện tại
+                  </Button>
+                </div>
+              </div>
+
+              {weekSchedule.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                  {currentWeekSchedule.map((dayData) => {
-                    const isToday =
-                      dayData.date.toDateString() === new Date().toDateString();
+                  {weekSchedule.map((dayData, dayIndex) => {
+                    const dayDate = addDays(selectedWeekStart, dayIndex);
+                    const todayDate = new Date();
+                    todayDate.setHours(0, 0, 0, 0);
+                    dayDate.setHours(0, 0, 0, 0);
+                    const isToday = dayDate.getTime() === todayDate.getTime();
+                    const isPast = dayDate < todayDate;
+
                     return (
                       <div
-                        key={dayData.dateStr}
-                        className={`rounded-xl border shadow-sm overflow-hidden flex flex-col min-h-55 ${
+                        key={dayData.day}
+                        className={`rounded-2xl border-2 bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md ${
                           isToday
-                            ? "border-emerald-400 ring-2 ring-emerald-200"
-                            : "border-gray-200"
+                            ? "border-amber-400 ring-2 ring-amber-100"
+                            : isPast
+                              ? "border-gray-200 opacity-80"
+                              : "border-gray-100"
                         }`}
                       >
                         <div
-                          className={`text-white px-3 py-2 text-center ${
+                          className={`px-3 py-3 text-center ${
                             isToday
-                              ? "bg-linear-to-r from-emerald-600 to-green-600"
-                              : "bg-linear-to-r from-blue-600 to-indigo-600"
+                              ? "bg-linear-to-r from-amber-500 to-orange-500 text-white"
+                              : isPast
+                                ? "bg-linear-to-r from-gray-500 to-gray-600 text-white"
+                                : "bg-linear-to-r from-gray-700 to-gray-800 text-white"
                           }`}
                         >
-                          <p className="text-xs font-semibold leading-tight">
-                            {dayData.dayName}
+                          <p className="text-xs font-bold leading-tight">
+                            {DAY_NAMES_VN[dayIndex]}
                           </p>
-                          <p className="text-[11px] opacity-80 leading-tight">
-                            {dayData.dateStr}
+                          <p className="text-lg font-bold leading-tight">
+                            {dayData.date.split("/")[0]}
                           </p>
+                          {isToday && (
+                            <p className="text-[10px] mt-0.5 text-amber-200">
+                              Hôm nay
+                            </p>
+                          )}
+                          {isPast && !isToday && (
+                            <p className="text-[10px] mt-0.5 text-gray-300">
+                              Đã qua
+                            </p>
+                          )}
                         </div>
 
                         {dayData.items.length === 0 ? (
-                          <div className="flex-1 flex items-center justify-center text-sm text-gray-300 py-8">
-                            Không có lịch
+                          <div className="flex-1 flex flex-col items-center justify-center text-gray-300 py-8">
+                            <span className="text-3xl mb-2">😴</span>
+                            <span className="text-xs">Nghỉ</span>
                           </div>
                         ) : (
                           <div className="flex-1 p-2 space-y-2">
                             {dayData.items.map((item, idx) => (
                               <div
                                 key={`${item.classId}-${idx}`}
-                                className="rounded-lg bg-linear-to-br from-blue-50 to-indigo-50 border border-blue-100 p-2 space-y-1 hover:shadow-md transition-shadow"
+                                className="rounded-lg bg-linear-to-br from-amber-50 to-orange-50 border border-amber-100 p-2 space-y-1 hover:shadow-md transition-shadow"
                               >
-                                <div className="text-xs font-bold text-blue-700 truncate">
-                                  {item.classCode}
-                                </div>
-                                <div className="text-[10px] text-gray-600 truncate">
+                                <div className="text-xs font-bold text-amber-700 truncate">
                                   {item.className}
                                 </div>
                                 <div className="text-[10px] font-medium text-gray-800">
-                                  {item.startTime} - {item.endTime}
+                                  ⏰ {item.startTime} - {item.endTime}
                                 </div>
                                 {item.room && (
                                   <div className="text-[10px] text-gray-500">
-                                    {item.room}
+                                    📍 {item.room}
                                   </div>
                                 )}
-                                <div className="text-[10px] text-indigo-600 truncate">
-                                  {item.teacherName}
+                                <div className="text-[10px] text-amber-600 truncate">
+                                  👨‍🏫 {item.teacherName}
                                 </div>
-                                {/* Attendance Status */}
-                                {item.attendanceStatus ? (
+                                {/* Attendance / Session Status */}
+                                {item.sessionStatus === "in-progress" ? (
+                                  <div className="w-full text-[10px] rounded-md py-1 px-1 font-medium text-center bg-green-100 text-green-700 border border-green-200 animate-pulse">
+                                    🟢 Đang học
+                                  </div>
+                                ) : item.attendanceStatus ? (
                                   <div
                                     className={`w-full text-[10px] rounded-md py-1 px-1 font-medium text-center ${
                                       item.attendanceStatus === "present"
-                                        ? "bg-emerald-100 text-emerald-700"
+                                        ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
                                         : item.attendanceStatus === "absent"
-                                          ? "bg-red-100 text-red-700"
+                                          ? "bg-red-100 text-red-700 border border-red-200"
                                           : item.attendanceStatus === "late"
-                                            ? "bg-amber-100 text-amber-700"
-                                            : "bg-blue-100 text-blue-700"
+                                            ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                            : "bg-blue-100 text-blue-700 border border-blue-200"
                                     }`}
                                   >
                                     {item.attendanceStatus === "present" &&
@@ -1808,22 +2033,15 @@ export default function ParentDashboard({
                                     {item.attendanceStatus === "absent" &&
                                       "❌ Vắng"}
                                     {item.attendanceStatus === "late" &&
-                                      "⏰ Muộn"}
+                                      "⏰ Đi muộn"}
                                     {item.attendanceStatus === "excused" &&
-                                      "📝 Phép"}
+                                      "📝 Nghỉ phép"}
                                   </div>
-                                ) : (
-                                  (() => {
-                                    const today = new Date();
-                                    today.setHours(0, 0, 0, 0);
-                                    const isPastOrToday = dayData.date <= today;
-                                    return isPastOrToday ? (
-                                      <div className="w-full text-[10px] rounded-md py-1 px-1 font-medium text-center bg-gray-100 text-gray-500">
-                                        ⏳ Chưa điểm danh
-                                      </div>
-                                    ) : null;
-                                  })()
-                                )}
+                                ) : item.sessionStatus === "upcoming" ? (
+                                  <div className="w-full text-[10px] rounded-md py-1 px-1 font-medium text-center bg-gray-100 text-gray-600 border border-gray-200">
+                                    ⏭ Tiếp theo
+                                  </div>
+                                ) : null}
                               </div>
                             ))}
                           </div>
