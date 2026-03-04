@@ -1,13 +1,26 @@
 import { Redirect, Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuthStore } from "@/lib/stores";
+import {
+  useAuthStore,
+  useNotificationsStore,
+  usePaymentRequestsStore,
+} from "@/lib/stores";
 import { useUiStore } from "@/lib/stores/ui-store";
-import { View, Platform, TouchableOpacity, Appearance } from "react-native";
+import {
+  View,
+  Platform,
+  TouchableOpacity,
+  Appearance,
+  Text,
+  StyleSheet,
+} from "react-native";
 import { ActivityIndicator } from "react-native";
 
 export default function TabsLayout() {
   const { isAuthenticated, user, isLoading } = useAuthStore();
   const { theme } = useUiStore();
+  const { unreadCount } = useNotificationsStore();
+  const { myRequests, childrenRequests } = usePaymentRequestsStore();
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
@@ -24,6 +37,19 @@ export default function TabsLayout() {
   const role = user?.role;
   const colorScheme = theme === "system" ? Appearance.getColorScheme() : theme;
   const isDark = colorScheme === "dark";
+
+  // Calculate pending payments for badge
+  const pendingPayments =
+    role === "student"
+      ? myRequests.filter(
+          (r) => r.status === "pending" || r.status === "overdue",
+        ).length
+      : role === "parent"
+        ? childrenRequests
+            .flatMap((c) => c.requests)
+            .filter((r) => r.status === "pending" || r.status === "overdue")
+            .length
+        : 0;
 
   // Get role-based header color
   const getHeaderColor = () => {
@@ -161,12 +187,7 @@ export default function TabsLayout() {
           headerTitle: role === "teacher" ? "Lịch dạy" : "Lịch học",
           href: shouldShowSchedule ? "/(tabs)/schedule" : null,
           headerLeft:
-            role === "admin"
-              ? () => <BackButton />
-              : role === "teacher"
-                ? () => <HomeBackButton />
-                : undefined,
-          // tabBarStyle removed to keep tab bar visible
+            role === "admin" ? () => <BackButton /> : () => <HomeBackButton />,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -186,8 +207,8 @@ export default function TabsLayout() {
           title: "Lớp học",
           headerTitle: "Lớp học",
           href: null, // Hidden from tab bar as requested
-          headerLeft: role === "admin" ? () => <BackButton /> : undefined,
-          // Removed tabBarStyle display: none to force tab bar persistence if accessed
+          headerLeft:
+            role === "admin" ? () => <BackButton /> : () => <HomeBackButton />,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -207,6 +228,7 @@ export default function TabsLayout() {
           title: "Tài liệu",
           headerTitle: "Tài liệu học tập",
           href: null,
+          headerLeft: () => <HomeBackButton />,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -245,6 +267,7 @@ export default function TabsLayout() {
           title: "Đánh giá",
           headerTitle: role === "teacher" ? "Đánh giá của tôi" : "Đánh giá GV",
           href: null,
+          headerLeft: () => <HomeBackButton />,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -264,13 +287,25 @@ export default function TabsLayout() {
           title: "Thanh toán",
           headerTitle: "Thanh toán",
           href: shouldShowPayments ? "/(tabs)/payments" : null,
+          headerLeft: () => <HomeBackButton />,
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
-              <Ionicons
-                name={focused ? "wallet" : "wallet-outline"}
-                size={24}
-                color={color}
-              />
+            <View style={{ position: "relative" }}>
+              <View
+                style={focused ? { transform: [{ scale: 1.1 }] } : undefined}
+              >
+                <Ionicons
+                  name={focused ? "wallet" : "wallet-outline"}
+                  size={24}
+                  color={color}
+                />
+              </View>
+              {pendingPayments > 0 && (
+                <View style={tabBadgeStyles.badge}>
+                  <Text style={tabBadgeStyles.badgeText}>
+                    {pendingPayments > 9 ? "9+" : pendingPayments}
+                  </Text>
+                </View>
+              )}
             </View>
           ),
         }}
@@ -283,6 +318,7 @@ export default function TabsLayout() {
           title: "Chat",
           headerTitle: "Tin nhắn",
           href: shouldShowChat ? "/(tabs)/incidents" : null,
+          headerLeft: () => <HomeBackButton />,
           tabBarIcon: ({ color, focused }) => (
             <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
               <Ionicons
@@ -302,12 +338,23 @@ export default function TabsLayout() {
           title: "Thông báo",
           headerTitle: "Thông báo",
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? { transform: [{ scale: 1.1 }] } : undefined}>
-              <Ionicons
-                name={focused ? "notifications" : "notifications-outline"}
-                size={24}
-                color={color}
-              />
+            <View style={{ position: "relative" }}>
+              <View
+                style={focused ? { transform: [{ scale: 1.1 }] } : undefined}
+              >
+                <Ionicons
+                  name={focused ? "notifications" : "notifications-outline"}
+                  size={24}
+                  color={color}
+                />
+              </View>
+              {unreadCount > 0 && (
+                <View style={tabBadgeStyles.badge}>
+                  <Text style={tabBadgeStyles.badgeText}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              )}
             </View>
           ),
         }}
@@ -333,3 +380,26 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const tabBadgeStyles = StyleSheet.create({
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -10,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+});

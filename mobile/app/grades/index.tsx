@@ -20,11 +20,7 @@ import {
 import ChildSelector from "@/components/ChildSelector";
 
 const safeGoBack = () => {
-  if (router.canGoBack()) {
-    router.back();
-  } else {
-    router.replace("/(tabs)");
-  }
+  router.replace("/(tabs)");
 };
 
 export default function GradesListScreen() {

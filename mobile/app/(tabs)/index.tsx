@@ -385,18 +385,6 @@ const getQuickActions = (
         onPress: () => router.push("/(tabs)/classes"),
       },
       {
-        icon: "wallet" as const,
-        label: "Thanh toán",
-        subtitle:
-          pendingPayments > 0
-            ? `${pendingPayments} chờ thanh toán`
-            : "Đã hoàn thành",
-        colors:
-          pendingPayments > 0 ? ["#EF4444", "#DC2626"] : ["#3B82F6", "#2563EB"],
-        badge: pendingPayments,
-        onPress: () => router.push("/(tabs)/payments"),
-      },
-      {
         icon: "chatbubbles" as const,
         label: "Chat",
         subtitle: "Nhắn tin",

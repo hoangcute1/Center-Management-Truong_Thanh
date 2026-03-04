@@ -14,11 +14,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuthStore, useLeaderboardStore } from "@/lib/stores";
 
 const safeGoBack = () => {
-  if (router.canGoBack()) {
-    router.back();
-  } else {
-    router.replace("/(tabs)");
-  }
+  router.replace("/(tabs)");
 };
 
 const leaderboardTypes = [

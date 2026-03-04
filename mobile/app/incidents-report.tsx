@@ -25,11 +25,7 @@ import {
 import type { IncidentType, IncidentStatus, Incident } from "@/lib/stores";
 
 const safeGoBack = () => {
-  if (router.canGoBack()) {
-    router.back();
-  } else {
-    router.replace("/(tabs)");
-  }
+  router.replace("/(tabs)");
 };
 
 // ============ HELPERS ============
