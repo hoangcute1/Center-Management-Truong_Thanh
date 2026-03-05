@@ -6,6 +6,7 @@ export * from "./schedule-store";
 export * from "./attendance-store";
 export * from "./sessions-store";
 export * from "./payment-requests-store";
+export * from "./payments-store";
 export * from "./tuition-store";
 export * from "./incidents-store";
 export * from "./users-store";

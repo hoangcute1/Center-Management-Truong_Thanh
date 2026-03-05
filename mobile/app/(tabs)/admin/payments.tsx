@@ -19,16 +19,9 @@ import api from "@/lib/api";
 
 const { width } = Dimensions.get("window");
 
-interface PaymentSummary {
-  totalRevenue: number;
-  totalPending: number;
-  totalCompleted: number;
-  recentPayments: Payment[];
-}
-
 interface Payment {
   _id: string;
-  userId?: {
+  paidBy?: {
     _id: string;
     name?: string;
     fullName?: string;
@@ -40,45 +33,49 @@ interface Payment {
     fullName?: string;
   };
   amount: number;
-  type?: string;
-  status: "pending" | "completed" | "failed" | "refunded";
-  description?: string;
   method?: string;
+  // BE statuses: pending, pending_cash, success, cancelled, failed
+  status: string;
   createdAt?: string;
+  paidAt?: string;
+  branchName?: string;
+  subjectName?: string;
 }
 
-const statusConfig = {
-  pending: {
-    label: "Chờ xác nhận",
-    color: "#F59E0B",
-    bg: "#FEF3C7",
-    icon: "time",
-  },
-  completed: {
-    label: "Hoàn thành",
-    color: "#10B981",
-    bg: "#D1FAE5",
-    icon: "checkmark-circle",
-  },
-  failed: {
-    label: "Thất bại",
-    color: "#EF4444",
-    bg: "#FEE2E2",
-    icon: "close-circle",
-  },
-  refunded: {
-    label: "Hoàn tiền",
-    color: "#6B7280",
-    bg: "#F3F4F6",
-    icon: "return-down-back",
-  },
+// Map BE status → display config
+const getStatusConfig = (status: string) => {
+  switch (status) {
+    case "success":
+      return { label: "Đã thanh toán", color: "#10B981", bg: "#D1FAE5", icon: "checkmark-circle" };
+    case "pending_cash":
+      return { label: "Chờ xác nhận TM", color: "#F59E0B", bg: "#FEF3C7", icon: "cash-outline" };
+    case "pending":
+      return { label: "Đang xử lý", color: "#3B82F6", bg: "#DBEAFE", icon: "time" };
+    case "cancelled":
+      return { label: "Đã huỷ", color: "#6B7280", bg: "#F3F4F6", icon: "close-circle" };
+    case "failed":
+      return { label: "Thất bại", color: "#EF4444", bg: "#FEE2E2", icon: "alert-circle" };
+    default:
+      return { label: status, color: "#6B7280", bg: "#F3F4F6", icon: "help-circle" };
+  }
+};
+
+// For backward compat in old code
+const statusConfig: Record<string, ReturnType<typeof getStatusConfig>> = {
+  pending: getStatusConfig("pending"),
+  pending_cash: getStatusConfig("pending_cash"),
+  success: getStatusConfig("success"),
+  completed: getStatusConfig("success"),
+  cancelled: getStatusConfig("cancelled"),
+  failed: getStatusConfig("failed"),
 };
 
 const statusTabs = [
   { key: "all", label: "Tất cả" },
-  { key: "pending", label: "Chờ xác nhận" },
-  { key: "completed", label: "Hoàn thành" },
-  { key: "failed", label: "Thất bại" },
+  { key: "pending_cash", label: "Chờ xác nhận TM" },
+  { key: "success", label: "Đã thanh toán" },
+  { key: "pending", label: "Đang xử lý" },
+  { key: "cancelled", label: "Đã huỷ" },
 ];
 
 export default function AdminPaymentsScreen() {
@@ -126,11 +123,11 @@ export default function AdminPaymentsScreen() {
 
   const calculateSummary = (data: Payment[]) => {
     const total = data.reduce(
-      (acc, p) => (p.status === "completed" ? acc + (p.amount || 0) : acc),
+      (acc, p) => (p.status === "success" ? acc + (p.amount || 0) : acc),
       0,
     );
-    const pending = data.filter((p) => p.status === "pending").length;
-    const completed = data.filter((p) => p.status === "completed").length;
+    const pending = data.filter((p) => p.status === "pending_cash" || p.status === "pending").length;
+    const completed = data.filter((p) => p.status === "success").length;
 
     setSummary({
       totalRevenue: total,
@@ -146,14 +143,16 @@ export default function AdminPaymentsScreen() {
     setIsRefreshing(false);
   };
 
-  const handleUpdateStatus = async (payment: Payment, newStatus: string) => {
+  // Confirm cash payment using correct BE endpoint
+  const handleConfirmCash = async (payment: Payment) => {
     try {
-      await api.patch(`/payments/${payment._id}`, { status: newStatus });
-      Alert.alert("Thành công", "Đã cập nhật trạng thái thanh toán");
+      await api.post(`/payments/cash/confirm`, { paymentId: payment._id });
+      Alert.alert("✅ Thành công", "Đã xác nhận thanh toán tiền mặt!");
       setIsDetailVisible(false);
       fetchPayments();
-    } catch (error) {
-      Alert.alert("Lỗi", "Không thể cập nhật trạng thái");
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Không thể xác nhận thanh toán";
+      Alert.alert("Lỗi", msg);
     }
   };
 
@@ -184,7 +183,9 @@ export default function AdminPaymentsScreen() {
   };
 
   const renderPaymentCard = ({ item: payment }: { item: Payment }) => {
-    const status = statusConfig[payment.status] || statusConfig.pending;
+    const status = getStatusConfig(payment.status);
+    const payer = payment.paidBy;
+    const student = payment.studentId;
 
     return (
       <TouchableOpacity
@@ -205,7 +206,8 @@ export default function AdminPaymentsScreen() {
               {formatCurrency(payment.amount || 0)}
             </Text>
             <Text style={styles.paymentType}>
-              {payment.description || "Thanh toán học phí"}
+              {payment.method || "Thanh toán học phí"}
+              {payment.subjectName ? ` - ${payment.subjectName}` : ""}
             </Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
@@ -217,24 +219,19 @@ export default function AdminPaymentsScreen() {
 
         <View style={styles.cardFooter}>
           <View style={styles.footerLeft}>
-            {payment.userId && (
+            {payer && (
               <View style={styles.userInfo}>
                 <Ionicons name="person-outline" size={14} color="#6B7280" />
                 <Text style={styles.userText}>
-                  {payment.userId.fullName ||
-                    payment.userId.name ||
-                    "Người dùng"}
+                  {payer.name || "Người dùng"}
                 </Text>
               </View>
             )}
-            {payment.studentId && (
+            {student && (
               <View style={styles.userInfo}>
                 <Ionicons name="school-outline" size={14} color="#6B7280" />
                 <Text style={styles.userText}>
-                  HS:{" "}
-                  {payment.studentId.fullName ||
-                    payment.studentId.name ||
-                    "Học sinh"}
+                  HS: {student.name || "Học sinh"}
                 </Text>
               </View>
             )}
@@ -397,34 +394,33 @@ export default function AdminPaymentsScreen() {
 
               <View style={styles.infoSection}>
                 <View style={styles.infoRow}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={20}
-                    color="#6B7280"
-                  />
+                  <Ionicons name="card-outline" size={20} color="#6B7280" />
                   <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Mô tả</Text>
+                    <Text style={styles.infoLabel}>Phương thức</Text>
                     <Text style={styles.infoValue}>
-                      {selectedPayment.description || "Thanh toán học phí"}
+                      {selectedPayment.method || "Không xác định"}
                     </Text>
                   </View>
                 </View>
 
-                {selectedPayment.userId && (
+                {selectedPayment.subjectName && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="book-outline" size={20} color="#6B7280" />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Môn học</Text>
+                      <Text style={styles.infoValue}>{selectedPayment.subjectName}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {selectedPayment.paidBy && (
                   <View style={styles.infoRow}>
                     <Ionicons name="person-outline" size={20} color="#6B7280" />
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Người thanh toán</Text>
                       <Text style={styles.infoValue}>
-                        {selectedPayment.userId.fullName ||
-                          selectedPayment.userId.name ||
-                          "Người dùng"}
+                        {selectedPayment.paidBy.name || "Người dùng"}
                       </Text>
-                      {selectedPayment.userId.email && (
-                        <Text style={styles.infoSubValue}>
-                          {selectedPayment.userId.email}
-                        </Text>
-                      )}
                     </View>
                   </View>
                 )}
@@ -435,21 +431,7 @@ export default function AdminPaymentsScreen() {
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Học sinh</Text>
                       <Text style={styles.infoValue}>
-                        {selectedPayment.studentId.fullName ||
-                          selectedPayment.studentId.name ||
-                          "Học sinh"}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {selectedPayment.method && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="card-outline" size={20} color="#6B7280" />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Phương thức</Text>
-                      <Text style={styles.infoValue}>
-                        {selectedPayment.method}
+                        {selectedPayment.studentId.name || "Học sinh"}
                       </Text>
                     </View>
                   </View>
@@ -457,34 +439,38 @@ export default function AdminPaymentsScreen() {
 
                 {selectedPayment.createdAt && (
                   <View style={styles.infoRow}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#6B7280"
-                    />
+                    <Ionicons name="calendar-outline" size={20} color="#6B7280" />
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Ngày tạo</Text>
                       <Text style={styles.infoValue}>
-                        {new Date(selectedPayment.createdAt).toLocaleString(
-                          "vi-VN",
-                        )}
+                        {new Date(selectedPayment.createdAt).toLocaleString("vi-VN")}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {selectedPayment.paidAt && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="checkmark-done-outline" size={20} color="#10B981" />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Ngày thanh toán</Text>
+                      <Text style={[styles.infoValue, { color: "#10B981" }]}>
+                        {new Date(selectedPayment.paidAt).toLocaleString("vi-VN")}
                       </Text>
                     </View>
                   </View>
                 )}
               </View>
 
-              {/* Action Buttons */}
-              {selectedPayment.status === "pending" && (
+              {/* Action Buttons — only for pending_cash status */}
+              {selectedPayment.status === "pending_cash" && (
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
                     style={[
                       styles.actionButton,
                       { backgroundColor: "#D1FAE5" },
                     ]}
-                    onPress={() =>
-                      handleUpdateStatus(selectedPayment, "completed")
-                    }
+                    onPress={() => handleConfirmCash(selectedPayment)}
                   >
                     <Ionicons
                       name="checkmark-circle"
@@ -494,24 +480,7 @@ export default function AdminPaymentsScreen() {
                     <Text
                       style={[styles.actionButtonText, { color: "#059669" }]}
                     >
-                      Xác nhận thanh toán
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      { backgroundColor: "#FEE2E2" },
-                    ]}
-                    onPress={() =>
-                      handleUpdateStatus(selectedPayment, "failed")
-                    }
-                  >
-                    <Ionicons name="close-circle" size={20} color="#DC2626" />
-                    <Text
-                      style={[styles.actionButtonText, { color: "#DC2626" }]}
-                    >
-                      Từ chối
+                      Xác nhận thanh toán TM
                     </Text>
                   </TouchableOpacity>
                 </View>

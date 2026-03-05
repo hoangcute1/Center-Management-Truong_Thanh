@@ -609,4 +609,22 @@ export class PaymentsService {
     });
     await transaction.save();
   }
+
+  // ==================== FIND BY ID (for mobile polling) ====================
+
+  async findById(id: string): Promise<PaymentDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Payment not found');
+    }
+    const payment = await this.paymentModel
+      .findById(id)
+      .populate('paidBy', 'name email fullName')
+      .populate('studentId', 'name fullName')
+      .exec();
+
+    if (!payment) {
+      throw new NotFoundException(`Payment ${id} not found`);
+    }
+    return payment;
+  }
 }
