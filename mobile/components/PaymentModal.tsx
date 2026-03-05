@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
     View,
     Text,
@@ -9,11 +9,14 @@ import {
     ActivityIndicator,
     Alert,
     Linking,
+    AppState,
+    AppStateStatus,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { usePaymentsStore, PaymentMethod, CreatePaymentResult } from "@/lib/stores/payments-store";
 import { StudentPaymentRequest } from "@/lib/stores/payment-requests-store";
+import api from "@/lib/api";
 
 // ==========================================================================
 // Types
@@ -82,16 +85,116 @@ export default function PaymentModal({
     onSuccess,
 }: PaymentModalProps) {
     const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-    const [step, setStep] = useState<"select" | "processing" | "fake_confirm">("select");
+    const [step, setStep] = useState<"select" | "processing" | "fake_confirm" | "payos_waiting">("select");
     const [pendingFake, setPendingFake] = useState<{ paymentId: string } | null>(null);
+    const [pendingPayOS, setPendingPayOS] = useState<{ paymentId: string } | null>(null);
+    const [isPolling, setIsPolling] = useState(false);
+
+    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // Use ref to avoid stale closure in setInterval
+    const pendingPayOSRef = useRef<{ paymentId: string } | null>(null);
+    const isPollingRef = useRef(false);
 
     const { createPayment, confirmFakePayment, isLoading } = usePaymentsStore();
 
+    // -------------------------------------------------------------------------
+    // Cleanup polling on unmount
+    // -------------------------------------------------------------------------
+    useEffect(() => {
+        return () => {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        };
+    }, []);
+
+    // Listen for app returning from background (after PayOS browser)
+    useEffect(() => {
+        if (step !== "payos_waiting") return;
+
+        const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+            if (appStateRef.current.match(/inactive|background/) && nextState === "active") {
+                // User came back from browser → start polling
+                startPolling();
+            }
+            appStateRef.current = nextState;
+        });
+
+        return () => subscription.remove();
+    }, [step, pendingPayOS]);
+
+    // -------------------------------------------------------------------------
+    // Poll payment status (for PayOS return)
+    // -------------------------------------------------------------------------
+    const checkPaymentStatus = async (paymentId: string): Promise<boolean> => {
+        try {
+            const res = await api.get(`/payments/${paymentId}`);
+            const payment = res.data;
+            console.log('[PayOS Poll] status:', payment.status, 'id:', paymentId);
+
+            if (payment.status === 'success') {
+                stopPolling();
+                Alert.alert('✅ Thanh toán thành công!', 'Giao dịch của bạn đã được xác nhận.', [
+                    { text: 'Đóng', onPress: () => { handleClose(); onSuccess(); } },
+                ]);
+                return true;
+            }
+            if (payment.status === 'cancelled') {
+                stopPolling();
+                Alert.alert('❌ Giao dịch đã bị huỷ', 'Thanh toán không thành công.', [
+                    { text: 'Đóng', onPress: handleClose },
+                ]);
+                return true;
+            }
+            return false;
+        } catch (e: any) {
+            console.log('[PayOS Poll] error:', e?.message);
+            return false;
+        }
+    };
+
+    const startPolling = async () => {
+        // Guard: don't start if already polling or no paymentId
+        if (isPollingRef.current) return;
+        const paymentId = pendingPayOSRef.current?.paymentId;
+        if (!paymentId) {
+            console.log('[PayOS Poll] No paymentId in ref, cannot poll');
+            return;
+        }
+
+        isPollingRef.current = true;
+        setIsPolling(true);
+        console.log('[PayOS Poll] Starting poll for:', paymentId);
+
+        // Check immediately first (don't wait 3s)
+        const done = await checkPaymentStatus(paymentId);
+        if (done) return;
+
+        // Then poll every 3s up to 10 times
+        let count = 0;
+        pollIntervalRef.current = setInterval(async () => {
+            count++;
+            const finished = await checkPaymentStatus(paymentId);
+            if (finished || count >= 10) stopPolling();
+        }, 3000);
+    };
+
+    const stopPolling = () => {
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+        isPollingRef.current = false;
+        setIsPolling(false);
+    };
+
     // Reset when closed
     const handleClose = () => {
+        stopPolling();
         setSelectedMethod(null);
         setStep("select");
         setPendingFake(null);
+        setPendingPayOS(null);
+        pendingPayOSRef.current = null;
         onClose();
     };
 
@@ -111,15 +214,19 @@ export default function PaymentModal({
             if (selectedMethod === "PAYOS") {
                 const url = result.paymentUrl;
                 if (!url) throw new Error("Không nhận được link PayOS");
-                await openPayOSLink(url);
+                // Store paymentId in BOTH state and ref (ref avoids stale closure)
+                const payInfo = { paymentId: result.paymentId };
+                setPendingPayOS(payInfo);
+                pendingPayOSRef.current = payInfo;
+                console.log('[PayOS] Stored paymentId:', result.paymentId);
+                // Open in browser
+                await Linking.openURL(url);
+                // Switch to waiting screen
+                setStep("payos_waiting");
 
             } else if (selectedMethod === "FAKE") {
-                const url = result.checkoutUrl;
-                if (url) {
-                    // Open fake checkout page in browser, then show confirm buttons
-                    await Linking.openURL(url);
-                }
-                // Show fake confirm screen regardless (in case browser blocks)
+                // FAKE: Don't open URL (localhost won't work on phone)
+                // Just show confirm buttons directly
                 setPendingFake({ paymentId: result.paymentId });
                 setStep("fake_confirm");
 
@@ -135,27 +242,6 @@ export default function PaymentModal({
         } catch (err: any) {
             Alert.alert("Lỗi", err.message || "Có lỗi xảy ra khi tạo giao dịch");
             setStep("select");
-        }
-    };
-
-    // Open PayOS link → phone browser, then show a back-to-app button
-    const openPayOSLink = async (url: string) => {
-        try {
-            const canOpen = await Linking.canOpenURL(url);
-            if (!canOpen) throw new Error("Không thể mở link thanh toán");
-            await Linking.openURL(url);
-            // After opening browser, stay in modal so user can confirm result
-            setStep("select");
-            handleClose();
-            Alert.alert(
-                "🔗 Đã mở trang thanh toán",
-                "Hãy hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán xong, quay lại ứng dụng và tải lại danh sách.",
-                [
-                    { text: "Đã hiểu", onPress: onSuccess },
-                ]
-            );
-        } catch {
-            throw new Error("Không thể mở link PayOS. Vui lòng thử lại.");
         }
     };
 
@@ -332,14 +418,10 @@ export default function PaymentModal({
                         </View>
 
                         <View style={styles.fakeInfoBox}>
-                            <Ionicons
-                                name="information-circle-outline"
-                                size={40}
-                                color="#7C3AED"
-                            />
-                            <Text style={styles.fakeInfoTitle}>Trang thanh toán đã mở</Text>
+                            <Ionicons name="laptop-outline" size={40} color="#7C3AED" />
+                            <Text style={styles.fakeInfoTitle}>Giả lập kết quả thanh toán</Text>
                             <Text style={styles.fakeInfoDesc}>
-                                Đây là chế độ demo. Chọn kết quả giao dịch để mô phỏng:
+                                Chọn kết quả để mô phỏng giao dịch demo:
                             </Text>
                             <Text style={styles.fakeTxnId}>
                                 Mã GD: {pendingFake.paymentId.slice(-8).toUpperCase()}
@@ -358,7 +440,7 @@ export default function PaymentModal({
                                 end={{ x: 1, y: 0 }}
                             >
                                 <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                                <Text style={styles.fakeBtnText}>✅ Thanh toán thành công</Text>
+                                <Text style={styles.fakeBtnText}>✅ Xác nhận thành công</Text>
                             </LinearGradient>
                         </TouchableOpacity>
 
@@ -369,6 +451,66 @@ export default function PaymentModal({
                         >
                             <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
                             <Text style={styles.fakeCancelText}>❌ Huỷ giao dịch</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
+
+                {/* ---- STEP: PAYOS WAITING ---- */}
+                {step === "payos_waiting" && pendingPayOS && (
+                    <>
+                        <View style={styles.header}>
+                            <Text style={styles.headerTitle}>📱 Đang chờ thanh toán</Text>
+                        </View>
+
+                        <View style={styles.fakeInfoBox}>
+                            {isPolling ? (
+                                <ActivityIndicator size="large" color="#2563EB" />
+                            ) : (
+                                <Ionicons name="qr-code-outline" size={48} color="#2563EB" />
+                            )}
+                            <Text style={styles.fakeInfoTitle}>
+                                {isPolling ? "Đang kiểm tra..." : "Đã mở trang PayOS"}
+                            </Text>
+                            <Text style={styles.fakeInfoDesc}>
+                                {isPolling
+                                    ? "Hệ thống đang xác nhận giao dịch của bạn"
+                                    : "Hoàn tất thanh toán trên trình duyệt rồi nhấn nút bên dưới"}
+                            </Text>
+                            <Text style={styles.fakeTxnId}>
+                                Mã GD: {pendingPayOS.paymentId.slice(-8).toUpperCase()}
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.fakeSuccessBtn, isPolling && { opacity: 0.6 }]}
+                            onPress={startPolling}
+                            disabled={isPolling}
+                            activeOpacity={0.85}
+                        >
+                            <LinearGradient
+                                colors={["#2563EB", "#1D4ED8"]}
+                                style={styles.fakeBtnGradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                            >
+                                {isPolling ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+                                )}
+                                <Text style={styles.fakeBtnText}>
+                                    {isPolling ? "Đang kiểm tra..." : "Đã thanh toán - Kiểm tra ngay"}
+                                </Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.fakeCancelBtn}
+                            onPress={handleClose}
+                            activeOpacity={0.85}
+                        >
+                            <Ionicons name="time-outline" size={20} color="#6B7280" />
+                            <Text style={[styles.fakeCancelText, { color: "#6B7280" }]}>Đóng, tải lại sau</Text>
                         </TouchableOpacity>
                     </>
                 )}
