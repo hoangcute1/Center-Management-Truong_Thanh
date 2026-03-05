@@ -7,8 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
-  Alert,
-  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,6 +17,7 @@ import {
   StudentPaymentRequest,
   ChildPaymentRequests,
 } from "@/lib/stores";
+import PaymentModal from "@/components/PaymentModal";
 
 const { width } = Dimensions.get("window");
 
@@ -271,6 +270,8 @@ export default function PaymentsScreen() {
   } = usePaymentRequestsStore();
 
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
+  const [payModalVisible, setPayModalVisible] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<StudentPaymentRequest | null>(null);
 
   const isStudent = user?.role === "student";
   const isParent = user?.role === "parent";
@@ -301,28 +302,17 @@ export default function PaymentsScreen() {
     await loadData();
   };
 
+  // Open PaymentModal instead of hardcoded alert
   const handlePay = (request: StudentPaymentRequest) => {
-    Alert.alert(
-      "Thanh toán",
-      `Bạn muốn thanh toán ${formatCurrency(request.finalAmount)} cho "${
-        request.title
-      }"?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Thanh toán",
-          onPress: () => {
-            // Open payment URL or navigate to payment screen
-            // For now, show info alert
-            Alert.alert(
-              "Thông tin thanh toán",
-              "Vui lòng liên hệ trung tâm để thanh toán hoặc chuyển khoản theo thông tin:\n\nNgân hàng: MB Bank\nSTK: 123456789\nChủ TK: Trung tâm Giáo dục Trường Thành\nNội dung: " +
-                request.title
-            );
-          },
-        },
-      ]
-    );
+    setSelectedRequest(request);
+    setPayModalVisible(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setPayModalVisible(false);
+    setSelectedRequest(null);
+    // Reload data to reflect new payment status
+    loadData();
   };
 
   // Calculate summary stats
@@ -358,8 +348,8 @@ export default function PaymentsScreen() {
   const displayRequests =
     activeTab === "pending"
       ? myRequests.filter(
-          (r) => r.status === "pending" || r.status === "overdue"
-        )
+        (r) => r.status === "pending" || r.status === "overdue"
+      )
       : myRequests;
 
   return (
@@ -378,8 +368,8 @@ export default function PaymentsScreen() {
             summary.overdue > 0
               ? ["#EF4444", "#DC2626"]
               : summary.pending > 0
-              ? ["#F59E0B", "#D97706"]
-              : ["#10B981", "#059669"]
+                ? ["#F59E0B", "#D97706"]
+                : ["#10B981", "#059669"]
           }
           style={styles.summaryCard}
         >
@@ -540,6 +530,17 @@ export default function PaymentsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* PayOS Payment Modal */}
+      <PaymentModal
+        visible={payModalVisible}
+        onClose={() => {
+          setPayModalVisible(false);
+          setSelectedRequest(null);
+        }}
+        request={selectedRequest}
+        onSuccess={handlePaymentSuccess}
+      />
     </SafeAreaView>
   );
 }
