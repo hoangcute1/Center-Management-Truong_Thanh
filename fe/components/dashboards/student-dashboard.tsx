@@ -898,6 +898,15 @@ export default function StudentDashboard({
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [studentDocuments, setStudentDocuments] = useState<Document[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState<{
+    title: string;
+    desc: string;
+    earned: boolean;
+    icon: string;
+    howTo: string;
+    progress: string;
+    progressPercent: number;
+  } | null>(null);
 
   const handleLogout = () => {
     toast.info("Đang đăng xuất...", {
@@ -1969,36 +1978,62 @@ export default function StudentDashboard({
                   desc: "Điểm danh 5 buổi liên tục",
                   earned: attendanceStreak.bestStreak >= 5,
                   icon: "🏃",
+                  howTo: "Đi học liên tục 5 buổi không vắng. Mỗi buổi được giáo viên điểm danh có mặt hoặc đi muộn đều được tính.",
+                  progress: `${Math.min(attendanceStreak.bestStreak, 5)}/5 buổi`,
+                  progressPercent: Math.min((attendanceStreak.bestStreak / 5) * 100, 100),
                 },
                 {
                   title: "Kiên trì",
                   desc: "Điểm danh 10 buổi liên tục",
                   earned: attendanceStreak.bestStreak >= 10,
                   icon: "💪",
+                  howTo: "Đi học liên tục 10 buổi không vắng. Giữ chuỗi điểm danh bằng cách tham gia đầy đủ các buổi học.",
+                  progress: `${Math.min(attendanceStreak.bestStreak, 10)}/10 buổi`,
+                  progressPercent: Math.min((attendanceStreak.bestStreak / 10) * 100, 100),
                 },
                 {
                   title: "Siêu sao",
                   desc: "Điểm danh 20 buổi liên tục",
                   earned: attendanceStreak.bestStreak >= 20,
                   icon: "⭐",
+                  howTo: "Đi học liên tục 20 buổi không vắng. Đây là huy hiệu cao nhất về chuỗi điểm danh!",
+                  progress: `${Math.min(attendanceStreak.bestStreak, 20)}/20 buổi`,
+                  progressPercent: Math.min((attendanceStreak.bestStreak / 20) * 100, 100),
                 },
                 {
                   title: "Điểm cao",
                   desc: "Điểm TB ≥ 8.0",
                   earned: averageScore >= 8,
                   icon: "🎯",
+                  howTo: "Đạt điểm trung bình từ 8.0 trở lên trên tất cả các bài kiểm tra và bài tập được chấm điểm.",
+                  progress: `Điểm TB hiện tại: ${averageScore > 0 ? averageScore : "Chưa có"}`,
+                  progressPercent: averageScore > 0 ? Math.min((averageScore / 8) * 100, 100) : 0,
                 },
                 {
                   title: "Chuyên cần",
                   desc: "Tỷ lệ có mặt ≥ 90%",
                   earned: attendanceStreak.totalSessions > 0 && (attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100 >= 90,
                   icon: "🏆",
+                  howTo: "Duy trì tỷ lệ có mặt từ 90% trở lên trong tổng số buổi học. Cố gắng không vắng quá nhiều buổi.",
+                  progress: attendanceStreak.totalSessions > 0
+                    ? `${Math.round((attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100)}% (${attendanceStreak.totalPresent}/${attendanceStreak.totalSessions} buổi)`
+                    : "Chưa có dữ liệu",
+                  progressPercent: attendanceStreak.totalSessions > 0
+                    ? Math.min(((attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100 / 90) * 100, 100)
+                    : 0,
                 },
                 {
                   title: "Hoàn hảo",
                   desc: "100% điểm danh",
                   earned: attendanceStreak.totalSessions > 0 && attendanceStreak.totalPresent === attendanceStreak.totalSessions,
                   icon: "👑",
+                  howTo: "Tham gia 100% tất cả các buổi học, không vắng buổi nào. Đây là huy hiệu danh giá nhất!",
+                  progress: attendanceStreak.totalSessions > 0
+                    ? `${attendanceStreak.totalPresent}/${attendanceStreak.totalSessions} buổi`
+                    : "Chưa có dữ liệu",
+                  progressPercent: attendanceStreak.totalSessions > 0
+                    ? (attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100
+                    : 0,
                 },
               ];
               return (
@@ -2023,7 +2058,8 @@ export default function StudentDashboard({
                     {dynamicBadges.map((b) => (
                       <div
                         key={b.title}
-                        className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
+                        onClick={() => setSelectedBadge(b)}
+                        className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
                           b.earned
                             ? "border-emerald-200 bg-linear-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
                             : "border-gray-100 bg-gray-50"
@@ -2060,6 +2096,73 @@ export default function StudentDashboard({
                       </div>
                     ))}
                   </div>
+
+                  {/* Badge Detail Modal */}
+                  {selectedBadge && (
+                    <div
+                      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3 animate-in fade-in duration-200"
+                      onClick={() => setSelectedBadge(null)}
+                    >
+                      <Card
+                        className="w-full max-w-md p-0 overflow-hidden bg-white shadow-2xl rounded-2xl animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Header */}
+                        <div className={`p-6 text-center ${selectedBadge.earned ? "bg-linear-to-br from-emerald-500 to-green-600" : "bg-linear-to-br from-gray-400 to-gray-500"}`}>
+                          <span className={`text-6xl block mb-3 ${selectedBadge.earned ? "" : "grayscale"}`}>
+                            {selectedBadge.icon}
+                          </span>
+                          <h3 className="text-xl font-bold text-white">
+                            {selectedBadge.title}
+                          </h3>
+                          <p className="text-white/80 text-sm mt-1">
+                            {selectedBadge.desc}
+                          </p>
+                          <span className={`inline-flex mt-3 text-xs px-4 py-1.5 rounded-full font-semibold ${selectedBadge.earned ? "bg-white/20 text-white" : "bg-white/20 text-white"}`}>
+                            {selectedBadge.earned ? "✓ Đã đạt được" : "✗ Chưa đạt"}
+                          </span>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                          {/* How to earn */}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-700 mb-2">
+                              📋 Cách đạt huy hiệu
+                            </p>
+                            <p className="text-sm text-gray-600 bg-blue-50 rounded-xl p-3 border border-blue-100">
+                              {selectedBadge.howTo}
+                            </p>
+                          </div>
+
+                          {/* Progress */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-semibold text-gray-700">
+                                📊 Tiến độ
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {selectedBadge.progress}
+                              </p>
+                            </div>
+                            <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ${selectedBadge.earned ? "bg-linear-to-r from-emerald-400 to-emerald-600" : "bg-linear-to-r from-amber-400 to-orange-500"}`}
+                                style={{ width: `${selectedBadge.progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <Button
+                            className="w-full bg-gray-800 hover:bg-gray-900 text-white rounded-xl"
+                            onClick={() => setSelectedBadge(null)}
+                          >
+                            Đóng
+                          </Button>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
                 </Card>
               );
             })()}
