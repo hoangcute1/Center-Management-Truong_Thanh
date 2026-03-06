@@ -218,62 +218,9 @@ const overviewCards = [
   },
 ];
 
-const streakCards = [
-  {
-    title: "Chuỗi điểm danh",
-    value: "12 ngày",
-    sub: "Kỷ lục: 18 ngày",
-    hint: "Giữ vững thêm 3 buổi để nhận huy hiệu mới",
-    bar: 70,
-    tone: "emerald",
-    icon: "🔥",
-    bgGradient: "from-emerald-50 to-green-50",
-    borderColor: "border-emerald-200",
-  },
-  {
-    title: "Streak làm bài tập",
-    value: "7 ngày",
-    sub: "Đã nộp 7/7 ngày",
-    hint: "Nộp bài hôm nay trước 22:00 để giữ streak",
-    bar: 50,
-    tone: "blue",
-    icon: "✨",
-    bgGradient: "from-blue-50 to-indigo-50",
-    borderColor: "border-blue-200",
-  },
-  {
-    title: "Tần suất ôn luyện",
-    value: "5 phiên/tuần",
-    sub: "Mục tiêu: 6 phiên",
-    hint: "Còn 1 phiên để đạt mục tiêu tuần",
-    bar: 80,
-    tone: "violet",
-    icon: "📖",
-    bgGradient: "from-violet-50 to-purple-50",
-    borderColor: "border-violet-200",
-  },
-];
+// streakCards removed - now using dynamic attendance streak data
 
-const badges = [
-  {
-    title: "Chăm chỉ",
-    desc: "5 ngày liên tục",
-    earned: true,
-    icon: "🏃",
-  },
-  {
-    title: "Nộp bài đúng hạn",
-    desc: "10 lần liên tục",
-    earned: true,
-    icon: "⏰",
-  },
-  {
-    title: "Điểm cao",
-    desc: "≥ 80 trong 3 bài",
-    earned: false,
-    icon: "🎯",
-  },
-];
+// badges removed - now using dynamic badges computed from attendance data
 
 const leaderboardOptions: Record<
   RankingCategory,
@@ -1006,6 +953,14 @@ export default function StudentDashboard({
   const { records: attendanceRecords, fetchAttendance } = useAttendanceStore();
   const { myRequests, fetchMyRequests } = usePaymentRequestsStore();
 
+  // Attendance streak data
+  const [attendanceStreak, setAttendanceStreak] = useState<{
+    currentStreak: number;
+    bestStreak: number;
+    totalPresent: number;
+    totalSessions: number;
+  }>({ currentStreak: 0, bestStreak: 0, totalPresent: 0, totalSessions: 0 });
+
   // Leaderboard store
   const {
     leaderboard,
@@ -1560,6 +1515,11 @@ export default function StudentDashboard({
       fetchDashboardData(studentId).catch(console.error);
       // Fetch attendance records for this student
       fetchAttendance({ studentId }).catch(console.error);
+      // Fetch attendance streak
+      api
+        .get("/attendance/streak", { params: { studentId } })
+        .then((res) => setAttendanceStreak(res.data))
+        .catch(console.error);
       // Fetch leaderboard (scoped to student's branch)
       const leaderboardParams: { branchId?: string; limit: number } = {
         limit: 10,
@@ -1959,105 +1919,150 @@ export default function StudentDashboard({
               </div>
             </Card>
 
-            {/* Streak Cards cải tiến */}
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {streakCards.map((item) => (
-                <Card
-                  key={item.title}
-                  className={`p-5 bg-linear-to-br ${item.bgGradient} ${item.borderColor} border-2 hover:shadow-lg transition-all duration-300`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{item.icon}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-700">
-                          {item.title}
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900 mt-0.5">
-                          {item.value}
-                        </p>
-                      </div>
+            {/* Chuỗi điểm danh */}
+            <div className="mt-6">
+              <Card
+                className="p-5 bg-linear-to-br from-emerald-50 to-green-50 border-emerald-200 border-2 hover:shadow-lg transition-all duration-300"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🔥</span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">
+                        Chuỗi điểm danh
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 mt-0.5">
+                        {attendanceStreak.currentStreak} buổi
+                      </p>
                     </div>
-                    <span
-                      className={`text-xs px-3 py-1.5 rounded-full bg-${item.tone}-100 text-${item.tone}-700 font-semibold`}
-                    >
-                      🔥 Streak
-                    </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-3">{item.sub}</p>
-                  <div className="mt-3 h-2.5 w-full rounded-full bg-white/80 overflow-hidden shadow-inner">
-                    <div
-                      className={`h-full bg-linear-to-r from-${item.tone}-400 to-${item.tone}-600 rounded-full transition-all duration-500`}
-                      style={{ width: `${item.bar}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-600 mt-3 bg-white/60 rounded-lg px-3 py-2">
-                    💡 {item.hint}
-                  </p>
-                </Card>
-              ))}
+                  <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+                    🔥 Streak
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Kỷ lục: {attendanceStreak.bestStreak} buổi • Tổng có mặt: {attendanceStreak.totalPresent}/{attendanceStreak.totalSessions} buổi
+                </p>
+                <div className="mt-3 h-2.5 w-full rounded-full bg-white/80 overflow-hidden shadow-inner">
+                  <div
+                    className="h-full bg-linear-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${attendanceStreak.bestStreak > 0 ? Math.min((attendanceStreak.currentStreak / attendanceStreak.bestStreak) * 100, 100) : 0}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-gray-600 mt-3 bg-white/60 rounded-lg px-3 py-2">
+                  💡 {attendanceStreak.currentStreak >= attendanceStreak.bestStreak && attendanceStreak.currentStreak > 0
+                    ? "Tuyệt vời! Bạn đang ở kỷ lục mới!"
+                    : attendanceStreak.currentStreak > 0
+                      ? `Giữ vững thêm ${attendanceStreak.bestStreak - attendanceStreak.currentStreak} buổi để phá kỷ lục!`
+                      : "Hãy đi học đều đặn để xây dựng chuỗi điểm danh!"}
+                </p>
+              </Card>
             </div>
 
-            {/* Badges Section cải tiến */}
-            <Card className="mt-6 p-6 bg-white border-0 shadow-lg">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🎖️</span>
-                  <div>
-                    <p className="font-bold text-gray-900 text-lg">
-                      Huy hiệu động viên
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Thu thập để giữ động lực học tập
-                    </p>
-                  </div>
-                </div>
-                <span className="text-xs text-blue-600 font-medium bg-blue-50 px-3 py-1.5 rounded-full">
-                  {badges.filter((b) => b.earned).length}/{badges.length} đã đạt
-                </span>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {badges.map((b) => (
-                  <div
-                    key={b.title}
-                    className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
-                      b.earned
-                        ? "border-emerald-200 bg-linear-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
-                        : "border-gray-100 bg-gray-50"
-                    }`}
-                  >
+            {/* Huy hiệu động viên */}
+            {(() => {
+              const dynamicBadges = [
+                {
+                  title: "Chăm chỉ",
+                  desc: "Điểm danh 5 buổi liên tục",
+                  earned: attendanceStreak.bestStreak >= 5,
+                  icon: "🏃",
+                },
+                {
+                  title: "Kiên trì",
+                  desc: "Điểm danh 10 buổi liên tục",
+                  earned: attendanceStreak.bestStreak >= 10,
+                  icon: "💪",
+                },
+                {
+                  title: "Siêu sao",
+                  desc: "Điểm danh 20 buổi liên tục",
+                  earned: attendanceStreak.bestStreak >= 20,
+                  icon: "⭐",
+                },
+                {
+                  title: "Điểm cao",
+                  desc: "Điểm TB ≥ 8.0",
+                  earned: averageScore >= 8,
+                  icon: "🎯",
+                },
+                {
+                  title: "Chuyên cần",
+                  desc: "Tỷ lệ có mặt ≥ 90%",
+                  earned: attendanceStreak.totalSessions > 0 && (attendanceStreak.totalPresent / attendanceStreak.totalSessions) * 100 >= 90,
+                  icon: "🏆",
+                },
+                {
+                  title: "Hoàn hảo",
+                  desc: "100% điểm danh",
+                  earned: attendanceStreak.totalSessions > 0 && attendanceStreak.totalPresent === attendanceStreak.totalSessions,
+                  icon: "👑",
+                },
+              ];
+              return (
+                <Card className="mt-6 p-6 bg-white border-0 shadow-lg">
+                  <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`text-3xl ${
-                          b.earned ? "" : "grayscale opacity-50"
-                        }`}
-                      >
-                        {b.icon}
-                      </span>
+                      <span className="text-2xl">🎖️</span>
                       <div>
-                        <p
-                          className={`font-bold ${
-                            b.earned ? "text-emerald-700" : "text-gray-500"
-                          }`}
-                        >
-                          {b.title}
+                        <p className="font-bold text-gray-900 text-lg">
+                          Huy hiệu động viên
                         </p>
-                        <p className="text-xs text-gray-500">{b.desc}</p>
+                        <p className="text-xs text-gray-500">
+                          Thu thập để giữ động lực học tập
+                        </p>
                       </div>
                     </div>
-                    {b.earned ? (
-                      <span className="inline-flex mt-3 text-xs px-3 py-1.5 rounded-full bg-emerald-600 text-white font-semibold shadow-sm">
-                        ✓ Đã đạt
-                      </span>
-                    ) : (
-                      <span className="inline-flex mt-3 text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-600 font-medium">
-                        Chưa đạt
-                      </span>
-                    )}
+                    <span className="text-xs text-blue-600 font-medium bg-blue-50 px-3 py-1.5 rounded-full">
+                      {dynamicBadges.filter((b) => b.earned).length}/{dynamicBadges.length} đã đạt
+                    </span>
                   </div>
-                ))}
-              </div>
-            </Card>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {dynamicBadges.map((b) => (
+                      <div
+                        key={b.title}
+                        className={`rounded-2xl border-2 px-5 py-4 transition-all duration-300 hover:scale-[1.02] ${
+                          b.earned
+                            ? "border-emerald-200 bg-linear-to-br from-emerald-50 to-green-50 shadow-md shadow-emerald-100"
+                            : "border-gray-100 bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`text-3xl ${
+                              b.earned ? "" : "grayscale opacity-50"
+                            }`}
+                          >
+                            {b.icon}
+                          </span>
+                          <div>
+                            <p
+                              className={`font-bold ${
+                                b.earned ? "text-emerald-700" : "text-gray-500"
+                              }`}
+                            >
+                              {b.title}
+                            </p>
+                            <p className="text-xs text-gray-500">{b.desc}</p>
+                          </div>
+                        </div>
+                        {b.earned ? (
+                          <span className="inline-flex mt-3 text-xs px-3 py-1.5 rounded-full bg-emerald-600 text-white font-semibold shadow-sm">
+                            ✓ Đã đạt
+                          </span>
+                        ) : (
+                          <span className="inline-flex mt-3 text-xs px-3 py-1.5 rounded-full bg-gray-200 text-gray-600 font-medium">
+                            Chưa đạt
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
@@ -2209,7 +2214,7 @@ export default function StudentDashboard({
                                     : slot.attendanceStatus === "absent"
                                       ? "bg-red-100 text-red-700 border border-red-200"
                                       : slot.attendanceStatus === "late"
-                                        ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                        ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
                                         : slot.attendanceStatus === "excused"
                                           ? "bg-blue-100 text-blue-700 border border-blue-200"
                                           : "bg-gray-100 text-gray-600"
@@ -2218,25 +2223,21 @@ export default function StudentDashboard({
                                 {slot.attendanceStatus === "present" &&
                                   "✅ Có mặt"}
                                 {slot.attendanceStatus === "absent" &&
-                                  "❌ Nghỉ học"}
+                                  "❌ Vắng"}
                                 {slot.attendanceStatus === "late" &&
-                                  "⏰ Đi muộn"}
+                                  "✅ Có mặt (muộn)"}
                                 {slot.attendanceStatus === "excused" &&
                                   "📝 Nghỉ phép"}
                               </div>
-                            ) : (isPast || isToday) && slot.code ? (
-                              <div className="w-full text-xs rounded-xl py-2 px-3 font-medium bg-gray-100 text-gray-500 border border-gray-200">
-                                ⏳ Chưa điểm danh
+                            ) : isPast && slot.code ? (
+                              <div className="w-full text-xs rounded-xl py-2 px-3 font-medium bg-red-100 text-red-700 border border-red-200">
+                                ❌ Vắng
                               </div>
-                            ) : (
-                              <Button
-                                className={`w-full text-xs rounded-xl ${style.className}`}
-                                variant="solid"
-                              >
-                                {slot.status === "confirmed" ? "✓ " : ""}
-                                {style.label}
-                              </Button>
-                            )}
+                            ) : slot.code ? (
+                              <div className="w-full text-xs rounded-xl py-2 px-3 font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                                ⏳ Chưa xác nhận
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       ) : (

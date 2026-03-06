@@ -72,6 +72,11 @@ export class AttendanceController {
     return this.attendanceService.getStatistics(studentId);
   }
 
+  @Get('streak')
+  getStreak(@Query('studentId') studentId: string) {
+    return this.attendanceService.getStreak(studentId);
+  }
+
   @Patch(':id')
   @Roles(UserRole.Admin, UserRole.Teacher)
   update(@Param('id') id: string, @Body() dto: UpdateAttendanceDto) {

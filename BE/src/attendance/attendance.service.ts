@@ -172,4 +172,71 @@ export class AttendanceService {
 
     return { present, absent, late, total, rate };
   }
+
+  // Get attendance streak for a student
+  async getStreak(studentId: string) {
+    const records = await this.model
+      .find({ studentId: new Types.ObjectId(studentId) })
+      .populate('sessionId', 'startTime')
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (records.length === 0) {
+      return { currentStreak: 0, bestStreak: 0, totalPresent: 0, totalSessions: 0 };
+    }
+
+    // Get unique session dates sorted descending
+    const sessionDates: string[] = [];
+    const statusByDate: Record<string, string> = {};
+
+    for (const r of records) {
+      const session = r.sessionId as any;
+      const dateStr = session?.startTime
+        ? new Date(session.startTime).toISOString().split('T')[0]
+        : new Date(r.createdAt).toISOString().split('T')[0];
+
+      if (!statusByDate[dateStr]) {
+        statusByDate[dateStr] = r.status;
+        sessionDates.push(dateStr);
+      }
+    }
+
+    // Sort dates descending (most recent first)
+    sessionDates.sort((a, b) => b.localeCompare(a));
+
+    // Calculate current streak (consecutive present days from most recent)
+    let currentStreak = 0;
+    for (const date of sessionDates) {
+      if (statusByDate[date] === 'present' || statusByDate[date] === 'late') {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+
+    // Calculate best streak
+    let bestStreak = 0;
+    let tempStreak = 0;
+    // Sort ascending for best streak calculation
+    const sortedAsc = [...sessionDates].sort((a, b) => a.localeCompare(b));
+    for (const date of sortedAsc) {
+      if (statusByDate[date] === 'present' || statusByDate[date] === 'late') {
+        tempStreak++;
+        bestStreak = Math.max(bestStreak, tempStreak);
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    const totalPresent = records.filter(
+      (r) => r.status === 'present' || r.status === 'late',
+    ).length;
+
+    return {
+      currentStreak,
+      bestStreak,
+      totalPresent,
+      totalSessions: records.length,
+    };
+  }
 }
