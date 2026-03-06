@@ -409,14 +409,6 @@ export class PaymentsService {
       .sort({ createdAt: -1 });
   }
 
-  async findById(id: string): Promise<Payment> {
-    const payment = await this.paymentModel.findById(id);
-    if (!payment) {
-      throw new NotFoundException('Không tìm thấy giao dịch');
-    }
-    return payment;
-  }
-
   async getAllPayments(): Promise<Payment[]> {
     return this.paymentModel
       .find()
